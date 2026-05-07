@@ -1,10 +1,10 @@
-# PMAgent — 产品需求文档 (v1.1)
+# Issuer — 产品需求文档 (v1.1)
 
 ## 文档信息
 
 | 字段 | 值 |
 |------|-----|
-| 产品名称 | PMAgent |
+| 产品名称 | Issuer |
 | 版本 | 1.1 |
 | 最后更新 | 2026-05-06 |
 | 目标用户 | 编程 Agent（Claude Code、OpenCode、Gemini CLI、Codex CLI 等）及其使用者 |
@@ -25,7 +25,7 @@
 
 ### 1.2 产品定位
 
-PMAgent 是一个**本地运行的中介服务**，位于编程 Agent 与项目管理平台之间。它：
+Issuer 是一个**本地运行的中介服务**，位于编程 Agent 与项目管理平台之间。它：
 
 - 接收 Agent 传来的自然语言或结构化输入。
 - 利用 AI 能力对输入进行理解、完善、结构化拆解。
@@ -49,9 +49,9 @@ PMAgent 是一个**本地运行的中介服务**，位于编程 Agent 与项目�
 
 ### 2.1 主要用户：编程 Agent
 
-Agent 通过 MCP Tools 或 CLI 命令调用 PMAgent。
+Agent 通过 MCP Tools 或 CLI 命令调用 Issuer。
 
-| 场景 | Agent 行为 | PMAgent 职责 |
+| 场景 | Agent 行为 | Issuer 职责 |
 |------|------------|--------------|
 | 用户提出新需求 | Agent 调用 `create`，传入对话文本 | AI 完善为 Story，推送到平台，返回 Issue Key |
 | 开发中遇到缺陷 | Agent 调用 `create`，附上错误日志 | AI 生成缺陷报告（重现步骤、环境），推送 Bug |
@@ -62,14 +62,14 @@ Agent 通过 MCP Tools 或 CLI 命令调用 PMAgent。
 
 ### 2.2 次要用户：人类开发者
 
-- 通过 Agent 间接使用 PMAgent，也可直接使用 CLI 工具手工管理工作项。
-- 配置 PMAgent（设置目标平台、API 认证、项目映射、AI 模型偏好、同步策略）。
+- 通过 Agent 间接使用 Issuer，也可直接使用 CLI 工具手工管理工作项。
+- 配置 Issuer（设置目标平台、API 认证、项目映射、AI 模型偏好、同步策略）。
 
 ### 2.3 第三方适配器开发者
 
-- 为 PMAgent 开发新平台的适配器（如 Trello、ClickUp、Azure DevOps）。
-- 遵循 PMAgent 公开的适配器接口规范。
-- 适配器通过 **stdio** 或 **本地 HTTP** 与 PMAgent 核心通信——不支持进程内加载。
+- 为 Issuer 开发新平台的适配器（如 Trello、ClickUp、Azure DevOps）。
+- 遵循 Issuer 公开的适配器接口规范。
+- 适配器通过 **stdio** 或 **本地 HTTP** 与 Issuer 核心通信——不支持进程内加载。
 
 ---
 
@@ -173,12 +173,12 @@ projects:
 
 #### 3.4.1 适配器通信协议
 
-**所有适配器**（内置和第三方）均通过以下两种机制之一与 PMAgent 核心通信：
+**所有适配器**（内置和第三方）均通过以下两种机制之一与 Issuer 核心通信：
 
 | 协议 | 说明 | 适用场景 |
 |------|------|----------|
-| **stdio** | PMAgent 将适配器作为子进程启动；通过 stdin/stdout 传输 JSON 消息 | 轻量级适配器，任意语言实现 |
-| **本地 HTTP** | 适配器作为独立本地服务运行；PMAgent 通过 localhost HTTP 调用 | 长期运行的适配器，需共享状态 |
+| **stdio** | Issuer 将适配器作为子进程启动；通过 stdin/stdout 传输 JSON 消息 | 轻量级适配器，任意语言实现 |
+| **本地 HTTP** | 适配器作为独立本地服务运行；Issuer 通过 localhost HTTP 调用 | 长期运行的适配器，需共享状态 |
 
 不支持进程内/动态库加载。这确保了：
 - 适配器开发语言无关。
@@ -202,7 +202,7 @@ projects:
 #### 3.4.3 平台元数据自动发现
 
 适配器从平台获取元数据（可用工作项类型、字段定义、状态流转图），用于：
-- 帮助用户在 `pmagent init` 时配置字段映射。
+- 帮助用户在 `issuer init` 时配置字段映射。
 - 推送前验证工作项格式。
 - 展示可用状态用于流转操作。
 
@@ -229,7 +229,7 @@ projects:
 | **Branch 名称** | 匹配分支模式的字符串（如 `feature/xxx`） | 将分支关联到工作项 |
 | **混合 URL** | 完整的 GitHub/GitLab URL | 自动解析并分类 |
 
-Agent 只需传递任意引用；PMAgent 负责分类并执行平台特定的关联操作。
+Agent 只需传递任意引用；Issuer 负责分类并执行平台特定的关联操作。
 
 ### 3.6 双向同步与冲突解决
 
@@ -271,7 +271,7 @@ projects:
 
 ### 3.7 本地存储与状态管理
 
-PMAgent 维护本地 SQLite 数据库，包含：
+Issuer 维护本地 SQLite 数据库，包含：
 
 | 表/存储 | 用途 |
 |---------|------|
@@ -330,7 +330,7 @@ ai:
 
 #### 3.9.1 MCP 协议接口（推荐用于 Claude Code / OpenCode）
 
-PMAgent 作为 MCP Server 运行，暴露以下 Tools：
+Issuer 作为 MCP Server 运行，暴露以下 Tools：
 
 | Tool | 参数 | 返回值 |
 |------|------|--------|
@@ -345,19 +345,19 @@ PMAgent 作为 MCP Server 运行，暴露以下 Tools：
 #### 3.9.2 命令行接口（通用）
 
 ```
-pmagent init                                          # 交互式配置向导
-pmagent create --type <story|task|bug> --text <...>  # 创建工作项
+issuer init                                          # 交互式配置向导
+issuer create --type <story|task|bug> --text <...>  # 创建工作项
         [--project <name>] [--parent <id>] [--no-ai]
-pmagent list [--status <pending|done|all>]            # 列出工作项
+issuer list [--status <pending|done|all>]            # 列出工作项
         [--type <story|task|bug>] [--project <name>]
-pmagent update --id <id> --status <new_status>        # 更新工作项
+issuer update --id <id> --status <new_status>        # 更新工作项
         [--fields <json>]
-pmagent link --work-item <id> --code-ref <ref>        # 关联代码引用
-pmagent sync [--project <name>] [--direction <push|pull|both>]  # 双向同步
-pmagent status [--id <id>]                            # 查看同步状态
-pmagent adapter install <package_source>              # 安装适配器
-pmagent adapter list                                  # 列出已安装适配器
-pmagent adapter remove <name>                         # 移除适配器
+issuer link --work-item <id> --code-ref <ref>        # 关联代码引用
+issuer sync [--project <name>] [--direction <push|pull|both>]  # 双向同步
+issuer status [--id <id>]                            # 查看同步状态
+issuer adapter install <package_source>              # 安装适配器
+issuer adapter list                                  # 列出已安装适配器
+issuer adapter remove <name>                         # 移除适配器
 ```
 
 所有命令默认输出 JSON（供 Agent 消费），可通过 `--human` 标志获取格式化输出。
@@ -367,8 +367,8 @@ pmagent adapter remove <name>                         # 移除适配器
 - 适配器为独立可执行程序或服务（任意语言）。
 - 通过 stdio（推荐）或本地 HTTP 与核心通信。
 - 必须实现完整的适配器接口契约（§3.4.2）。
-- 安装方式：`pmagent adapter install <git-url | local-path | registry-name>`。
-- 适配器清单文件（`pmagent-adapter.json`）：
+- 安装方式：`issuer adapter install <git-url | local-path | registry-name>`。
+- 适配器清单文件（`issuer-adapter.json`）：
 
 ```json
 {
@@ -378,7 +378,7 @@ pmagent adapter remove <name>                         # 移除适配器
   "executable": "./trello-adapter",
   "platforms": ["windows", "macos", "linux"],
   "author": "community",
-  "description": "PMAgent 的 Trello 看板适配器"
+  "description": "Issuer 的 Trello 看板适配器"
 }
 ```
 
@@ -400,7 +400,7 @@ pmagent adapter remove <name>                         # 移除适配器
 
 ```
 +----------------+      +------------------------------------+
-|  编程 Agent    |      |           PMAgent 核心              |
+|  编程 Agent    |      |           Issuer 核心              |
 | (Claude Code等) | <--> | +--------------------------------+ |
 +----------------+      | |    集成接口层                    | |
                         | | - MCP Server                    | |
@@ -489,7 +489,7 @@ Agent                   接口层          AI模块         存储            �
 
 ### 4.5 扩展性设计
 
-- **新增平台**：仅需开发新适配器（实现接口契约），无需改动 PMAgent 核心。
+- **新增平台**：仅需开发新适配器（实现接口契约），无需改动 Issuer 核心。
 - **新增 AI 能力**：AI 模块设计为可插拔处理器（需求完善器、任务拆解器、测试用例生成器），通过配置启用/禁用。
 - **新增集成方式**：未来可增加 WebSocket 或 HTTP REST API，适应更多 Agent。
 
@@ -527,8 +527,8 @@ Agent                   接口层          AI模块         存储            �
 
 ### 5.4 易用性要求
 
-- 提供交互式配置向导（`pmagent init`），引导用户完成首次项目配置。
-- 错误信息明确提示原因（如"认证失败：Token 已过期。请运行 `pmagent init` 更新凭证。"）。
+- 提供交互式配置向导（`issuer init`），引导用户完成首次项目配置。
+- 错误信息明确提示原因（如"认证失败：Token 已过期。请运行 `issuer init` 更新凭证。"）。
 - `--verbose` 标志提供详细调试输出。
 - 提供完整文档：适配器开发指南、Agent 集成示例、配置参考。
 
@@ -548,7 +548,7 @@ Agent                   接口层          AI模块         存储            �
 | 双向同步 | 推送：完整支持；拉取：只读拉取 + 本地 diff；冲突：默认 `prompt` 策略（完整冲突自动解决延至阶段二） |
 | 代码关联 | 自动识别 PR/MR、Commit、Branch 引用 |
 | 内置适配器 | **GitHub Issues**（stdio 协议）— 最高优先级 |
-| 配置管理 | 交互式 `pmagent init` 向导；YAML 配置文件 |
+| 配置管理 | 交互式 `issuer init` 向导；YAML 配置文件 |
 
 ### 阶段二：增强集成
 
@@ -566,7 +566,7 @@ Agent                   接口层          AI模块         存储            �
 | 功能 | 范围 |
 |------|------|
 | 适配器 SDK 与文档 | 发布接口规范、示例适配器模板 |
-| 动态适配器加载 | `pmagent adapter install` 支持从 git/registry 安装 |
+| 动态适配器加载 | `issuer adapter install` 支持从 git/registry 安装 |
 | Jira 适配器 | Jira Software / Work Management — P2 优先级 |
 | 第三方适配器支持 | 社区贡献的其他平台适配器 |
 | Web 仪表板（可选） | 查看同步状态、可视化解决冲突 |
@@ -640,7 +640,7 @@ Agent                   接口层          AI模块         存储            �
 | 术语 | 定义 |
 |------|------|
 | **Agent** | AI 驱动的编程助手（Claude Code、OpenCode 等） |
-| **适配器（Adapter）** | 独立进程，负责在 PMAgent 统一模型与特定平台 API 之间转换 |
+| **适配器（Adapter）** | 独立进程，负责在 Issuer 统一模型与特定平台 API 之间转换 |
 | **工作项（Work Item）** | 可跟踪单元的统称（Epic、Story、Task、Bug） |
 | **MCP** | Model Context Protocol — AI 工具集成标准协议 |
 | **内容哈希（Content Hash）** | 工作项有意义字段的 SHA-256 哈希，用于变更检测 |
@@ -654,7 +654,7 @@ Agent                   接口层          AI模块         存储            �
 ### 消息格式
 
 ```json
-// 请求（PMAgent → 适配器，通过 stdin）
+// 请求（Issuer → 适配器，通过 stdin）
 {
   "id": "req-001",
   "method": "create_item",
@@ -666,7 +666,7 @@ Agent                   接口层          AI模块         存储            �
   }
 }
 
-// 成功响应（适配器 → PMAgent，通过 stdout）
+// 成功响应（适配器 → Issuer，通过 stdout）
 {
   "id": "req-001",
   "result": {
@@ -687,11 +687,11 @@ Agent                   接口层          AI模块         存储            �
 
 ### 适配器生命周期
 
-1. PMAgent 启动适配器进程。
+1. Issuer 启动适配器进程。
 2. 发送 `initialize` 消息，包含连接配置。
 3. 适配器响应其能力声明和元数据。
-4. PMAgent 发送工作请求；适配器响应结果。
-5. PMAgent 发送 `shutdown`；适配器优雅退出。
+4. Issuer 发送工作请求；适配器响应结果。
+5. Issuer 发送 `shutdown`；适配器优雅退出。
 
 ---
 
