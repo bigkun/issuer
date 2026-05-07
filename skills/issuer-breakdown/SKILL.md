@@ -44,11 +44,18 @@ platform_id: null
 platform_url: null
 priority: critical | high | medium | low
 labels: [<from config.default_labels>]
-created_at: <now ISO 8601>
-updated_at: <now ISO 8601>
+created_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
+updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 ---
 <Markdown body: copy of the relevant section of the brief, including Problem / Goal / Acceptance criteria>
 ```
+
+### Timestamp rules
+
+- `created_at` and `updated_at` MUST be full ISO 8601 date-time strings including hours, minutes, and seconds, in UTC (trailing `Z`), e.g. `2026-05-07T14:32:05Z`.
+- Do NOT collapse the time portion to `T00:00:00Z`; always use the actual current wall-clock time.
+- Obtain the current time from the system clock at the moment the file is written; do not copy a placeholder.
+- On first creation, `created_at` and `updated_at` are equal. On subsequent edits, only `updated_at` advances.
 
 ## Slug rules
 
