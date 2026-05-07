@@ -197,6 +197,41 @@ Additional relevant tools:
 | Type discovery | ✓ `list_issue_types` | ✓ `get_work_item_types` |
 | Label management | ✓ `get_label` / `list_label` | ✗ (no label concept) |
 
+#### GitLab (`gitlab-org/gitlab` remote MCP server)
+
+GitLab's official MCP server is built into the GitLab instance (GitLab 18.6+, Beta). It uses OAuth 2.0 and supports HTTP transport. The tool set is growing but currently limited for Issuer sync:
+
+| Capability | Tool | Key Parameters |
+|---|---|---|
+| `create` | `create_issue` | `id` (project path/ID), `title`, `description`, `labels`, `assignee_ids`, `milestone_id`, `epic_id` |
+| `update` | ✗ | Not available yet — CLI fallback required |
+| `search` | `search` (scope=`issues`) | `scope`, `search`, `project_id`, `state`, `fields` |
+| `read` | `get_issue` | `id` (project), `issue_iid` |
+| `comment` | `create_workitem_note` | `body`, `project_id`/`url`, `work_item_iid` |
+
+Additional relevant tools:
+
+| Tool | Purpose | Issuer relevance |
+|---|---|---|
+| `create_merge_request` | Create MRs | Future: auto-create MR after sync |
+| `get_merge_request` | Read MR details | Future: MR status tracking |
+| `search` (scope=`projects`) | Project lookup | Project ID discovery during init |
+| `get_workitem_notes` | Read comments on work items | Read existing comments |
+| `manage_pipeline` | CI/CD pipeline operations | Future: pipeline integration |
+
+#### Capability summary comparison (3 platforms)
+
+| Capability | GitHub MCP | GitLab MCP | Yunxiao MCP |
+|---|---|---|---|
+| `create` | ✓ | ✓ | ✓ |
+| `update` | ✓ | ✗ (CLI fallback) | ✗ (CLI fallback) |
+| `search` | ✓ | ✓ | ✓ |
+| `read` | ✓ | ✓ | ✓ |
+| `comment` | ✓ | ✓ | ✗ (CLI fallback) |
+| Sub-item support | ✓ | ✗ | ✗ |
+| Type discovery | ✓ | ✗ | ✓ |
+| Label management | ✓ | ✓ (via create_issue) | ✗ |
+
 2. **Live probing** — during `issuer init`, the CLI calls the MCP server's `list_tools` endpoint and compares the returned tool list against the five capability groups. The result overrides the registry baseline and is written to `.issuer/config.yml`:
 
 ```yaml

@@ -33,6 +33,7 @@ export async function runInit(opts: InitOptions): Promise<{ configPath: string }
         message: 'Select platform',
         choices: [
           { name: 'GitHub Issues', value: 'github' },
+          { name: 'GitLab Issues', value: 'gitlab' },
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
         ],
       });
@@ -44,6 +45,10 @@ export async function runInit(opts: InitOptions): Promise<{ configPath: string }
     if (platform === 'yunxiao') {
       if (!owner) owner = await input({ message: '云效组织 ID (organizationId)' });
       if (!repo) repo = await input({ message: '云效项目 ID (spaceIdentifierId)' });
+    }
+    if (platform === 'gitlab') {
+      if (!owner) owner = await input({ message: 'GitLab group or namespace' });
+      if (!repo) repo = await input({ message: 'GitLab project name or ID' });
     }
   }
 

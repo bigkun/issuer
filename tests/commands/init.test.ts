@@ -32,6 +32,19 @@ describe('runInit', () => {
     expect(caps.comment).toBe(true);
   });
 
+  it('writes mcp_capabilities for gitlab with update=false and comment=true', async () => {
+    await runInit({ cwd, platform: 'gitlab', owner: 'myorg', repo: 'myproject', nonInteractive: true });
+    const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
+    const mc = raw.mcp_capabilities as Record<string, unknown>;
+    expect(mc).toBeDefined();
+    expect(mc.channel).toBe('mcp');
+    const caps = mc.capabilities as Record<string, boolean>;
+    expect(caps.create).toBe(true);
+    expect(caps.update).toBe(false);
+    expect(caps.comment).toBe(true);
+    expect(caps.search).toBe(true);
+  });
+
   it('writes mcp_capabilities for yunxiao with update=false and comment=false', async () => {
     await runInit({ cwd, platform: 'yunxiao', owner: 'org123', repo: 'proj456', nonInteractive: true });
     const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;

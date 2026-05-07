@@ -73,6 +73,28 @@ export const ADAPTER_REGISTRY: ReadonlyArray<AdapterRegistryEntry> = [
     ],
   },
   {
+    platform: 'gitlab',
+    mcpPackage: 'gitlab-org/gitlab (remote MCP server)',
+    capabilities: {
+      create: 'create_issue',
+      update: null, // GitLab MCP currently lacks update_issue tool
+      search: 'search',     // scope=issues
+      read: 'get_issue',
+      comment: 'create_workitem_note',
+    },
+    extraTools: [
+      'get_mcp_server_version',
+      'create_merge_request',
+      'get_merge_request',
+      'get_merge_request_commits',
+      'get_merge_request_diffs',
+      'get_merge_request_pipelines',
+      'get_pipeline_jobs',
+      'manage_pipeline',
+      'get_workitem_notes',
+    ],
+  },
+  {
     platform: 'yunxiao',
     mcpPackage: 'alibabacloud-devops-mcp-server',
     capabilities: {

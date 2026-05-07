@@ -10,9 +10,10 @@ import {
 } from '../../src/adapter/registry.js';
 
 describe('ADAPTER_REGISTRY', () => {
-  it('contains github and yunxiao entries', () => {
+  it('contains github, gitlab and yunxiao entries', () => {
     const platforms = ADAPTER_REGISTRY.map((e: AdapterRegistryEntry) => e.platform);
     expect(platforms).toContain('github');
+    expect(platforms).toContain('gitlab');
     expect(platforms).toContain('yunxiao');
   });
 
@@ -37,6 +38,15 @@ describe('getRegistryEntry', () => {
     expect(entry!.capabilities.update).toBe('update_issue');
   });
 
+  it('returns gitlab entry', () => {
+    const entry = getRegistryEntry('gitlab');
+    expect(entry).toBeDefined();
+    expect(entry!.mcpPackage).toContain('gitlab');
+    expect(entry!.capabilities.create).toBe('create_issue');
+    expect(entry!.capabilities.update).toBeNull();
+    expect(entry!.capabilities.comment).toBe('create_workitem_note');
+  });
+
   it('returns yunxiao entry', () => {
     const entry = getRegistryEntry('yunxiao');
     expect(entry).toBeDefined();
@@ -47,7 +57,7 @@ describe('getRegistryEntry', () => {
   });
 
   it('returns undefined for unknown platform', () => {
-    expect(getRegistryEntry('gitlab')).toBeUndefined();
+    expect(getRegistryEntry('bitbucket')).toBeUndefined();
   });
 });
 
@@ -64,6 +74,19 @@ describe('capabilitiesFromRegistry', () => {
     expect(caps.tools).toContain('create_issue');
     expect(caps.tools).toContain('update_issue');
     expect(caps.probed_at).toBeTruthy();
+  });
+
+  it('derives partial capabilities for gitlab', () => {
+    const entry = getRegistryEntry('gitlab')!;
+    const caps = capabilitiesFromRegistry(entry);
+    expect(caps.channel).toBe('mcp');
+    expect(caps.capabilities.create).toBe(true);
+    expect(caps.capabilities.update).toBe(false);
+    expect(caps.capabilities.search).toBe(true);
+    expect(caps.capabilities.read).toBe(true);
+    expect(caps.capabilities.comment).toBe(true);
+    expect(caps.tools).toContain('create_issue');
+    expect(caps.tools).toContain('get_issue');
   });
 
   it('derives partial capabilities for yunxiao', () => {
@@ -99,6 +122,20 @@ describe('capabilitiesFromProbe', () => {
       comment: true,
     });
     expect(caps.tools).toHaveLength(6);
+  });
+
+  it('detects missing update for gitlab', () => {
+    const caps = capabilitiesFromProbe('gitlab', [
+      'create_issue',
+      'get_issue',
+      'search',
+      'create_workitem_note',
+      'create_merge_request',
+    ]);
+    expect(caps.channel).toBe('mcp');
+    expect(caps.capabilities.create).toBe(true);
+    expect(caps.capabilities.update).toBe(false);
+    expect(caps.capabilities.comment).toBe(true);
   });
 
   it('detects missing update for yunxiao', () => {
