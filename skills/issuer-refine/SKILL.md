@@ -5,9 +5,20 @@ description: Refine raw requirement / bug report / task text into a structured, 
 
 # issuer-refine
 
-Atomic skill. Take rough requirement text from the user and rewrite it as a structured PM brief. **No file writes, no network, no other skills.** This skill only produces text.
+Atomic skill. Take rough requirement text from the user and rewrite it as a structured PM brief. **No network, no other skills.** This skill only produces text and optionally writes a file.
 
 ## Inputs
+
+Two input modes:
+
+### Quick mode (preferred when arguments are provided)
+
+If the user invokes `/issuer-refine <text>` with a direct text argument (e.g. `我的app需要登录功能`):
+
+1. **Source** — the argument text itself; no further confirmation needed.
+2. **Output mode** — defaults to `new-file`; write the brief to `.issuer/briefs/<slug>.md`. The user may override with `--replace`.
+
+### Interactive mode (when no arguments are given)
 
 Ask the user to confirm:
 
@@ -52,6 +63,7 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 3. Fill each section above. Do not invent acceptance criteria the source does not support — leave them in `Open questions` instead.
 4. Render the brief.
 5. Apply the chosen output mode.
+6. If `new-file` mode: create `.issuer/briefs/` directory if missing, write `<slug>.md`, and report the file path to the user.
 
 ## Guardrails
 
