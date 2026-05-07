@@ -69,7 +69,7 @@ Each task file is YAML frontmatter + Markdown body. See [docs/plans/2026-05-06-i
 
 ## Status
 
-MVP. GitHub only. English-only output.
+MVP. GitHub only.
 
 ## License
 
