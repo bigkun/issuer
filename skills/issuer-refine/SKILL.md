@@ -34,7 +34,7 @@ If either is missing, ask once and stop. Do not guess.
 
 ## Output format
 
-Plain Markdown with these sections, in this order, in English:
+Plain Markdown with these sections, in this order. **Localize the section headings and the body into the user's interaction language** (e.g. render Chinese headings when the user speaks Chinese). The schema below is a structural reference, not a literal template:
 
 ```
 # <One-line title>
@@ -61,13 +61,22 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 1. Read the source text.
 2. Extract the latent intent. Ignore filler words and meta-commentary.
 3. Fill each section above. Do not invent acceptance criteria the source does not support — leave them in `Open questions` instead.
-4. Render the brief.
+4. Render the brief in the user's interaction language.
 5. Apply the chosen output mode.
-6. If `new-file` mode: create `.issuer/briefs/` directory if missing, write `<slug>.md`, and report the file path to the user.
+6. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
+
+## Slug rules
+
+- Slug MUST match the user's interaction language. For non-Latin languages (e.g. Chinese, Japanese), keep the original characters instead of transliterating.
+- Replace whitespace with `-`.
+- Strip characters that are illegal in file names on common filesystems: `/ \ : * ? " < > |` and control characters.
+- For English / Latin-script content, lowercase it.
+- Max 40 characters (count by code points, not bytes).
+- If a collision exists, append `-2`, `-3`, … until unique.
 
 ## Guardrails
 
-- Match the language of the source text by default; switch only when the user explicitly asks for another language.
+- **Match the user's interaction language in every output: the chat response, the rendered brief, and the generated file name (`<slug>`).** Only switch languages when the user explicitly asks.
 - **No code, no implementation suggestions.** This is a PM brief, not a design.
 - **Never split into multiple work items.** That is `issuer-breakdown`'s job.
 - **Never call any platform API or write `.issuer/tasks/*` files.** That is `issuer-sync` / `issuer-breakdown`'s job.

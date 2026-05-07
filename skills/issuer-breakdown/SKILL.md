@@ -52,9 +52,11 @@ updated_at: <now ISO 8601>
 
 ## Slug rules
 
-- Lowercase ASCII, hyphens for spaces.
-- Strip punctuation.
-- Max 40 chars.
+- Slug MUST match the user's interaction language. For non-Latin languages (e.g. Chinese, Japanese), keep the original characters instead of transliterating.
+- Replace whitespace with `-`.
+- Strip characters that are illegal in file names on common filesystems: `/ \ : * ? " < > |` and control characters.
+- For English / Latin-script content, lowercase it.
+- Max 40 characters (count by code points, not bytes).
 - If a collision exists in `.issuer/tasks/`, append `-2`, `-3`, … until unique.
 
 ## Steps
@@ -62,13 +64,13 @@ updated_at: <now ISO 8601>
 1. Parse the brief.
 2. Decide how many work items it contains. A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
 3. For each item: pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
-4. Compute slug, build frontmatter, write the file.
-5. Print a table of created files and remind the user that all are `status: draft` — they must edit `status: ready` on the ones they want pushed.
+4. Compute slug (see Slug rules), build frontmatter, write the file.
+5. Print a table of created files in the user's interaction language, and remind the user that all are `status: draft` — they must edit `status: ready` on the ones they want pushed.
 
 ## Guardrails
 
+- **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
 - **Never set `status: ready` automatically.** The draft → ready promotion is a manual user act.
 - **Never set `platform_id` or `platform_url`.** Sync owns those.
-- Preserve the language of the source brief in `title` and body; do not translate unless the user explicitly asks.
 - Do not invent labels beyond what `default_labels` provides; new labels should come from explicit user instruction.
