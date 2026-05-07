@@ -1,0 +1,40 @@
+{
+  "name": "@issuer/cli",
+  "version": "0.1.0",
+  "description": "Skill-driven PM gateway: structure requirements with agent skills, push to GitHub Issues via CLI.",
+  "type": "module",
+  "bin": {
+    "issuer": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "@octokit/rest": "^21.0.0",
+    "commander": "^12.1.0",
+    "gray-matter": "^4.0.3",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "keywords": ["pm", "github", "issues", "skill", "agent", "cli"],
+  "license": "MIT"
+}
