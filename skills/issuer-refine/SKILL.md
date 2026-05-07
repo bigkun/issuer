@@ -64,6 +64,7 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 4. Render the brief in the user's interaction language.
 5. Apply the chosen output mode.
 6. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
+7. If `new-file` mode: update `.issuer/index.md` per the **Index upkeep** section below.
 
 ## Slug rules
 
@@ -74,9 +75,40 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 - Max 40 characters (count by code points, not bytes).
 - If a collision exists, append `-2`, `-3`, … until unique.
 
+## Index upkeep (.issuer/index.md)
+
+`.issuer/index.md` is a project-wide outline of every brief and its tasks. Structure:
+
+```markdown
+# Issuer Index
+
+<!-- Auto-maintained by issuer-refine and issuer-breakdown. Structure: Topic → Brief → Tasks. Do not edit manually unless you know what you are doing. -->
+
+## <Topic / module>
+
+- **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)
+  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+```
+
+After writing a brief (only in `new-file` mode), update the index:
+
+1. If `.issuer/index.md` does not exist, create it with the header `# Issuer Index` and the HTML comment shown above.
+2. Search the index for an existing entry that matches this brief (same `<slug>` OR same title, case-insensitive). If found, do nothing further — do not duplicate, do not edit.
+3. Otherwise, choose a topic heading:
+   - If an existing `## <Topic>` heading fits (same domain/module), reuse it.
+   - Otherwise, infer a concise topic (1-3 words, same language as the brief) and add a new `## <Topic>` heading at the end of the file.
+   - When uncertain between two similar topics, ask the user once before creating a new one.
+4. Append the new brief entry as a bullet under the chosen topic:
+   `- **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)`
+5. Preserve every existing topic, brief, and task line untouched. Never reorder or remove entries.
+
+In `replace` mode, skip index upkeep.
+
 ## Guardrails
 
 - **Match the user's interaction language in every output: the chat response, the rendered brief, and the generated file name (`<slug>`).** Only switch languages when the user explicitly asks.
+- **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **No code, no implementation suggestions.** This is a PM brief, not a design.
 - **Never split into multiple work items.** That is `issuer-breakdown`'s job.
 - **Never call any platform API or write `.issuer/tasks/*` files.** That is `issuer-sync` / `issuer-breakdown`'s job.

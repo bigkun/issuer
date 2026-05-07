@@ -73,10 +73,37 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 3. For each item: pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
 4. Compute slug (see Slug rules), build frontmatter, write the file.
 5. Print a table of created files in the user's interaction language, and remind the user that all are `status: draft` — they must edit `status: ready` on the ones they want pushed.
+6. Update `.issuer/index.md` per the **Index upkeep** section below.
+
+## Index upkeep (.issuer/index.md)
+
+`.issuer/index.md` is a project-wide outline maintained jointly with `issuer-refine`. Structure: Topic → Brief → Tasks. Example:
+
+```markdown
+# Issuer Index
+
+## <Topic / module>
+
+- **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)
+  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+```
+
+After writing the task files, update the index:
+
+1. Ensure `.issuer/index.md` exists. If missing, create it with the header `# Issuer Index` and the auto-maintained comment.
+2. Locate the brief entry that these tasks belong to:
+   - **Input was a brief file path** (e.g. `.issuer/briefs/<slug>.md`): match the entry by that slug or title. If no match, append a brief entry under a suitable topic heading (same topic-selection logic as `issuer-refine`). Do NOT create a new brief file here — only the index row pointing at the given path.
+   - **Input was inline text** and no brief file was produced: derive a brief title from the text, pick a topic heading, and append a brief entry linked to `briefs/<slug>.md` if such a file exists, otherwise omit the link target and just record the title.
+3. Under that brief entry, append each newly created task as an indented sub-bullet (two spaces):
+   `  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->`
+4. Do not re-add a task line that already exists for the same `<id>`.
+5. Preserve every existing topic, brief, and task line untouched. Never reorder or remove entries.
 
 ## Guardrails
 
 - **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
+- **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
 - **Never set `status: ready` automatically.** The draft → ready promotion is a manual user act.
 - **Never set `platform_id` or `platform_url`.** Sync owns those.
