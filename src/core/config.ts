@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { parse as yamlParse } from 'yaml';
+import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 import { ConfigError } from './errors.js';
 import type { McpCapabilities } from '../adapter/registry.js';
 
@@ -62,24 +62,186 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
 
 export interface TokenResolveOptions {
   env?: NodeJS.ProcessEnv;
+  /** Project root — used to look up `.issuer/credentials.yml` at project level. */
+  projectRoot?: string;
+  /** Override path for the global credentials file (defaults to `~/.issuer/credentials.yml`). */
   credentialsFile?: string;
 }
 
-export function resolveGitHubToken(opts: TokenResolveOptions = {}): string {
+// ---------------------------------------------------------------------------
+// Platform → token key mapping
+// ---------------------------------------------------------------------------
+
+const PLATFORM_TOKEN_KEYS: Record<string, {
+  envPrimary: string;
+  envFallback: string;
+  credentialsKey: string;
+}> = {
+  github:  { envPrimary: 'ISSUER_GITHUB_TOKEN',  envFallback: 'GITHUB_TOKEN',  credentialsKey: 'github_token' },
+  gitlab:  { envPrimary: 'ISSUER_GITLAB_TOKEN',  envFallback: 'GITLAB_TOKEN',  credentialsKey: 'gitlab_token' },
+  yunxiao: { envPrimary: 'ISSUER_YUNXIAO_TOKEN', envFallback: 'YUNXIAO_TOKEN', credentialsKey: 'yunxiao_token' },
+};
+
+function readTokenFromCredentialsFile(filePath: string, key: string): string | null {
+  if (!existsSync(filePath)) return null;
+  try {
+    const data = yamlParse(readFileSync(filePath, 'utf8')) as Record<string, unknown> | null;
+    const token = data?.[key];
+    if (typeof token === 'string' && token) return token;
+  } catch {
+    // ignore parse errors — fall through to next source
+  }
+  return null;
+}
+
+/**
+ * Resolve a platform token with 4-level priority:
+ * 1. `ISSUER_<PLATFORM>_TOKEN` env var
+ * 2. `<PLATFORM>_TOKEN` env var
+ * 3. Project-level `.issuer/credentials.yml`
+ * 4. Global `~/.issuer/credentials.yml`
+ */
+export function resolveToken(platform: string, opts: TokenResolveOptions = {}): string {
   const env = opts.env ?? process.env;
-  if (env.ISSUER_GITHUB_TOKEN) return env.ISSUER_GITHUB_TOKEN;
-  if (env.GITHUB_TOKEN) return env.GITHUB_TOKEN;
-  const credPath = opts.credentialsFile ?? join(homedir(), '.issuer', 'credentials.yml');
-  if (existsSync(credPath)) {
+  const keys = PLATFORM_TOKEN_KEYS[platform];
+  if (!keys) {
+    throw new ConfigError(`Unknown platform: ${platform}. Cannot resolve token.`);
+  }
+
+  // 1. Primary environment variable
+  if (env[keys.envPrimary]) return env[keys.envPrimary] as string;
+  // 2. Fallback environment variable
+  if (env[keys.envFallback]) return env[keys.envFallback] as string;
+
+  // 3. Project-level credentials file (.issuer/credentials.yml)
+  if (opts.projectRoot) {
+    const projectCredPath = join(opts.projectRoot, '.issuer', 'credentials.yml');
+    const token = readTokenFromCredentialsFile(projectCredPath, keys.credentialsKey);
+    if (token) return token;
+  }
+
+  // 4. Global credentials file (~/.issuer/credentials.yml)
+  const globalCredPath = opts.credentialsFile ?? join(homedir(), '.issuer', 'credentials.yml');
+  const token = readTokenFromCredentialsFile(globalCredPath, keys.credentialsKey);
+  if (token) return token;
+
+  throw new ConfigError(
+    `No ${platform} token found. Set ${keys.envPrimary}, ${keys.envFallback}, ` +
+    `or write ${keys.credentialsKey}: <token> to .issuer/credentials.yml (project) or ~/.issuer/credentials.yml (global)`,
+  );
+}
+
+/**
+ * @deprecated Use `resolveToken('github', opts)` instead.
+ */
+export function resolveGitHubToken(opts: TokenResolveOptions = {}): string {
+  return resolveToken('github', opts);
+}
+
+// ---------------------------------------------------------------------------
+// Token helpers: has / write / validate
+// ---------------------------------------------------------------------------
+
+/** Check whether a token exists for the given platform (without throwing). */
+export function hasPlatformToken(platform: string, opts: TokenResolveOptions = {}): boolean {
+  try {
+    resolveToken(platform, opts);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Return the token source description for display, or null if none found. */
+export function findTokenSource(platform: string, opts: TokenResolveOptions = {}): { token: string; source: string } | null {
+  const env = opts.env ?? process.env;
+  const keys = PLATFORM_TOKEN_KEYS[platform];
+  if (!keys) return null;
+
+  if (env[keys.envPrimary]) return { token: env[keys.envPrimary] as string, source: keys.envPrimary };
+  if (env[keys.envFallback]) return { token: env[keys.envFallback] as string, source: keys.envFallback };
+
+  if (opts.projectRoot) {
+    const projectCredPath = join(opts.projectRoot, '.issuer', 'credentials.yml');
+    const token = readTokenFromCredentialsFile(projectCredPath, keys.credentialsKey);
+    if (token) return { token, source: projectCredPath };
+  }
+
+  const globalCredPath = opts.credentialsFile ?? join(homedir(), '.issuer', 'credentials.yml');
+  const token = readTokenFromCredentialsFile(globalCredPath, keys.credentialsKey);
+  if (token) return { token, source: globalCredPath };
+
+  return null;
+}
+
+/** Write a platform token to a credentials file (creates if needed). */
+export function writeCredentialsFile(filePath: string, platform: string, token: string): void {
+  const keys = PLATFORM_TOKEN_KEYS[platform];
+  if (!keys) throw new ConfigError(`Unknown platform: ${platform}`);
+
+  let existing: Record<string, unknown> = {};
+  if (existsSync(filePath)) {
     try {
-      const data = yamlParse(readFileSync(credPath, 'utf8')) as Record<string, unknown> | null;
-      const token = data?.github_token;
-      if (typeof token === 'string' && token) return token;
-    } catch (e) {
-      throw new ConfigError(`Failed to parse ${credPath}`, e);
+      const parsed = yamlParse(readFileSync(filePath, 'utf8'));
+      if (parsed && typeof parsed === 'object') existing = parsed as Record<string, unknown>;
+    } catch {
+      // overwrite on parse error
     }
   }
-  throw new ConfigError(
-    'No GitHub token found. Set ISSUER_GITHUB_TOKEN, GITHUB_TOKEN, or write github_token: <token> to ~/.issuer/credentials.yml',
-  );
+
+  existing[keys.credentialsKey] = token;
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, yamlStringify(existing), 'utf8');
+}
+
+/**
+ * Validate a token by querying the issue list endpoint.
+ * Uses repo-scoped APIs instead of /user, because fine-grained tokens
+ * may not have user-level read permission but do have repo issue access.
+ * Returns `{ valid: true }` on success or `{ valid: false, error }` on failure.
+ */
+export async function validateToken(
+  platform: string,
+  token: string,
+  opts?: { owner?: string; repo?: string; host?: string; fetch?: typeof globalThis.fetch },
+): Promise<{ valid: true } | { valid: false; error: string }> {
+  const httpFetch = opts?.fetch ?? globalThis.fetch;
+  const owner = opts?.owner ?? '';
+  const repo = opts?.repo ?? '';
+  try {
+    switch (platform) {
+      case 'github': {
+        if (!owner || !repo) return { valid: false, error: 'owner and repo are required to validate GitHub token' };
+        const res = await httpFetch(`https://api.github.com/repos/${owner}/${repo}/issues?per_page=1`, {
+          headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'issuer-cli' },
+        });
+        if (!res.ok) return { valid: false, error: `GitHub API ${res.status}` };
+        return { valid: true };
+      }
+      case 'gitlab': {
+        if (!owner || !repo) return { valid: false, error: 'owner and repo are required to validate GitLab token' };
+        const host = opts?.host ?? 'https://gitlab.com';
+        const projectId = encodeURIComponent(`${owner}/${repo}`);
+        const res = await httpFetch(`${host}/api/v4/projects/${projectId}/issues?per_page=1`, {
+          headers: { 'PRIVATE-TOKEN': token },
+        });
+        if (!res.ok) return { valid: false, error: `GitLab API ${res.status}` };
+        return { valid: true };
+      }
+      case 'yunxiao': {
+        if (!owner) return { valid: false, error: 'organizationId is required to validate 云效 token' };
+        const domain = 'openapi-rdc.aliyuncs.com';
+        const res = await httpFetch(
+          `https://${domain}/oapi/v1/organization/${owner}/workitems/list?maxResults=1`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok) return { valid: false, error: `云效 API ${res.status}` };
+        return { valid: true };
+      }
+      default:
+        return { valid: false, error: `Unknown platform: ${platform}` };
+    }
+  } catch (e) {
+    return { valid: false, error: (e as Error).message };
+  }
 }

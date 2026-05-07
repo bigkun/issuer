@@ -1,22 +1,29 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { input, select } from '@inquirer/prompts';
+import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
 import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, type McpCapabilities } from '../adapter/registry.js';
+import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken } from '../core/config.js';
 
 export interface InitOptions {
   cwd: string;
   platform?: string;
   owner?: string;
   repo?: string;
+  token?: string;
   force?: boolean;
   nonInteractive?: boolean;
   /** Pre-probed MCP tool list (from a live probe). If omitted, the registry baseline is used. */
   probedTools?: string[];
 }
 
-export async function runInit(opts: InitOptions): Promise<{ configPath: string }> {
+export interface InitResult {
+  configPath: string;
+  credentialsPath?: string;
+}
+
+export async function runInit(opts: InitOptions): Promise<InitResult> {
   const issuerDir = join(opts.cwd, '.issuer');
   const cfgPath = join(issuerDir, 'config.yml');
   if (existsSync(cfgPath) && !opts.force) {
@@ -26,6 +33,7 @@ export async function runInit(opts: InitOptions): Promise<{ configPath: string }
   let platform = opts.platform;
   let owner = opts.owner;
   let repo = opts.repo;
+  let token = opts.token;
 
   if (!opts.nonInteractive) {
     if (!platform) {
@@ -54,6 +62,43 @@ export async function runInit(opts: InitOptions): Promise<{ configPath: string }
 
   if (!platform || !owner || !repo) {
     throw new ConfigError('platform, owner and repo are required');
+  }
+
+  // --- Credential flow ---
+  let credentialsPath: string | undefined;
+  if (!token) {
+    const existing = findTokenSource(platform, { projectRoot: opts.cwd });
+    if (existing) {
+      console.log(`\nFound ${platform} credentials from ${existing.source}`);
+      if (!opts.nonInteractive) {
+        const useExisting = await confirm({ message: 'Use this credential?', default: true });
+        if (useExisting) token = existing.token;
+      } else {
+        token = existing.token;
+      }
+    }
+  }
+  if (!token && !opts.nonInteractive) {
+    token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
+  }
+  // Write token to project credentials file if provided
+  if (token) {
+    const credPath = join(issuerDir, 'credentials.yml');
+    writeCredentialsFile(credPath, platform, token);
+    credentialsPath = credPath;
+    console.log(`Credentials written to ${credPath}`);
+    // Validate the token
+    const result = await validateToken(platform, token, { owner, repo });
+    if (result.valid) {
+      console.log(`✓ ${platform} token is valid`);
+    } else {
+      console.log(`⚠ Token validation failed: ${result.error}`);
+    }
+  } else {
+    console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
+    console.log(`  - Environment variable`);
+    console.log(`  - .issuer/credentials.yml`);
+    console.log(`  - issuer auth`);
   }
 
   mkdirSync(join(issuerDir, 'tasks'), { recursive: true });
@@ -93,5 +138,5 @@ export async function runInit(opts: InitOptions): Promise<{ configPath: string }
     console.log('\n⚠ No MCP server detected — all sync operations will use CLI.');
   }
 
-  return { configPath: cfgPath };
+  return { configPath: cfgPath, credentialsPath };
 }

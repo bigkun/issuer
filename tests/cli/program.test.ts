@@ -5,7 +5,7 @@ describe('buildProgram', () => {
   it('registers all top-level commands', () => {
     const p = buildProgram();
     const names = p.commands.map((c) => c.name()).sort();
-    expect(names).toEqual(['init', 'list-remote', 'push', 'skill', 'status']);
+    expect(names).toEqual(['auth', 'init', 'list-remote', 'push', 'skill', 'status']);
   });
 
   it('skill subcommand has install', () => {
