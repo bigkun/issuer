@@ -39,6 +39,10 @@ Plain Markdown with these sections, in this order. **Localize the section headin
 ```
 # <One-line title>
 
+## User story
+As a [role], I want [feature], so that [benefit].
+Only for `story`-type work items; omit for bugs, tasks, or epics.
+
 ## Problem
 What hurts today, in concrete terms. 1-3 sentences.
 
@@ -49,8 +53,9 @@ What "done" looks like from the user's perspective. 1-3 sentences.
 Bullet list of things explicitly out of scope. Omit the section if none.
 
 ## Acceptance criteria
-- Bullet list of testable conditions, each starting with a verb.
-- Each criterion must be independently checkable.
+- [ ] Each criterion as a checkbox, starting with a verb.
+- [ ] Each criterion must be independently checkable.
+- [ ] Checkboxes render as interactive task lists on GitHub/GitLab.
 
 ## Open questions
 - Bullet list of unresolved decisions, or "None" if all clear.

@@ -52,7 +52,11 @@ labels: [<from config.default_labels>]
 created_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 ---
-<Markdown body: copy of the relevant section of the brief, including Problem / Goal / Acceptance criteria>
+<Markdown body: copy of the relevant section of the brief. Structure per type:
+- **story**: User story → Problem → Goal → Acceptance criteria (checkboxes)
+- **bug/task/epic**: Problem → Goal → Acceptance criteria (checkboxes)
+- **Acceptance criteria** MUST use checkbox syntax: `- [ ] criterion` so they render as interactive task lists on GitHub/GitLab.
+>
 ```
 
 ### Timestamp rules
