@@ -132,9 +132,62 @@ Stage 3 (issuer-sync):
 
 The `issuer-sync` skill (natural-language directive to the agent):
 
-1. Check whether a platform-matching MCP server (e.g. `create_issue` / `update_issue` for GitHub, equivalent tools for GitLab / Jira / Yunxiao) is registered in the current session.
-2. **If yes**: use MCP tools directly. Map frontmatter fields to MCP tool parameters. On success, update the frontmatter (`platform_id`, `platform_url`, `status: synced`, `updated_at`).
-3. **If no**: check whether the `issuer` CLI is installed. If yes, run `issuer push` for each ready file. If neither, instruct the user to install `@issuer/cli` or configure a platform MCP server.
+1. Read `mcp_capabilities` from `.issuer/config.yml` (populated by `issuer init`).
+2. **If `channel: mcp`** and the required capability exists → use MCP tools directly. Map frontmatter fields to MCP tool parameters. On success, update the frontmatter (`platform_id`, `platform_url`, `status: synced`, `updated_at`).
+3. **If a required capability is missing** (e.g. `update: false`) → fall back to CLI for that operation. Never silently skip the gap; always inform the user which operation used which channel.
+4. **If `channel: cli` or `mcp_capabilities` is absent** → check whether the `issuer` CLI is installed. If yes, run `issuer push` for each ready file. If neither, instruct the user to install `@issuer/cli` or configure a platform MCP server.
+
+### 4.3.1 MCP Capability Probe (`issuer init`)
+
+**Problem**: Each platform MCP exposes a different set of tools. Some (e.g. Yunxiao MCP) lack update / comment capabilities. Issuer needs to know the exact capability surface *before* sync attempts.
+
+**Solution**: Combine two sources — a **built-in adapter registry** (static baseline) and **live probing** (runtime detection):
+
+1. **Built-in adapter registry** — ships with `@issuer/cli`, declares the known baseline per platform:
+
+| Platform | MCP Package | `create` | `update` | `search` | `read` | `comment` |
+|---|---|---|---|---|---|---|
+| GitHub | `@modelcontextprotocol/server-github` | ✓ `create_issue` | ✓ `update_issue` | ✓ `search_issues` | ✓ `get_issue` | ✓ `add_issue_comment` |
+| Yunxiao | `alibabacloud-devops-mcp-server` | ✓ `create_work_item` | ✗ | ✓ `search_workitems` | ✓ `get_work_item` | ✗ |
+
+2. **Live probing** — during `issuer init`, the CLI calls the MCP server's `list_tools` endpoint and compares the returned tool list against the five capability groups. The result overrides the registry baseline and is written to `.issuer/config.yml`:
+
+```yaml
+mcp_capabilities:
+  channel: mcp          # or cli (if user opts out or no MCP found)
+  probed_at: 2026-05-07T14:32:05Z
+  tools:                 # actual tool names returned by this MCP server
+    - create_work_item
+    - search_workitems
+    - get_work_item
+    - get_work_item_types
+  capabilities:          # derived from tools → capability mapping
+    create: true
+    update: false
+    search: true
+    read: true
+    comment: false
+```
+
+3. **Capability gap handling**:
+
+| Scenario | Behavior |
+|---|---|
+| MCP has `create` but no `update` | First push → MCP; subsequent pushes → CLI fallback for update only; inform user |
+| MCP has neither `create` nor `update` | Entire sync falls back to CLI; user informed at init |
+| MCP not available at all | `channel: cli` in config; no probing needed |
+| Platform not in registry | Probe only (no baseline); result still written |
+
+4. **User communication** — `issuer init` prints a summary:
+
+```
+Platform: yunxiao (MCP: alibabacloud-devops-mcp-server)
+Capabilities: create ✓ | update ✗ | search ✓ | read ✓ | comment ✗
+
+⚠ update not available via MCP — `issuer push` (CLI) will handle updates.
+```
+
+5. **Re-probing** — `issuer init` can be re-run at any time. If the MCP server was upgraded, the new capabilities overwrite the old ones.
 
 ### 4.4 Language Policy
 
