@@ -1,0 +1,431 @@
+# Issuer v2 — Skill + CLI Architecture Design
+
+**Date**: 2026-05-06
+**Status**: Approved, ready for implementation planning
+**Supersedes**: All prior PMAgent v1 designs (SQLite + AI Engine + stdio adapter)
+
+---
+
+## 1. Background & Motivation
+
+The original PMAgent v1 bundled too many concerns into one process: it owned AI enhancement, local persistence (SQLite), a stdio sub-process adapter protocol, and platform API calls. This led to:
+
+- Heavy runtime dependencies (OpenAI SDK, better-sqlite3, child_process)
+- Duplicated AI capability — every programming agent already has one
+- Per-project credential management that duplicated whatever the user's agent already has configured for MCP servers
+
+**v2 decouples the product into two layers**:
+
+| Layer | Form | Responsibility | AI? | Network? |
+|---|---|---|---|---|
+| **Part 1 — Skills** | Markdown instructions | Constrain programming agents on how to turn colloquial requirements into structured tasks | ❌ (agent's own) | ❌ |
+| **Part 2 — CLI** | TypeScript Node.js tool | Read task files → push to platform → write back IDs | ❌ | ✅ (only push step) |
+
+The sync step prefers the user's already-configured platform **MCP server** (e.g. GitHub MCP), falling back to the CLI only when no MCP is available.
+
+---
+
+## 2. Architecture Overview
+
+```mermaid
+graph TB
+    User["Developer"]
+    Agent["Programming Agent"]
+
+    subgraph Skills["Skill Layer (4 Markdown files)"]
+        S1["issuer-refine"]
+        S2["issuer-breakdown"]
+        S3["issuer-sync"]
+        SO["issuer (orchestrator)"]
+    end
+
+    subgraph CLI["CLI Tool (@issuer/cli)"]
+        Init["issuer init"]
+        Push["issuer push"]
+        Status["issuer status"]
+        ListR["issuer list-remote"]
+        Install["issuer skill install"]
+    end
+
+    FS[".issuer/tasks/*.md"]
+    MCP["GitHub MCP Server"]
+    Platform["GitHub Issues"]
+
+    User --> Agent
+    Agent --> SO
+    SO --> S1 --> FS
+    SO --> S2 --> FS
+    SO --> S3
+
+    S3 -->|"path 1: MCP available"| MCP
+    S3 -->|"path 2: no MCP"| Push
+    S3 -->|"read/write task files"| FS
+    MCP --> Platform
+
+    Push --> FS
+    Push --> Platform
+
+    User --> Init
+    User --> Status
+    Status --> FS
+    User --> Install
+```
+
+**Key principles**:
+
+1. **Skill layer has no code, no network**. It only teaches the programming agent what to do.
+2. **CLI layer never runs AI**. It parses Markdown, calls APIs, writes back state.
+3. **Sync is dual-channel**: MCP-first (zero config), CLI fallback (works without an agent).
+
+---
+
+## 3. Project Identifiers
+
+| Item | Value |
+|---|---|
+| GitHub repository | `issuer` |
+| npm scope | `@issuer` |
+| Primary package | `@issuer/cli` |
+| Global CLI binary | `issuer` |
+| Future brand domain | `pmagent.ai` |
+| Local project directory | `.issuer/` |
+
+---
+
+## 4. Skill Design
+
+### 4.1 Four Skills
+
+| Skill | Role | Input | Output |
+|---|---|---|---|
+| `issuer-refine` | Clarify & complete text | User-specified scope (selection / paragraph / whole file) | Refined text; user chooses replace-in-place or new file |
+| `issuer-breakdown` | Break down into structured tasks | Refined text | One or more `.issuer/tasks/YYYY-MM-DD-<slug>.md` files |
+| `issuer-sync` | Push to platform (MCP-first, CLI fallback) | `.issuer/tasks/` files with `status: ready` | Issues created/updated on platform; frontmatter rewritten with `platform_id`, `platform_url`, `status: synced` |
+| `issuer` | Orchestrator for the three stages | User's raw request | Stage 1 → Stage 2 → Stage 3 with pause-and-confirm between stages |
+
+### 4.2 Orchestrator Flow
+
+```
+Stage 1 (issuer-refine):
+  → Confirm scope (selection / paragraph / file)
+  → Agent rewrites for clarity
+  → User picks: replace original OR new file
+  → ⏸ pause & confirm
+
+Stage 2 (issuer-breakdown):
+  → Read refined text
+  → Break down into multiple task files under .issuer/tasks/
+  → Each file: YAML frontmatter + Markdown body
+  → ⏸ pause & confirm
+
+Stage 3 (issuer-sync):
+  → Detect MCP availability
+  → If GitHub MCP tools exist → push via MCP, write back frontmatter
+  → Else → invoke `issuer push` CLI
+  → ⏸ done
+```
+
+### 4.3 Sync Skill Detection Logic
+
+The `issuer-sync` skill (natural-language directive to the agent):
+
+1. Check whether GitHub MCP tools (e.g. `create_issue`, `update_issue`) are registered in the current session.
+2. **If yes**: use MCP tools directly. Map frontmatter fields to MCP tool parameters. On success, update the frontmatter (`platform_id`, `platform_url`, `status: synced`, `updated_at`).
+3. **If no**: check whether the `issuer` CLI is installed. If yes, run `issuer push` for each ready file. If neither, instruct the user to install `@issuer/cli` or configure a GitHub MCP server.
+
+### 4.4 Skill Language
+
+All skill markdown files are **English-only**. Programming agents have stronger instruction-following in English, and English skill files are universally portable across agent platforms.
+
+---
+
+## 5. Task File Format
+
+### 5.1 Directory Structure
+
+```
+<project-root>/
+  .issuer/
+    config.yml              # Platform config
+    tasks/
+      2026-05-06-login-timeout.md
+      2026-05-06-export-excel.md
+```
+
+Flat layout (no sub-directories). Filename: `YYYY-MM-DD-<slug>.md`.
+
+### 5.2 File Format — YAML Frontmatter + Markdown Body
+
+```markdown
+---
+id: login-timeout
+type: bug
+title: Login timeout has no user-facing message
+status: draft
+platform: github
+platform_id: null
+platform_url: null
+priority: high
+labels: [auth, ux]
+created_at: 2026-05-06T10:00:00Z
+updated_at: 2026-05-06T10:00:00Z
+---
+
+## Description
+
+Users hit a timeout when logging in and the page shows nothing.
+
+## Reproduction Steps
+
+1. Open the login page
+2. Enter credentials
+3. Wait 30 seconds
+
+## Acceptance Criteria
+
+- [ ] Show a friendly message on timeout
+- [ ] Provide a retry button
+
+## Original Input
+
+> Users complained that login keeps timing out with no feedback.
+```
+
+### 5.3 Frontmatter Schema
+
+| Field | Type | Required | Values |
+|---|---|---|---|
+| `id` | string | ✅ | slug, kebab-case |
+| `type` | enum | ✅ | `bug` \| `story` \| `task` \| `epic` |
+| `title` | string | ✅ | — |
+| `status` | enum | ✅ | `draft` \| `ready` \| `synced` |
+| `platform` | string | ✅ | `github` (MVP only) |
+| `platform_id` | string \| null | ✅ | null until synced |
+| `platform_url` | string \| null | ✅ | null until synced |
+| `priority` | enum | ✅ | `critical` \| `high` \| `medium` \| `low` |
+| `labels` | string[] | ✅ | free-form |
+| `created_at` | ISO8601 | ✅ | — |
+| `updated_at` | ISO8601 | ✅ | — |
+
+**Explicitly excluded from MVP** (to keep scope small):
+
+- `content_hash` — git already tracks versions
+- `sync_state` — collapsed into `status`
+- `parent` (epic→story hierarchy)
+- `assignees`, `milestone`
+
+**Markdown body sections** (by convention, referenced by `issuer-breakdown` skill):
+
+- `## Description`
+- `## Reproduction Steps` (bug only)
+- `## Acceptance Criteria`
+- `## Original Input`
+
+---
+
+## 6. CLI Commands
+
+```bash
+issuer init                              # Initialize .issuer/config.yml + .issuer/tasks/
+issuer push [file...]                    # Push ready tasks (or specific files)
+issuer status                            # Stats: counts by draft/ready/synced
+issuer list-remote                       # Read-only snapshot of GitHub issues
+issuer skill install [--path <dir>]      # Install skill files to agent skills directory
+```
+
+### 6.1 `issuer init`
+
+**Interactive**:
+
+```text
+$ issuer init
+
+? Select target platform:
+  ❯ GitHub
+    Jira (coming soon)
+    Linear (coming soon)
+
+? GitHub owner (org or user): your-org
+? GitHub repo: your-repo
+
+✓ Created .issuer/config.yml
+✓ Created .issuer/tasks/
+```
+
+**Non-interactive**:
+
+```bash
+issuer init --platform github --owner your-org --repo your-repo
+```
+
+### 6.2 `issuer push`
+
+1. Scan `.issuer/tasks/` for files with `status: ready` (or use the provided file paths).
+2. Parse frontmatter and Markdown body.
+3. If `platform_id` is null → call GitHub `POST /repos/{owner}/{repo}/issues` (create).
+4. Else → call GitHub `PATCH /repos/{owner}/{repo}/issues/{number}` (update).
+5. Write back `status: synced`, `platform_id`, `platform_url`, `updated_at` to the frontmatter.
+
+### 6.3 `issuer status`
+
+Walks `.issuer/tasks/`, counts files by status, prints a summary table.
+
+### 6.4 `issuer list-remote`
+
+Fetches open issues from the configured GitHub repo and prints them read-only. Does not mutate local files.
+
+### 6.5 `issuer skill install`
+
+Auto-detects common agent skills directories (e.g. `~/.agents/skills/`, `~/.claude/skills/`, `~/.qoder/skills/`). The user may override with `--path`. Copies the four skill directories from the CLI's bundled `skills/` folder.
+
+---
+
+## 7. Configuration
+
+### 7.1 `.issuer/config.yml`
+
+```yaml
+version: 1
+platform: github
+github:
+  owner: your-org
+  repo: your-repo
+```
+
+### 7.2 Credentials (CLI push path only; MCP path needs no credentials)
+
+Resolution order:
+
+1. Environment variable `ISSUER_GITHUB_TOKEN`
+2. Environment variable `GITHUB_TOKEN`
+3. File `~/.issuer/credentials.yml`:
+
+```yaml
+github:
+  token: ghp_xxx
+```
+
+---
+
+## 8. Technology Stack
+
+| Purpose | Choice |
+|---|---|
+| Language | TypeScript |
+| Runtime | Node.js 20+ |
+| CLI framework | Commander.js |
+| Interactive prompts | @inquirer/prompts |
+| Frontmatter parsing | gray-matter |
+| GitHub API | @octokit/rest |
+| Testing | Vitest |
+| Build | tsup (ESM + CJS dual output) |
+
+**Removed (vs v1)**: `better-sqlite3`, `openai`, `child_process` stdio IPC.
+
+---
+
+## 9. Project Layout
+
+```
+issuer/
+  package.json
+  tsconfig.json
+  vitest.config.ts
+  tsup.config.ts
+  .gitignore
+  README.md
+
+  src/
+    index.ts                      # CLI entry
+    core/
+      types.ts                    # TaskFile interface, enums
+      errors.ts                   # IssuerError subclasses
+      task-file.ts                # frontmatter + body parse/serialize
+      task-store.ts               # scan .issuer/tasks/ directory
+    adapter/
+      types.ts                    # Adapter interface
+      github/
+        client.ts                 # Octokit wrapper
+        mapper.ts                 # TaskFile ↔ GitHub issue
+        index.ts                  # GitHub adapter impl
+    config/
+      loader.ts                   # config.yml + credential resolution
+    cli/
+      parser.ts                   # Commander routes
+      output.ts                   # formatting helpers
+      commands/
+        init.ts
+        push.ts
+        status.ts
+        list-remote.ts
+        skill-install.ts
+
+  skills/                         # Bundled with CLI, copied by `issuer skill install`
+    issuer/SKILL.md
+    issuer-refine/SKILL.md
+    issuer-breakdown/SKILL.md
+    issuer-sync/SKILL.md
+
+  tests/
+    unit/
+      core/
+      adapter/
+      cli/
+    fixtures/
+      tasks/
+```
+
+---
+
+## 10. MVP Scope Boundaries
+
+| ✅ In | ❌ Out |
+|---|---|
+| GitHub Issues (create + update) | Jira / Linear / 云效 |
+| Dual sync: MCP-first + CLI fallback | Bidirectional sync / pull |
+| `list-remote` read-only | Auto-merge of remote changes |
+| Flat task list | Epic→Story hierarchy |
+| Four skills (refine/breakdown/sync/orchestrator) | Skill marketplace |
+| English-only CLI output | i18n (Chinese/English switch) |
+| Env var + plain-text credentials | OAuth / encrypted credentials |
+| `issuer skill install` local copy | Online skill registry |
+
+---
+
+## 11. Known Risks
+
+1. **Plain-text credentials** are acceptable for MVP but must be documented. Users should rely on MCP path (zero credential) whenever possible.
+2. **MCP tool availability detection** happens inside the agent (natural-language check). Misdetection falls back to CLI, so failures are recoverable.
+3. **Concurrent edits** (multiple agents or humans touching the same task file) are not handled. v1 content-hash conflict detection is intentionally dropped; rely on git as the version-control source of truth.
+
+---
+
+## 12. Open Questions (deferred to post-MVP)
+
+- Bidirectional sync (pull from platform) — needed for team collaboration
+- Encrypted credential store (keytar / OS keychain)
+- Additional platform adapters (Jira, Linear, 云效)
+- Task hierarchy (epic → story → task → bug)
+- Online skill distribution
+
+---
+
+## 13. Approval
+
+This design was agreed upon across the brainstorming dialogue. Implementation planning begins next.
+
+**Decided in the dialogue**:
+
+- Directory-style task storage (option D)
+- YAML frontmatter + Markdown body (option B)
+- Four skills: three atomic + one orchestrator
+- Fixed path `.issuer/tasks/`, flat, `YYYY-MM-DD-<slug>.md`
+- Frontmatter minimum set (with my recommendations accepted)
+- CLI push-only option D; env-var credentials; GitHub only for MVP
+- npm scope `@issuer`
+- Bin name `issuer`; local directory `.issuer/`
+- Skill distribution option D (bundled in CLI + `issuer skill install`)
+- Fresh rebuild, including `.git`
+- MCP-first sync with CLI fallback; MVP implements both
+- `issuer init` confirms platform interactively
+- English-only CLI output; English-only skill markdown
