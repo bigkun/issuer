@@ -49,12 +49,26 @@ What hurts today, in concrete terms. 1-3 sentences.
 ## Goal
 What "done" looks like from the user's perspective. 1-3 sentences.
 
+## Assumptions
+List explicit assumptions made when interpreting ambiguous requirements.
+Format: numbered list with "→ Correct me if wrong." at the end.
+Omit if the source is fully explicit and no interpretation needed.
+
 ## Non-goals
 Bullet list of things explicitly out of scope. Omit the section if none.
+
+## Boundaries
+Three-tier constraint system (borrowed from Spec-Driven Development):
+- **Always**: Requirements that must always be met (e.g. "Run tests before commit")
+- **Ask first**: Decisions requiring user approval before implementation
+- **Never**: Things explicitly forbidden (e.g. "Commit secrets")
+Omit the section if none apply.
 
 ## Acceptance criteria
 - [ ] Each criterion as a checkbox, starting with a verb.
 - [ ] Each criterion must be independently checkable.
+- [ ] Prefer **quantifiable metrics** over vague descriptors (e.g. "Page load ≤ 2s" vs "faster").
+- [ ] Reframe vague requirements into concrete, testable conditions.
 - [ ] Checkboxes render as interactive task lists on GitHub/GitLab.
 
 ## Open questions
@@ -64,12 +78,23 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 ## Steps
 
 1. Read the source text.
-2. Extract the latent intent. Ignore filler words and meta-commentary.
-3. Fill each section above. Do not invent acceptance criteria the source does not support — leave them in `Open questions` instead.
-4. Render the brief in the user's interaction language.
-5. Apply the chosen output mode.
-6. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
-7. If `new-file` mode: update `.issuer/index.md` per the **Index upkeep** section below.
+2. **Surface assumptions immediately.** If the source contains ambiguous or incomplete requirements, list what you're assuming before writing any brief content. Format:
+   ```
+   ASSUMPTIONS I'M MAKING:
+   1. [Assumption 1]
+   2. [Assumption 2]
+   → Correct me now or I'll proceed with these.
+   ```
+   This prevents silent misinterpretation — assumptions are the most dangerous form of misunderstanding.
+3. Extract the latent intent. Ignore filler words and meta-commentary.
+4. **Reframe vague requirements as success criteria.** Translate fuzzy statements into concrete, testable conditions:
+   - "Make it faster" → "Response time ≤ 500ms"
+   - "Better UX" → "Click-to-action ≤ 3 steps, error feedback ≤ 2s"
+5. Fill each section above. Do not invent acceptance criteria the source does not support — leave them in `Open questions` instead.
+6. Render the brief in the user's interaction language.
+7. Apply the chosen output mode.
+8. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
+9. If `new-file` mode: update `.issuer/index.md` per the **Index upkeep** section below.
 
 ## Slug rules
 
@@ -113,6 +138,8 @@ In `replace` mode, skip index upkeep.
 ## Guardrails
 
 - **Enrich for value, not length.** Every added sentence must make the problem clearer, the goal sharper, or the acceptance criteria more verifiable. Padding with filler words or redundant descriptions is forbidden.
+- **Surface assumptions, never silently fill.** Ambiguous requirements are the most dangerous source of misunderstanding. Always list assumptions explicitly before proceeding.
+- **Reframe vague requirements into testable criteria.** "Faster", "better", "improve" are not acceptance criteria — translate them into quantifiable targets.
 - **Match the user's interaction language in every output: the chat response, the rendered brief, and the generated file name (`<slug>`).** Only switch languages when the user explicitly asks.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **No code, no implementation suggestions.** This is a PM brief, not a design.
