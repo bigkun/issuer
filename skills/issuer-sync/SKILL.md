@@ -58,9 +58,11 @@ A **built-in adapter registry** ships with `@issuer/cli` and declares the known 
 ## Channel selection
 
 1. Read `.issuer/config.yml` to learn the configured `platform` and `mcp_capabilities`.
-2. If `mcp_capabilities.channel` is `mcp` **and** the required capability for the current operation exists → use **MCP**.
-3. If a required capability is missing (e.g. `update: false`), fall back to **CLI** for that specific operation, and inform the user.
-4. If `mcp_capabilities.channel` is `cli` or the section is absent → use **CLI**.
+2. **Detect MCP availability** — check whether the current agent environment actually has MCP tools available for the configured platform. If `mcp_capabilities.channel` is `mcp` but no matching MCP tools are present in the environment, **automatically fall back to CLI** and inform the user.
+3. If MCP tools are available and the required capability for the current operation exists → use **MCP**.
+4. If a required capability is missing (e.g. `update: false`), fall back to **CLI** for that specific operation, and inform the user.
+5. If `mcp_capabilities.channel` is `cli` or the section is absent → use **CLI**.
+6. **CLI is always available** when `issuer push` can be executed successfully. Never block the user because MCP is absent — always fall back gracefully.
 
 **Never silently skip a capability gap.** Always report which operations could not be performed via MCP and which channel was used instead.
 
@@ -105,4 +107,4 @@ MCP capabilities: create ✓ | update ✗ (fell back to CLI) | search ✓ | read
 - **Never push tasks whose `platform` field does not match the configured platform.** Skip with reason `platform-mismatch`.
 - **Never invent labels** beyond the `type:*` / `priority:*` auto-pair; user-supplied labels are passed through verbatim.
 - **Never silently downgrade from MCP to CLI.** Always report the gap and the chosen fallback.
-- If neither a matching MCP server nor the `issuer` CLI is available, stop and tell the user to install `@issuer/cli` or wire up the relevant MCP server.
+- If neither a matching MCP server nor the `issuer` CLI is available, stop and tell the user to install `@issuer/cli` or wire up the relevant MCP server. **But first verify CLI availability by trying `issuer push --help` before declaring it unavailable.**
