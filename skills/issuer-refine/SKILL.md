@@ -1,11 +1,11 @@
 ---
 name: issuer-refine
-description: Refine raw requirement / bug report / task text into a structured, PM-ready brief.
+description: Enrich and structure raw requirement / bug report / task text into a detailed, professional PRD-style brief following industry best practices.
 ---
 
 # issuer-refine
 
-Atomic skill. Take rough requirement text from the user and rewrite it as a structured PM brief. **No network, no other skills.** This skill only produces text and optionally writes a file.
+Atomic skill. Take rough requirement text from the user and **enrich it** into a comprehensive, well-structured PM brief. The goal is to expand and clarify — adding context, motivation, acceptance criteria, and edge cases — following PRD best practices. **No network, no other skills.** This skill only produces text and optionally writes a file.
 
 ## Inputs
 

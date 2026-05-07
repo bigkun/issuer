@@ -11,7 +11,7 @@ End-to-end orchestrator. Chains the three atomic skills with explicit user check
 
 ```
 raw text
-  └─▶ Stage 1  issuer-refine     →  refined brief
+  └─▶ Stage 1  issuer-refine     →  enriched PRD-style brief
               [CHECKPOINT — user approves text]
   └─▶ Stage 2  issuer-breakdown  →  .issuer/tasks/*.md (status: draft)
               [CHECKPOINT — user flips selected files to status: ready]
@@ -38,7 +38,7 @@ If the user invokes `/issuer <text>` with a direct text argument (e.g. `我的 a
 ## Stage 1 — Refine
 
 1. Invoke the `issuer-refine` skill with the source. In Quick mode, pass the argument text directly so that `issuer-refine` runs in its own Quick mode.
-2. Show the refined brief.
+2. Show the enriched brief (expanded with context, motivation, acceptance criteria per PRD best practices).
 3. **Checkpoint:** ask the user to confirm. Allowed answers: `accept` / `edit <revised text>` / `abort`.
 4. Only continue on `accept`.
 
