@@ -98,29 +98,32 @@ graph TB
 
 | Skill | Role | Input | Output |
 |---|---|---|---|
-| `issuer-refine` | Clarify & complete text | User-specified scope (selection / paragraph / whole file) | Refined text; user chooses replace-in-place or new file |
-| `issuer-breakdown` | Break down into structured tasks | Refined text | One or more `.issuer/tasks/YYYY-MM-DD-<slug>.md` files |
+| `issuer-refine` | Clarify & complete text into a structured PM brief | **Quick**: `/issuer-refine <text>` (text arg, no confirmation)<br>**Interactive**: user supplies source scope (selection / paragraph / file) and output mode (`replace` / `new-file`) | Refined brief; `new-file` mode writes `.issuer/briefs/<slug>.md` and appends an entry to `.issuer/index.md` |
+| `issuer-breakdown` | Split a brief into work items | **Quick**: `/issuer-breakdown <text-or-path>` (path → read brief; raw text → delegate to `issuer-refine` first, then breakdown)<br>**Interactive**: brief path OR raw text (same delegation rule) | One or more `.issuer/tasks/YYYY-MM-DD-<slug>.md` files (status `draft`); tasks appended under the brief entry in `.issuer/index.md` |
 | `issuer-sync` | Push to platform (MCP-first, CLI fallback) | `.issuer/tasks/` files with `status: ready` | Issues created/updated on platform; frontmatter rewritten with `platform_id`, `platform_url`, `status: synced` |
-| `issuer` | Orchestrator for the three stages | User's raw request | Stage 1 → Stage 2 → Stage 3 with pause-and-confirm between stages |
+| `issuer` | Orchestrator for the three stages | **Quick**: `/issuer <text>` passes text straight into Stage 1<br>**Interactive**: user's raw request | Stage 1 → Stage 2 → Stage 3 with pause-and-confirm between stages |
 
 ### 4.2 Orchestrator Flow
 
 ```
 Stage 1 (issuer-refine):
-  → Confirm scope (selection / paragraph / file)
+  → Quick: use argument text directly
+  → Interactive: confirm scope + output mode
   → Agent rewrites for clarity
-  → User picks: replace original OR new file
+  → Writes .issuer/briefs/<slug>.md and updates .issuer/index.md (new-file mode)
   → ⏸ pause & confirm
 
 Stage 2 (issuer-breakdown):
-  → Read refined text
+  → Requires a brief file at .issuer/briefs/<slug>.md;
+    if missing, delegate to issuer-refine first.
   → Break down into multiple task files under .issuer/tasks/
   → Each file: YAML frontmatter + Markdown body
-  → ⏸ pause & confirm
+  → Appends task entries under the brief in .issuer/index.md
+  → ⏸ pause & confirm (user flips selected files to status: ready)
 
 Stage 3 (issuer-sync):
-  → Detect MCP availability
-  → If GitHub MCP tools exist → push via MCP, write back frontmatter
+  → Detect a matching MCP server (GitHub, GitLab, Jira, …)
+  → If available → push via MCP, write back frontmatter
   → Else → invoke `issuer push` CLI
   → ⏸ done
 ```
@@ -129,13 +132,37 @@ Stage 3 (issuer-sync):
 
 The `issuer-sync` skill (natural-language directive to the agent):
 
-1. Check whether GitHub MCP tools (e.g. `create_issue`, `update_issue`) are registered in the current session.
+1. Check whether a platform-matching MCP server (e.g. `create_issue` / `update_issue` for GitHub, equivalent tools for GitLab / Jira / Yunxiao) is registered in the current session.
 2. **If yes**: use MCP tools directly. Map frontmatter fields to MCP tool parameters. On success, update the frontmatter (`platform_id`, `platform_url`, `status: synced`, `updated_at`).
-3. **If no**: check whether the `issuer` CLI is installed. If yes, run `issuer push` for each ready file. If neither, instruct the user to install `@issuer/cli` or configure a GitHub MCP server.
+3. **If no**: check whether the `issuer` CLI is installed. If yes, run `issuer push` for each ready file. If neither, instruct the user to install `@issuer/cli` or configure a platform MCP server.
 
-### 4.4 Skill Language
+### 4.4 Language Policy
 
-All skill markdown files are **English-only**. Programming agents have stronger instruction-following in English, and English skill files are universally portable across agent platforms.
+- **Skill markdown files** are authored in English. Programming agents have stronger instruction-following on English skill definitions, and English files are universally portable across agent platforms.
+- **Runtime outputs** (chat responses, refined brief body, task file `title` and body, file-name `<slug>`, table reports) MUST match the user's interaction language. Switch only when the user explicitly asks for another language.
+- **Slug rules** allow non-Latin characters (e.g. Chinese / Japanese) — keep original glyphs instead of transliterating; only strip characters illegal on common filesystems.
+
+### 4.5 Outline Index (`.issuer/index.md`)
+
+A project-wide three-level outline jointly maintained by `issuer-refine` and `issuer-breakdown`:
+
+```markdown
+# Issuer Index
+
+<!-- Auto-maintained by issuer-refine and issuer-breakdown. Structure: Topic → Brief → Tasks. -->
+
+## <Topic / module>
+
+- **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)
+  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+```
+
+Rules:
+
+- `issuer-refine` appends a new brief entry when it writes a new brief file (new-file mode). Topic heading is inferred; when uncertain between two similar topics, the skill asks the user once.
+- `issuer-breakdown` appends task bullets under the matching brief entry; if the entry does not exist yet, it adds one (the brief file is guaranteed to exist by Preconditions).
+- Upkeep is strictly **append-only** — skills never remove or rewrite existing topics, briefs, or task lines.
 
 ---
 
@@ -146,13 +173,17 @@ All skill markdown files are **English-only**. Programming agents have stronger 
 ```
 <project-root>/
   .issuer/
-    config.yml              # Platform config
+    config.yml                              # Platform config
+    index.md                                # Outline index (Topic → Brief → Tasks)
+    briefs/
+      账户登录体验优化.md                       # Refined briefs (slug in user's language)
+      login-timeout.md
     tasks/
       2026-05-06-login-timeout.md
       2026-05-06-export-excel.md
 ```
 
-Flat layout (no sub-directories). Filename: `YYYY-MM-DD-<slug>.md`.
+Flat layout inside each subdirectory (no nested folders). Task filename: `YYYY-MM-DD-<slug>.md`. Brief filename: `<slug>.md`.
 
 ### 5.2 File Format — YAML Frontmatter + Markdown Body
 
@@ -204,8 +235,8 @@ Users hit a timeout when logging in and the page shows nothing.
 | `platform_url` | string \| null | ✅ | null until synced |
 | `priority` | enum | ✅ | `critical` \| `high` \| `medium` \| `low` |
 | `labels` | string[] | ✅ | free-form |
-| `created_at` | ISO8601 | ✅ | — |
-| `updated_at` | ISO8601 | ✅ | — |
+| `created_at` | ISO8601 | ✅ | Full timestamp with wall-clock time (e.g. `2026-05-06T14:32:05Z`); never collapse to `T00:00:00Z` |
+| `updated_at` | ISO8601 | ✅ | Full timestamp; equals `created_at` on first write, advances on every edit |
 
 **Explicitly excluded from MVP** (to keep scope small):
 
