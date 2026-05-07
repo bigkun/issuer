@@ -1,6 +1,6 @@
 ---
 name: issuer
-description: Three-stage orchestrator that takes raw requirement text all the way to GitHub Issues via refine → breakdown → sync. Each stage is a hard checkpoint.
+description: Three-stage orchestrator that takes raw requirement text all the way to the configured PM platform via refine → breakdown → sync. Each stage is a hard checkpoint.
 ---
 
 # issuer
@@ -15,7 +15,7 @@ raw text
               [CHECKPOINT — user approves text]
   └─▶ Stage 2  issuer-breakdown  →  .issuer/tasks/*.md (status: draft)
               [CHECKPOINT — user flips selected files to status: ready]
-  └─▶ Stage 3  issuer-sync       →  GitHub Issues (status: synced)
+  └─▶ Stage 3  issuer-sync       →  remote work items (status: synced)
 ```
 
 ## Inputs
@@ -57,5 +57,4 @@ Print:
 - **Never skip a checkpoint.** Each stage requires explicit user approval.
 - **Never call platform APIs directly.** Always go through `issuer-sync`.
 - **Never set `status: ready` without user instruction** during Stage 2.
-- **English only.**
 - If any stage errors, stop the pipeline and report; do not silently retry the next stage.

@@ -55,7 +55,7 @@ Bullet list of things explicitly out of scope. Omit the section if none.
 
 ## Guardrails
 
-- **English only.** Even if the input is in another language, output in English.
+- Match the language of the source text by default; switch only when the user explicitly asks for another language.
 - **No code, no implementation suggestions.** This is a PM brief, not a design.
 - **Never split into multiple work items.** That is `issuer-breakdown`'s job.
 - **Never call any platform API or write `.issuer/tasks/*` files.** That is `issuer-sync` / `issuer-breakdown`'s job.

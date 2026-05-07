@@ -58,5 +58,5 @@ updated_at: <now ISO 8601>
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
 - **Never set `status: ready` automatically.** The draft → ready promotion is a manual user act.
 - **Never set `platform_id` or `platform_url`.** Sync owns those.
-- **English only.**
+- Preserve the language of the source brief in `title` and body; do not translate unless the user explicitly asks.
 - Do not invent labels beyond what `default_labels` provides; new labels should come from explicit user instruction.
