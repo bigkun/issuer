@@ -81,7 +81,20 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 2. Decide how many work items it contains. A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
 3. For each item: pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
 4. Compute slug (see Slug rules), build frontmatter, write the file.
-5. Print a table of created files in the user's interaction language, and remind the user that all are `status: draft` — they must edit `status: ready` on the ones they want pushed.
+5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using this **exact template** (translate only the natural-language parts to match the user's interaction language):
+
+   ```
+   Select tasks to set as ready and push to <platform>:
+
+   #  File                        Title
+   1  2026-05-07-login-error.md   Fix login validation error
+   2  2026-05-07-add-oauth.md     Add OAuth2 support
+
+   Enter task numbers or filenames (e.g. 1,2 or all)
+   Enter none to skip — no tasks will be promoted.
+   ```
+
+   Replace `<platform>` with the value read from `.issuer/config.yml`. The agent then patches the frontmatter `status:` field of each chosen file from `draft` to `ready`. Files not selected stay `draft`.
 6. Update `.issuer/index.md` per the **Index upkeep** section below.
 
 ## Index upkeep (.issuer/index.md)

@@ -46,7 +46,20 @@ If the user invokes `/issuer <text>` with a direct text argument (e.g. `我的 a
 
 1. Invoke the `issuer-breakdown` skill with the approved brief.
 2. List the newly created `.issuer/tasks/*.md` files (all `status: draft`).
-3. **Checkpoint:** ask the user which files to promote to `status: ready`. The orchestrator MUST patch the frontmatter `status:` field of each chosen file from `draft` to `ready`. Files not selected stay `draft`.
+3. **Checkpoint:** present the approval prompt using this template (translate only the natural-language parts to match the user's interaction language):
+
+   ```
+   Select tasks to set as ready and push to <platform>:
+
+   #  File                        Title
+   1  2026-05-07-login-error.md   Fix login validation error
+   2  2026-05-07-add-oauth.md     Add OAuth2 support
+
+   Enter task numbers or filenames (e.g. 1,2 or all)
+   Enter none to skip — no tasks will be promoted.
+   ```
+
+   Replace `<platform>` with the value from `.issuer/config.yml`. The orchestrator MUST patch the frontmatter `status:` field of each chosen file from `draft` to `ready`. Files not selected stay `draft`.
 4. If the user selects none → stop here with a friendly note. Do not advance to sync.
 
 ## Stage 3 — Sync
