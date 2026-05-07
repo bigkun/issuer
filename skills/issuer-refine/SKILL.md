@@ -5,7 +5,7 @@ description: Enrich and structure raw requirement / bug report / task text into 
 
 # issuer-refine
 
-Atomic skill. Take rough requirement text from the user and **enrich it** into a comprehensive, well-structured PM brief. The goal is to expand and clarify — adding context, motivation, acceptance criteria, and edge cases — following PRD best practices. **No network, no other skills.** This skill only produces text and optionally writes a file.
+Atomic skill. Take rough requirement text from the user and **enrich it** into a comprehensive, well-structured PM brief. The goal is to add **meaningful, valuable information** — clearer problem context, sharper motivation, verifiable acceptance criteria, and actionable edge cases. **Every expansion must serve clarity and actionability, not word count.** Padding with filler words or redundant descriptions is forbidden. **No network, no other skills.** This skill only produces text and optionally writes a file.
 
 ## Inputs
 
@@ -112,6 +112,7 @@ In `replace` mode, skip index upkeep.
 
 ## Guardrails
 
+- **Enrich for value, not length.** Every added sentence must make the problem clearer, the goal sharper, or the acceptance criteria more verifiable. Padding with filler words or redundant descriptions is forbidden.
 - **Match the user's interaction language in every output: the chat response, the rendered brief, and the generated file name (`<slug>`).** Only switch languages when the user explicitly asks.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **No code, no implementation suggestions.** This is a PM brief, not a design.
