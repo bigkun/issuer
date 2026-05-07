@@ -2,7 +2,7 @@
 
 ## 文档用途
 
-本文档对 GitHub、GitLab、云效（Yunxiao）、Jira 四大项目管理平台的核心概念进行系统性对比，为 PMAgent 各平台适配器的设计与实现提供统一参考。
+本文档对 GitHub、GitLab、云效（Yunxiao）、Jira 四大项目管理平台的核心概念进行系统性对比，为 Issuer 各平台适配器的设计与实现提供统一参考。
 
 ---
 
@@ -59,9 +59,9 @@ Initiative (Premium/Enterprise)
               └── Sub-task
 ```
 
-### 1.3 PMAgent 统一模型映射总览
+### 1.3 Issuer 统一模型映射总览
 
-| PMAgent 类型 | GitHub 映射 | GitLab 映射 | 云效映射 | Jira 映射 |
+| Issuer 类型 | GitHub 映射 | GitLab 映射 | 云效映射 | Jira 映射 |
 |-------------|------------|------------|---------|----------|
 | **Epic** | Issue (type:Epic 或 label:epic) | Epic | 主题 或 业务需求 | Epic |
 | **Story** | Issue (type:Feature 或 label:feature) | Issue | 产品需求 | Story |
@@ -116,7 +116,7 @@ Initiative (Premium/Enterprise)
 ### 3.3 适配器实现要点
 
 ```
-PMAgent 创建 Sub-task 时：
+Issuer 创建 Sub-task 时：
 ├── GitHub: 在父 Issue 下添加 Sub-issue
 ├── GitLab: 在父 Issue 下创建 Task
 ├── 云效:   在父任务下创建子任务
@@ -148,9 +148,9 @@ PMAgent 创建 Sub-task 时：
 | 核心属性 | 标题、描述、截止日期 | 标题、描述、开始/截止日期 | 负责人、预计/实际完成时间 | 名称、发布日期、描述 |
 | 进度追踪 | 按关联 Issue 完成比例 | 按关联 Issue/MR 完成比例 | 状态（进行中/已完成/延期） | 按关联 Issue 完成比例 |
 
-### 4.3 PMAgent 迭代映射策略
+### 4.3 Issuer 迭代映射策略
 
-PMAgent 暂不内置"迭代"为一等工作项类型，但适配器需支持：
+Issuer 暂不内置"迭代"为一等工作项类型，但适配器需支持：
 
 | 操作 | 实现方式 |
 |------|---------|
@@ -162,7 +162,7 @@ PMAgent 暂不内置"迭代"为一等工作项类型，但适配器需支持：
 
 ## 5. 优先级体系对比
 
-| PMAgent | GitHub | GitLab | 云效 | Jira |
+| Issuer | GitHub | GitLab | 云效 | Jira |
 |---------|--------|--------|------|------|
 | critical | label:priority/critical | label:priority::critical 或 weight:高 | P0 | Highest / Blocker |
 | high | label:priority/high | label:priority::high | P1 | High |
@@ -213,9 +213,9 @@ Open → (Label: Doing) → (Label: Review) → Closed
 To Do → In Progress → In Review → Done
 ```
 
-### 6.3 PMAgent 状态映射策略
+### 6.3 Issuer 状态映射策略
 
-PMAgent 不预定义固定状态集，而是：
+Issuer 不预定义固定状态集，而是：
 1. 适配器通过 `get_metadata()` 返回平台可用状态列表。
 2. 用户在项目配置中定义语义映射。
 3. Agent 使用语义化状态名（如 "done"、"in_progress"），适配器转换为平台实际值。
@@ -252,7 +252,7 @@ PMAgent 不预定义固定状态集，而是：
 | **云效** | 调用研发资产关联 API |
 | **Jira** | 通过 Remote Link API 或 Development Information API |
 
-### 7.3 PMAgent `code_ref` 自动识别后的平台动作
+### 7.3 Issuer `code_ref` 自动识别后的平台动作
 
 | 引用类型 | GitHub | GitLab | 云效 | Jira |
 |---------|--------|--------|------|------|
@@ -322,7 +322,7 @@ PMAgent 不预定义固定状态集，而是：
 | 测试报告 | — | — | 支持（可导出 PDF/图片） | 插件管理 |
 | 与缺陷关联 | — | — | 执行中可直接创建缺陷 | 插件管理 |
 
-### PMAgent 测试用例生成的平台对接策略
+### Issuer 测试用例生成的平台对接策略
 
 | 平台 | 对接方式 |
 |------|---------|
@@ -341,7 +341,7 @@ PMAgent 不预定义固定状态集，而是：
 |--------|------|-----------|
 | GitHub 传统上无内置类型 | 需要 Label 或新 Issue Types 区分 | 检测是否启用 Issue Types，否则 fallback Label |
 | GitLab Epic 是独立于 Issue 的类型 | 创建 Epic 和 Issue 用不同 API | 适配器内部分路由 |
-| 云效层级比其他平台多一层 | PMAgent Epic 可能映射到多个层级 | 用户可配置映射到"主题"还是"业务需求" |
+| 云效层级比其他平台多一层 | Issuer Epic 可能映射到多个层级 | 用户可配置映射到"主题"还是"业务需求" |
 | Jira 高度可自定义 | 需动态获取类型定义 | 每次初始化时拉取项目 schema |
 
 ### 13.2 状态模型差异
@@ -380,7 +380,7 @@ PMAgent 不预定义固定状态集，而是：
 ### 14.2 类型映射配置模板
 
 ```yaml
-# 适配器类型映射配置（用户在 pmagent init 时设置）
+# 适配器类型映射配置（用户在 issuer init 时设置）
 type_mappings:
   epic:
     github: { type: "Epic" }          # Issue Type = Epic
