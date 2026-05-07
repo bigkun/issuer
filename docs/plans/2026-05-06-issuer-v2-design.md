@@ -221,16 +221,18 @@ Additional relevant tools:
 
 #### Capability summary comparison (3 platforms)
 
-| Capability | GitHub MCP | GitLab MCP | Yunxiao MCP |
-|---|---|---|---|
-| `create` | ✓ | ✓ | ✓ |
-| `update` | ✓ | ✗ (CLI fallback) | ✗ (CLI fallback) |
-| `search` | ✓ | ✓ | ✓ |
-| `read` | ✓ | ✓ | ✓ |
-| `comment` | ✓ | ✓ | ✗ (CLI fallback) |
-| Sub-item support | ✓ | ✗ | ✗ |
-| Type discovery | ✓ | ✗ | ✓ |
-| Label management | ✓ | ✓ (via create_issue) | ✗ |
+| Capability | GitHub MCP | GitLab MCP | Yunxiao MCP | Yunxiao OpenAPI (CLI fallback) |
+|---|---|---|---|---|
+| `create` | ✓ `create_issue` | ✓ `create_issue` | ✓ `create_work_item` | ✓ `CreateWorkitem` |
+| `update` | ✓ `update_issue` | ✗ (CLI fallback) | ✗ (CLI fallback) | ✓ `UpdateWorkItem` |
+| `search` | ✓ `search_issues` | ✓ `search` | ✓ `search_workitems` | ✓ `ListWorkitems` |
+| `read` | ✓ `get_issue` | ✓ `get_issue` | ✓ `get_work_item` | ✓ `GetWorkitem` |
+| `comment` | ✓ `add_issue_comment` | ✓ `create_workitem_note` | ✗ (CLI fallback) | ✓ `CreateWorkitemComment` |
+| Sub-item support | ✓ | ✗ | ✗ | ✗ |
+| Type discovery | ✓ | ✗ | ✓ | ✓ |
+| Label management | ✓ | ✓ (via create_issue) | ✗ | ✗ |
+
+> **Key insight**: Yunxiao MCP only covers create/search/read (3/5), but the OpenAPI covers all 5 capabilities. The CLI adapter (`src/adapter/yunxiao/`) uses the OpenAPI directly with `Bearer <PAT>` auth against `openapi-rdc.aliyuncs.com`, closing the MCP capability gap entirely. This means `issuer push` for yunxiao can operate at full capability via CLI even when MCP lacks update and comment.
 
 2. **Live probing** — during `issuer init`, the CLI calls the MCP server's `list_tools` endpoint and compares the returned tool list against the five capability groups. The result overrides the registry baseline and is written to `.issuer/config.yml`:
 

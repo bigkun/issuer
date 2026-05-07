@@ -28,10 +28,12 @@ export interface AdapterRegistryEntry {
   platform: string;
   /** Human-readable name of the MCP server package. */
   mcpPackage: string;
-  /** Maps each capability to the tool name that provides it (null = not available). */
+  /** Maps each capability to the MCP tool name that provides it (null = not available). */
   capabilities: CapabilityToolMap;
   /** Additional tool names not mapped to core capabilities but useful for Issuer. */
   extraTools: string[];
+  /** OpenAPI capabilities available via CLI fallback. When set, these override MCP nulls. */
+  apiCapabilities?: CapabilityToolMap;
 }
 
 /** Shape of the `mcp_capabilities` section in `.issuer/config.yml`. */
@@ -99,10 +101,10 @@ export const ADAPTER_REGISTRY: ReadonlyArray<AdapterRegistryEntry> = [
     mcpPackage: 'alibabacloud-devops-mcp-server',
     capabilities: {
       create: 'create_work_item',
-      update: null, // Yunxiao MCP currently lacks update_work_item
+      update: null, // MCP: no update_work_item; CLI fallback via OpenAPI UpdateWorkItem
       search: 'search_workitems',
       read: 'get_work_item',
-      comment: null, // Yunxiao MCP currently lacks comment support
+      comment: null, // MCP: no comment tool; CLI fallback via OpenAPI CreateWorkitemComment
     },
     extraTools: [
       'get_work_item_types',
@@ -110,6 +112,13 @@ export const ADAPTER_REGISTRY: ReadonlyArray<AdapterRegistryEntry> = [
       'get_project',
       'get_current_organization_Info',
     ],
+    apiCapabilities: {
+      create: 'CreateWorkitem',       // POST /organization/{orgId}/workitems/create
+      update: 'UpdateWorkItem',       // POST /organization/{orgId}/workitems/update
+      search: 'ListWorkitems',        // GET  /organization/{orgId}/listWorkitems
+      read: 'GetWorkitem',            // GET  /organization/{orgId}/workitems/{identifier}
+      comment: 'CreateWorkitemComment', // POST /organization/{orgId}/workitems/comment
+    },
   },
 ];
 
