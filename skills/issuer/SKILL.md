@@ -20,12 +20,24 @@ raw text
 
 ## Inputs
 
+Two invocation modes:
+
+### Quick mode (when an argument is provided)
+
+If the user invokes `/issuer <text>` with a direct text argument (e.g. `我的 app 需要登录功能`):
+
+- Use the argument as the raw source text for Stage 1.
+- Skip Stage 1's source-scope confirmation; proceed straight to refine.
+- Stage 1 & 2 checkpoints still apply — the user must still approve the refined brief and select which tasks to promote to `ready`.
+
+### Interactive mode (when no argument is given)
+
 - Source of the raw text (selection / paragraph / file path).
 - Project working directory (must already have `.issuer/config.yml`; if missing, instruct the user to run `issuer init` and stop).
 
 ## Stage 1 — Refine
 
-1. Invoke the `issuer-refine` skill with the source.
+1. Invoke the `issuer-refine` skill with the source. In Quick mode, pass the argument text directly so that `issuer-refine` runs in its own Quick mode.
 2. Show the refined brief.
 3. **Checkpoint:** ask the user to confirm. Allowed answers: `accept` / `edit <revised text>` / `abort`.
 4. Only continue on `accept`.

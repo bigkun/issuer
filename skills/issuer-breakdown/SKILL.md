@@ -9,6 +9,18 @@ Atomic skill. Read a refined PM brief (typically the output of `issuer-refine`) 
 
 ## Inputs
 
+Two input modes:
+
+### Quick mode (preferred when an argument is provided)
+
+If the user invokes `/issuer-breakdown <text-or-path>` with a direct argument:
+
+- If the argument resolves to an existing file path (e.g. `.issuer/briefs/foo.md`), read it as the brief.
+- Otherwise, treat the argument text itself as the brief.
+- No further confirmation needed; proceed directly to breakdown.
+
+### Interactive mode (when no argument is given)
+
 1. The refined brief text (or path to it).
 2. The current working directory of the project (must contain `.issuer/config.yml` from `issuer init`).
 
