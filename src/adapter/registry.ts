@@ -95,6 +95,13 @@ export const ADAPTER_REGISTRY: ReadonlyArray<AdapterRegistryEntry> = [
       'manage_pipeline',
       'get_workitem_notes',
     ],
+    apiCapabilities: {
+      create: 'Issues.create',       // @gitbeaker/rest — POST /projects/:id/issues
+      update: 'Issues.edit',         // @gitbeaker/rest — PUT /projects/:id/issues/:iid
+      search: 'Issues.all',         // @gitbeaker/rest — GET /projects/:id/issues
+      read: 'Issues.show',          // @gitbeaker/rest — GET /projects/:id/issues/:iid
+      comment: 'IssueNotes.create',  // @gitbeaker/rest — POST /projects/:id/issues/:iid/notes
+    },
   },
   {
     platform: 'yunxiao',
