@@ -5,7 +5,7 @@ description: Split a refined brief into one or more `.issuer/tasks/<date>-<slug>
 
 # issuer-breakdown
 
-Atomic skill. Read a refined PM brief (typically the output of `issuer-refine`) and emit one Markdown file per work item under `.issuer/tasks/`. **No network, no syncing.** This skill only writes local files.
+Atomic skill. Read a refined PM brief (typically the output of `issuer-refine`) and emit one Markdown file per work item under `.issuer/tasks/`. **Always operate on a brief file under `.issuer/briefs/`**; if no such file exists for the input, delegate to `issuer-refine` first. **No network, no syncing.** This skill only writes local files.
 
 ## Inputs
 
@@ -15,19 +15,24 @@ Two input modes:
 
 If the user invokes `/issuer-breakdown <text-or-path>` with a direct argument:
 
-- If the argument resolves to an existing file path (e.g. `.issuer/briefs/foo.md`), read it as the brief.
-- Otherwise, treat the argument text itself as the brief.
-- No further confirmation needed; proceed directly to breakdown.
+- **If the argument resolves to an existing file path** (e.g. `.issuer/briefs/foo.md`), read it as the brief.
+- **If the argument is raw text** (not a path, or a path that does not exist yet), do NOT treat it as the brief directly. Invoke the `issuer-refine` skill with the text first to produce `.issuer/briefs/<slug>.md`, then use that generated file as the brief for breakdown.
+- No further confirmation needed between refine and breakdown in Quick mode; proceed through both stages and report both outputs.
 
 ### Interactive mode (when no argument is given)
 
-1. The refined brief text (or path to it).
-2. The current working directory of the project (must contain `.issuer/config.yml` from `issuer init`).
+Ask the user to supply one of:
+
+1. A path to an existing brief file under `.issuer/briefs/`.
+2. Raw requirement text — in which case invoke `issuer-refine` first to write a brief file, then continue with breakdown on that file.
+
+Also confirm the current working directory contains `.issuer/config.yml` (from `issuer init`).
 
 ## Preconditions
 
 - Read `.issuer/config.yml`. Use its `platform` and `default_labels` for new files.
 - If the file does not exist, stop and tell the user to run `issuer init`.
+- **Ensure a brief file exists** at `.issuer/briefs/<slug>.md` for the current input. If not, invoke `issuer-refine` (in its own Quick mode) with the raw text and proceed only after the brief file has been written.
 
 ## Output
 
@@ -92,9 +97,9 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 After writing the task files, update the index:
 
 1. Ensure `.issuer/index.md` exists. If missing, create it with the header `# Issuer Index` and the auto-maintained comment.
-2. Locate the brief entry that these tasks belong to:
-   - **Input was a brief file path** (e.g. `.issuer/briefs/<slug>.md`): match the entry by that slug or title. If no match, append a brief entry under a suitable topic heading (same topic-selection logic as `issuer-refine`). Do NOT create a new brief file here — only the index row pointing at the given path.
-   - **Input was inline text** and no brief file was produced: derive a brief title from the text, pick a topic heading, and append a brief entry linked to `briefs/<slug>.md` if such a file exists, otherwise omit the link target and just record the title.
+2. Locate the brief entry that these tasks belong to by matching `<slug>` or title against existing entries under any `## <Topic>` heading:
+   - **Match found**: append the new task bullets under the existing brief entry. Do not duplicate the brief line.
+   - **No match**: append a new brief entry under a suitable topic heading (same topic-selection logic as `issuer-refine`), linked to `briefs/<slug>.md`. Since breakdown always runs after a brief file exists (see Preconditions), the link target is always valid.
 3. Under that brief entry, append each newly created task as an indented sub-bullet (two spaces):
    `  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->`
 4. Do not re-add a task line that already exists for the same `<id>`.
@@ -103,6 +108,7 @@ After writing the task files, update the index:
 ## Guardrails
 
 - **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
+- **Always work from a brief file.** Never fabricate tasks from raw text directly — invoke `issuer-refine` first when no brief file exists.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
 - **Never set `status: ready` automatically.** The draft → ready promotion is a manual user act.
