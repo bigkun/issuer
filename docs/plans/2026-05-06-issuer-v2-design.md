@@ -143,12 +143,59 @@ The `issuer-sync` skill (natural-language directive to the agent):
 
 **Solution**: Combine two sources — a **built-in adapter registry** (static baseline) and **live probing** (runtime detection):
 
-1. **Built-in adapter registry** — ships with `@issuer/cli`, declares the known baseline per platform:
+1. **Built-in adapter registry** — ships with `@issuer/cli`, declares the known baseline per platform. The table below lists the tool names that map to each of Issuer's five capability groups (`create`, `update`, `search`, `read`, `comment`). Tools not relevant to Issuer sync are omitted for brevity.
 
-| Platform | MCP Package | `create` | `update` | `search` | `read` | `comment` |
-|---|---|---|---|---|---|---|
-| GitHub | `@modelcontextprotocol/server-github` | ✓ `create_issue` | ✓ `update_issue` | ✓ `search_issues` | ✓ `get_issue` | ✓ `add_issue_comment` |
-| Yunxiao | `alibabacloud-devops-mcp-server` | ✓ `create_work_item` | ✗ | ✓ `search_workitems` | ✓ `get_work_item` | ✗ |
+#### GitHub (`github/github-mcp-server`)
+
+The official GitHub MCP Server exposes 49 tools across 5 active toolsets (as of 2025-10). The **Issues** toolset (13 tools) fully covers Issuer sync needs:
+
+| Capability | Tool | Key Parameters |
+|---|---|---|
+| `create` | `create_issue` | `owner`, `repo`, `title`, `body`, `assignees`, `labels`, `type` |
+| `update` | `update_issue` | `owner`, `repo`, `issue_number`, `title`, `body`, `state`, `state_reason`, `assignees`, `labels` |
+| `search` | `search_issues` / `list_issues` | `query`, `owner`, `repo`, `sort`, `order`, `page`, `perPage` / `owner`, `repo`, `state`, `labels`, `since` |
+| `read` | `get_issue` | `owner`, `repo`, `issue_number` |
+| `comment` | `add_issue_comment` | `owner`, `repo`, `issue_number`, `body` |
+
+Additional relevant tools (not mapped to core capabilities but useful for Issuer):
+
+| Tool | Purpose | Issuer relevance |
+|---|---|---|
+| `add_sub_issue` / `remove_sub_issue` / `list_sub_issues` | Sub-issue management | Mapping `epic` → parent issue with sub-issues |
+| `assign_copilot_to_issue` | Assign Copilot to auto-resolve | Future: auto-assign after sync |
+| `list_issue_types` | Get organization issue types | Type mapping during init |
+| `get_label` / `list_label` | Label management | Label dedup / auto-label |
+
+#### Yunxiao (`alibabacloud-devops-mcp-server`)
+
+| Capability | Tool | Key Parameters |
+|---|---|---|
+| `create` | `create_work_item` | `spaceIdentifierId`, `subject`, `description`, `workItemTypeIdentifier`, `priority`, `assignedTo` |
+| `update` | ✗ | Not available — CLI fallback required |
+| `search` | `search_workitems` | `spaceIdentifierId`, `subject`, `status`, `page`, `perPage` |
+| `read` | `get_work_item` | `spaceIdentifierId`, `identifier` |
+| `comment` | ✗ | Not available — CLI fallback required |
+
+Additional relevant tools:
+
+| Tool | Purpose | Issuer relevance |
+|---|---|---|
+| `get_work_item_types` | Get project work item type list | Type mapping during init |
+| `search_projects` / `get_project` | Project lookup | `spaceIdentifierId` discovery during init |
+| `get_current_organization_Info` | Organization info | `organizationId` discovery during init |
+
+#### Capability summary comparison
+
+| Capability | GitHub MCP | Yunxiao MCP |
+|---|---|---|
+| `create` | ✓ `create_issue` | ✓ `create_work_item` |
+| `update` | ✓ `update_issue` | ✗ (CLI fallback) |
+| `search` | ✓ `search_issues` / `list_issues` | ✓ `search_workitems` |
+| `read` | ✓ `get_issue` | ✓ `get_work_item` |
+| `comment` | ✓ `add_issue_comment` | ✗ (CLI fallback) |
+| Sub-item support | ✓ `add_sub_issue` / `remove_sub_issue` / `list_sub_issues` | ✗ |
+| Type discovery | ✓ `list_issue_types` | ✓ `get_work_item_types` |
+| Label management | ✓ `get_label` / `list_label` | ✗ (no label concept) |
 
 2. **Live probing** — during `issuer init`, the CLI calls the MCP server's `list_tools` endpoint and compares the returned tool list against the five capability groups. The result overrides the registry baseline and is written to `.issuer/config.yml`:
 
