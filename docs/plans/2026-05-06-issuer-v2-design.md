@@ -2,13 +2,13 @@
 
 **Date**: 2026-05-06
 **Status**: Approved, ready for implementation planning
-**Supersedes**: All prior PMAgent v1 designs (SQLite + AI Engine + stdio adapter)
+**Supersedes**: All prior v1 designs (SQLite + AI Engine + stdio adapter)
 
 ---
 
 ## 1. Background & Motivation
 
-The original PMAgent v1 bundled too many concerns into one process: it owned AI enhancement, local persistence (SQLite), a stdio sub-process adapter protocol, and platform API calls. This led to:
+The original v1 bundled too many concerns into one process: it owned AI enhancement, local persistence (SQLite), a stdio sub-process adapter protocol, and platform API calls. This led to:
 
 - Heavy runtime dependencies (OpenAI SDK, better-sqlite3, child_process)
 - Duplicated AI capability — every programming agent already has one
@@ -87,7 +87,7 @@ graph TB
 | npm scope | `@issuer` |
 | Primary package | `@issuer/cli` |
 | Global CLI binary | `issuer` |
-| Future brand domain | `pmagent.ai` |
+| Future brand domain | `issuer.dev` |
 | Local project directory | `.issuer/` |
 
 ---

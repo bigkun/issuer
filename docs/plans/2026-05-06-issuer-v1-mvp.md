@@ -1,8 +1,8 @@
-# PMAgent MVP Implementation Plan
+# Issuer v1 MVP Implementation Plan (Superseded by v2)
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build PMAgent MVP — a TypeScript CLI tool that receives natural language from programming agents, enhances work items with AI, and pushes them to GitHub Issues via a stdio adapter, with bidirectional sync.
+**Goal:** Build Issuer MVP — a TypeScript CLI tool that receives natural language from programming agents, enhances work items with AI, and pushes them to GitHub Issues via a stdio adapter, with bidirectional sync.
 
 **Architecture:** Monorepo with a core package (CLI, storage, AI engine, adapter dispatcher) and a built-in GitHub adapter package. Core runs as a Node.js CLI process; adapters run as child processes communicating via JSON over stdio.
 
@@ -13,7 +13,6 @@
 ## Project Structure
 
 ```
-pmagent/
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -53,7 +52,7 @@ pmagent/
 │   │   └── types.ts                # Adapter interface TypeScript types
 │   ├── config/
 │   │   ├── manager.ts              # Config loading/saving
-│   │   └── wizard.ts               # Interactive pmagent init
+│   │   └── wizard.ts               # Interactive issuer init
 │   └── github-adapter/             # Built-in GitHub adapter
 │       ├── index.ts                # Adapter entry (stdio protocol)
 │       ├── github-client.ts        # GitHub REST API client
@@ -80,12 +79,12 @@ pmagent/
 
 ```json
 {
-  "name": "pmagent",
+  "name": "@issuer/cli",
   "version": "0.1.0",
   "description": "AI-driven project management gateway for programming agents",
   "type": "module",
   "bin": {
-    "pmagent": "./dist/index.js"
+    "issuer": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -295,28 +294,28 @@ export interface ProjectConfig {
 ```typescript
 // src/core/errors.ts
 
-export class PMAgentError extends Error {
+export class IssuerError extends Error {
   constructor(message: string, public readonly code: string) {
     super(message);
-    this.name = 'PMAgentError';
+    this.name = 'IssuerError';
   }
 }
 
-export class ValidationError extends PMAgentError {
+export class ValidationError extends IssuerError {
   constructor(message: string) {
     super(message, 'VALIDATION_ERROR');
     this.name = 'ValidationError';
   }
 }
 
-export class AdapterError extends PMAgentError {
+export class AdapterError extends IssuerError {
   constructor(message: string, public readonly adapterName: string) {
     super(message, 'ADAPTER_ERROR');
     this.name = 'AdapterError';
   }
 }
 
-export class SyncError extends PMAgentError {
+export class SyncError extends IssuerError {
   constructor(message: string) {
     super(message, 'SYNC_ERROR');
     this.name = 'SyncError';
@@ -385,8 +384,8 @@ import type { Database as SQLiteDatabase } from 'better-sqlite3';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const DB_DIR = join(homedir(), '.pmagent');
-const DB_PATH = join(DB_DIR, 'pmagent.db');
+const DB_DIR = join(homedir(), '.issuer');
+const DB_PATH = join(DB_DIR, 'issuer.db');
 
 const MIGRATIONS = [
   `
@@ -781,7 +780,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import YAML from 'yaml';
 
-const CONFIG_DIR = join(homedir(), '.pmagent');
+const CONFIG_DIR = join(homedir(), '.issuer');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.yaml');
 
 export class ConfigManager {
@@ -962,7 +961,7 @@ import type { WorkItemType } from '../core/models.js';
 import { storyPrompt } from './prompts/story.js';
 import { bugPrompt } from './prompts/bug.js';
 
-const PROMPTS_DIR = join(homedir(), '.pmagent', 'prompts');
+const PROMPTS_DIR = join(homedir(), '.issuer', 'prompts');
 
 export interface EnhanceInput {
   raw_text: string;
@@ -1092,13 +1091,13 @@ git commit -m "feat(ai): add AI enhancement engine with OpenAI provider"
 - Modify: `src/index.ts`
 
 **Commands to implement:**
-- `pmagent init` — interactive wizard
-- `pmagent create --type <type> --text <text> [--project <name>]`
-- `pmagent list [--status <status>] [--type <type>] [--project <name>]`
-- `pmagent update --id <id> --status <status>`
-- `pmagent link --work-item <id> --code-ref <ref>`
-- `pmagent sync [--project <name>] [--direction <push|pull|both>]`
-- `pmagent status [--id <id>]`
+- `issuer init` — interactive wizard
+- `issuer create --type <type> --text <text> [--project <name>]`
+- `issuer list [--status <status>] [--type <type>] [--project <name>]`
+- `issuer update --id <id> --status <status>`
+- `issuer link --work-item <id> --code-ref <ref>`
+- `issuer sync [--project <name>] [--direction <push|pull|both>]`
+- `issuer status [--id <id>]`
 
 All output JSON by default; `--human` for formatted.
 
@@ -1127,7 +1126,7 @@ Expected: Shows all available commands
 
 ## Execution Options
 
-**Plan complete and saved to `docs/plans/2026-05-06-pmagent-mvp.md`.**
+**Plan complete and saved to `docs/plans/2026-05-06-issuer-v1-mvp.md`.**
 
 Two execution options:
 
