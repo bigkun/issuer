@@ -3,12 +3,14 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { parse as yamlParse } from 'yaml';
 import { ConfigError } from './errors.js';
+import type { McpCapabilities } from '../adapter/registry.js';
 
 export interface ProjectConfig {
   platform: string;
   owner: string;
   repo: string;
   default_labels: string[];
+  mcp_capabilities?: McpCapabilities;
 }
 
 export async function loadProjectConfig(projectRoot: string): Promise<ProjectConfig> {
@@ -35,11 +37,26 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
   if (labels !== undefined && (!Array.isArray(labels) || !labels.every((l) => typeof l === 'string'))) {
     throw new ConfigError(`${cfgPath}: 'default_labels' must be an array of strings`);
   }
+  // Parse mcp_capabilities (optional section)
+  let mcp_capabilities: McpCapabilities | undefined;
+  if (data.mcp_capabilities && typeof data.mcp_capabilities === 'object') {
+    const mc = data.mcp_capabilities as Record<string, unknown>;
+    mcp_capabilities = {
+      channel: mc.channel === 'cli' ? 'cli' : 'mcp',
+      probed_at: typeof mc.probed_at === 'string' ? mc.probed_at : new Date().toISOString(),
+      tools: Array.isArray(mc.tools) ? (mc.tools as string[]) : [],
+      capabilities: typeof mc.capabilities === 'object' && mc.capabilities !== null
+        ? mc.capabilities as McpCapabilities['capabilities']
+        : { create: true, update: true, search: true, read: true, comment: true },
+    };
+  }
+
   return {
     platform: data.platform as string,
     owner: data.owner as string,
     repo: data.repo as string,
     default_labels: (labels as string[] | undefined) ?? [],
+    mcp_capabilities,
   };
 }
 
