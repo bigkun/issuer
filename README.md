@@ -210,6 +210,39 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 
 Both channels are production-ready for all supported platforms.
 
+### Adding new platforms (MCP-first, zero-code integration)
+
+**Any platform with an MCP server can be supported** — no REST API adapter development required.
+
+#### How it works
+
+1. **Heuristic capability detection** — issuer automatically detects MCP tools by keyword matching:
+   - `create` + `issue/workitem/task` → create capability
+   - `get/read` + `issue/workitem/task` → read capability
+   - Same logic for update, search, comment
+
+2. **Minimum requirements** — MCP server must expose at least:
+   - **create** — create new issue/work item
+   - **read** — read/verify an issue/work item
+
+3. **Tool naming convention** — use `action + object` pattern:
+   ```
+   create_issue, get_issue, update_issue, search_issues, add_comment
+   create_work_item, get_work_item, search_workitems
+   myPM_create_ticket, myPM_get_ticket
+   ```
+
+#### Setup steps
+
+1. **Configure MCP server** in your agent (Claude Code, Cursor, Qoder, etc.)
+2. **Run `issuer init`** — issuer probes MCP tools and writes capabilities to `.issuer/config.yml`
+3. **Use `issuer-sync`** — skill calls MCP tools directly
+
+If MCP tools don't meet minimum requirements, issuer prompts you with options:
+- Fix MCP server configuration
+- Wait for API adapter support
+- Develop custom REST adapter
+
 ## Commands
 
 | Command | Description |
