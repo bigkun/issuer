@@ -142,6 +142,104 @@ export function getRegistryEntry(platform: string): AdapterRegistryEntry | undef
 }
 
 /**
+ * Check if a platform has an API adapter (CLI fallback available).
+ */
+export function hasApiAdapter(platform: string): boolean {
+  return getRegistryEntry(platform) !== undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Heuristic capability detection (MCP-first, platform-agnostic)
+// ---------------------------------------------------------------------------
+
+/** Keywords for each capability type. */
+const CAPABILITY_KEYWORDS: Record<McpCapability, { actions: string[]; objects: string[] }> = {
+  create: {
+    actions: ['create', 'add', 'new', 'post', 'make', 'insert'],
+    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
+  },
+  update: {
+    actions: ['update', 'edit', 'modify', 'patch', 'change', 'set'],
+    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
+  },
+  search: {
+    actions: ['search', 'list', 'find', 'query', 'filter', 'get_all'],
+    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task', 'issues', 'items'],
+  },
+  read: {
+    actions: ['read', 'get', 'fetch', 'retrieve', 'show', 'view'],
+    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
+  },
+  comment: {
+    actions: ['comment', 'reply', 'respond', 'add_comment', 'create_comment', 'note'],
+    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
+  },
+};
+
+/**
+ * Heuristic capability detection from tool names.
+ * Works for any MCP server, regardless of platform.
+ *
+ * @param toolNames - List of tool names from MCP server.
+ * @returns Detected capabilities (true if matching tool found).
+ */
+export function detectCapabilitiesHeuristic(toolNames: string[]): Record<McpCapability, boolean> {
+  const capabilities: Record<McpCapability, boolean> = {
+    create: false,
+    update: false,
+    search: false,
+    read: false,
+    comment: false,
+  };
+
+  for (const tool of toolNames) {
+    const lower = tool.toLowerCase();
+
+    for (const cap of Object.keys(CAPABILITY_KEYWORDS) as McpCapability[]) {
+      const keywords = CAPABILITY_KEYWORDS[cap];
+      // Check if tool name contains any action keyword
+      const hasAction = keywords.actions.some((action: string) => lower.includes(action));
+      // Check if tool name contains any object keyword
+      const hasObject = keywords.objects.some((obj: string) => lower.includes(obj));
+
+      if (hasAction && hasObject) {
+        capabilities[cap] = true;
+      }
+    }
+  }
+
+  return capabilities;
+}
+
+// ---------------------------------------------------------------------------
+// Minimum capability requirements
+// ---------------------------------------------------------------------------
+
+/** Minimum capabilities required for issuer-sync to work. */
+export const MINIMUM_CAPABILITIES: McpCapability[] = ['create', 'read'];
+
+/**
+ * Check if capabilities meet the minimum requirements for issuer-sync.
+ *
+ * @param capabilities - Capability flags.
+ * @returns true if create + read are both available.
+ */
+export function meetsMinimumRequirements(capabilities: Record<McpCapability, boolean>): boolean {
+  return MINIMUM_CAPABILITIES.every((cap) => capabilities[cap]);
+}
+
+/**
+ * Get list of missing required capabilities.
+ */
+export function getMissingCapabilities(capabilities: Record<McpCapability, boolean>): McpCapability[] {
+  return MINIMUM_CAPABILITIES.filter((cap) => !capabilities[cap]);
+}
+
+// ---------------------------------------------------------------------------
+// Capability derivation helpers
+// ---------------------------------------------------------------------------
+
+/**
  * Derive `McpCapabilities` from a registry entry (used as baseline when no live probe is available).
  */
 export function capabilitiesFromRegistry(entry: AdapterRegistryEntry): McpCapabilities {
@@ -173,9 +271,9 @@ export function capabilitiesFromRegistry(entry: AdapterRegistryEntry): McpCapabi
 
 /**
  * Derive `McpCapabilities` from a live probe result (list of tool names).
- * Merges with the registry baseline to fill in capability mappings.
+ * Uses heuristic detection for any platform, with registry baseline as fallback.
  *
- * @param platform - Platform identifier.
+ * @param platform - Platform identifier (optional, for registry baseline).
  * @param probedTools - Tool names returned by the MCP server's `list_tools`.
  * @returns Final `McpCapabilities` with the live probe results.
  */
@@ -183,56 +281,28 @@ export function capabilitiesFromProbe(
   platform: string,
   probedTools: string[],
 ): McpCapabilities {
+  // First, use heuristic detection (works for any MCP server)
+  const heuristicCaps = detectCapabilitiesHeuristic(probedTools);
+
+  // If platform is in registry, merge with baseline for known tool mappings
   const baseline = getRegistryEntry(platform);
-  const toolSet = new Set(probedTools);
-
-  const capFlags: Record<McpCapability, boolean> = {
-    create: false,
-    update: false,
-    search: false,
-    read: false,
-    comment: false,
-  };
-
-  // If we have a registry baseline, use it to map tool names → capabilities
   if (baseline) {
+    const toolSet = new Set(probedTools);
     for (const [cap, toolName] of Object.entries(baseline.capabilities) as [McpCapability, string | null][]) {
       if (toolName && toolSet.has(toolName)) {
-        capFlags[cap] = true;
+        heuristicCaps[cap] = true;
       }
     }
   }
 
-  // For platforms not in the registry, do a best-effort keyword match
-  if (!baseline) {
-    for (const tool of probedTools) {
-      const lower = tool.toLowerCase();
-      if (lower.includes('create') && (lower.includes('issue') || lower.includes('work_item') || lower.includes('workitem'))) {
-        capFlags.create = true;
-      }
-      if (lower.includes('update') && (lower.includes('issue') || lower.includes('work_item') || lower.includes('workitem'))) {
-        capFlags.update = true;
-      }
-      if (lower.includes('search') || lower.includes('list') && (lower.includes('issue') || lower.includes('work_item') || lower.includes('workitem'))) {
-        capFlags.search = true;
-      }
-      if (lower.includes('get') && (lower.includes('issue') || lower.includes('work_item') || lower.includes('workitem'))) {
-        capFlags.read = true;
-      }
-      if (lower.includes('comment') && (lower.includes('issue') || lower.includes('work_item') || lower.includes('workitem'))) {
-        capFlags.comment = true;
-      }
-    }
-  }
-
-  // Determine channel: if at least create or update is available, use MCP; otherwise CLI
-  const channel: 'mcp' | 'cli' = capFlags.create || capFlags.update ? 'mcp' : 'cli';
+  // Determine channel: MCP if minimum requirements met, else CLI fallback
+  const channel: 'mcp' | 'cli' = meetsMinimumRequirements(heuristicCaps) ? 'mcp' : 'cli';
 
   return {
     channel,
     probed_at: new Date().toISOString(),
     tools: probedTools,
-    capabilities: capFlags,
+    capabilities: heuristicCaps,
   };
 }
 
@@ -253,4 +323,48 @@ export function formatCapabilitySummary(caps: McpCapabilities): string {
     return `${label} ${available ? '✓' : '✗'}${suffix}`;
   });
   return `MCP capabilities: ${parts.join(' | ')}`;
+}
+
+/**
+ * Generate a user-friendly message for unsupported platforms.
+ */
+export function formatUnsupportedMessage(platform: string, caps: McpCapabilities): string {
+  const missing = getMissingCapabilities(caps.capabilities);
+
+  if (missing.length > 0 && caps.channel === 'mcp') {
+    return `⚠ Platform '${platform}' MCP capabilities insufficient:
+
+Detected capabilities: ${formatCapabilitySummary(caps)}
+Missing required capabilities: ${missing.join(', ')}
+
+issuer-sync requires at least 'create' + 'read' capabilities.
+
+Suggestions:
+1. Check your MCP server configuration, ensure it exposes tools matching:
+   - create + issue/workitem/task (e.g., create_issue, create_work_item)
+   - get/read + issue/workitem/task (e.g., get_issue, read_work_item)
+2. Or wait for API adapter support (issuer push CLI fallback)
+3. Or develop a REST adapter and contribute to issuer`;
+  }
+
+  if (!hasApiAdapter(platform) && caps.channel === 'cli') {
+    return `⚠ Platform '${platform}' not supported:
+
+- No MCP server detected or capabilities insufficient
+- No API adapter registered
+
+Options:
+1. Configure MCP server (recommended, zero-code integration):
+   - MCP server must expose 'create' + 'read' capabilities
+   - Tool naming convention: action + object (e.g., create_issue)
+   - See: https://agentskills.io for MCP server development guide
+   
+2. Wait for official API adapter support
+
+3. Develop REST adapter and contribute:
+   - Reference: src/adapter/github/index.ts
+   - Implement Adapter interface: createIssue, updateIssue, listRemote`;
+  }
+
+  return '';
 }

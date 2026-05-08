@@ -7,10 +7,57 @@ description: Push `status: ready` task files to the configured platform. Prefers
 
 Atomic skill. Sync local task files to the configured platform. Two channels:
 
-1. **MCP-first** — use whatever MCP server tools the agent already has access to that match the configured `platform` (e.g. a GitHub MCP, GitLab MCP, Jira MCP, Yunxiao MCP, …). Tool names vary by server; match by capability (create / update / list issues or work items), not by hard-coded name. Zero extra credentials needed in `issuer`.
-2. **CLI fallback** — shell out to `issuer push`, which uses the platform's own SDK (currently Octokit for GitHub) and the resolved token (`ISSUER_GITHUB_TOKEN` / `GITHUB_TOKEN` / `~/.issuer/credentials.yml`).
+1. **MCP-first** — use whatever MCP server tools the agent already has access to. Works for **any platform** via heuristic capability detection. Zero extra credentials needed in `issuer`.
+2. **CLI fallback** — shell out to `issuer push`, which uses the platform's own SDK (currently Octokit for GitHub, OpenAPI for Yunxiao) and the resolved token.
 
 Pick one channel per invocation; never mix per-task.
+
+## Platform support strategy
+
+| Scenario | MCP available? | API adapter? | Result |
+|---|---|---|---|
+| MCP with sufficient capabilities | ✓ (create + read) | — | MCP-first sync |
+| MCP with insufficient capabilities | ✓ (missing create/read) | — | Prompt user to fix MCP |
+| No MCP, has API adapter | ✗ | ✓ registered | CLI fallback |
+| No MCP, no API adapter | ✗ | ✗ | Prompt user: install MCP or wait for adapter |
+
+**Key insight**: MCP channel is platform-agnostic via heuristic detection. Any MCP server exposing matching tools will work, regardless of platform name.
+
+## Minimum capability requirements
+
+issuer-sync requires at least:
+
+- **`create`** — ability to create new issue/work item
+- **`read`** — ability to read/verify an issue/work item
+
+If these are missing, sync cannot proceed. Prompt the user:
+
+```
+⚠ Platform 'myPM' MCP capabilities insufficient:
+Missing required capabilities: create, read
+
+Suggestions:
+1. Check MCP server configuration, ensure tools expose:
+   - create + issue/workitem/task (e.g., create_issue, create_work_item)
+   - get/read + issue/workitem/task (e.g., get_issue, read_work_item)
+2. Or wait for API adapter support (issuer push CLI fallback)
+```
+
+## Heuristic capability detection
+
+Tool names vary by MCP server. Issuer uses **keyword matching** to detect capabilities:
+
+| Capability | Action keywords | Object keywords |
+|---|---|---|
+| `create` | create, add, new, post, make, insert | issue, workitem, work_item, item, ticket, task |
+| `update` | update, edit, modify, patch, change, set | issue, workitem, work_item, item, ticket, task |
+| `search` | search, list, find, query, filter | issue, workitem, work_item, item, ticket, task, issues |
+| `read` | read, get, fetch, retrieve, show, view | issue, workitem, work_item, item, ticket, task |
+| `comment` | comment, reply, respond, note | issue, workitem, work_item, item, ticket, task |
+
+**Example**: Tool `myPM_create_ticket` → matches 'create' action + 'ticket' object → `create: true`
+
+This works for **any MCP server**, even platforms not in the adapter registry.
 
 ## Inputs
 
@@ -20,21 +67,11 @@ Pick one channel per invocation; never mix per-task.
 
 - `.issuer/config.yml` exists.
 - At least one file in `.issuer/tasks/` has `status: ready`.
-- `.issuer/config.yml` contains an `mcp_capabilities` section (populated by `issuer init`). If the section is missing, assume the MCP channel can do create + update and proceed — but warn the user that `issuer init` should be re-run.
+- `.issuer/config.yml` contains an `mcp_capabilities` section (populated by `issuer init` or heuristic probe).
 
 ## MCP capability model
 
-Each platform MCP exposes a different set of tools. Issuer classifies them into **capability groups** that the sync flow depends on:
-
-| Capability | Used by | Description |
-|---|---|---|
-| `create` | Step 3 | Create a new issue / work item |
-| `update` | Step 4 | Update an existing issue / work item (title, body, labels, status) |
-| `search` | De-dup | Search / list issues or work items to avoid duplicates |
-| `read` | Verify | Read a single issue / work item by ID |
-| `comment` | Optional | Add a comment to an issue / work item |
-
-`issuer init` probes the MCP server at setup time and writes the results into `.issuer/config.yml` under `mcp_capabilities`:
+`issuer init` probes MCP tools and writes results to `.issuer/config.yml`:
 
 ```yaml
 mcp_capabilities:
@@ -44,58 +81,50 @@ mcp_capabilities:
     - create_work_item
     - search_workitems
     - get_work_item
-    - get_work_item_types
   capabilities:
     create: true
-    update: false        # e.g. Yunxiao MCP currently lacks update_work_item
+    update: false        # heuristic: no matching tool
     search: true
     read: true
     comment: false
 ```
 
-A **built-in adapter registry** ships with `@issuer/cli` and declares the known baseline for each platform's MCP (tool names, expected capabilities). During `issuer init`, the live probe overrides the registry baseline; platforms not in the registry still work — only the probe results are used.
+For platforms **not in the adapter registry**, heuristic detection still works — issuer doesn't need prior knowledge of the platform.
 
 ## Channel selection
 
-1. Read `.issuer/config.yml` to learn the configured `platform` and `mcp_capabilities`.
-2. **Detect MCP availability** — check whether the current agent environment actually has MCP tools available for the configured platform. If `mcp_capabilities.channel` is `mcp` but no matching MCP tools are present in the environment, **automatically fall back to CLI** and inform the user.
-3. If MCP tools are available and the required capability for the current operation exists → use **MCP**.
-4. If a required capability is missing (e.g. `update: false`), fall back to **CLI** for that specific operation, and inform the user.
-5. If `mcp_capabilities.channel` is `cli` or the section is absent → use **CLI**.
-6. **CLI is always available** when `issuer push` can be executed successfully. Never block the user because MCP is absent — always fall back gracefully.
+1. Read `.issuer/config.yml` → get `platform` and `mcp_capabilities`.
+2. **Check minimum requirements**: if `create` + `read` are both true → MCP available.
+3. **Detect MCP tools in Agent context**: if matching tools exist → use MCP channel.
+4. If MCP minimum not met → check API adapter registry.
+   - Has adapter → CLI fallback (`issuer push`)
+   - No adapter → prompt user with options
+5. **Never block silently** — always inform user of capability gaps.
 
-**Never silently skip a capability gap.** Always report which operations could not be performed via MCP and which channel was used instead.
-
-If unsure, ask the user once.
+**Graceful degradation order**: MCP-first → CLI fallback → user prompt
 
 ## MCP channel — steps
 
 For each task file with `status: ready`:
 
 1. Load frontmatter and body.
-2. Build labels: original `labels` ∪ `[type:<type>, priority:<priority>]`, deduped. (If the target platform does not support labels, map them onto the closest concept — tags, components, … — or drop them with a warning.)
-3. If `platform_id` is null → call the MCP "create issue / work item" tool with the platform's required arguments (e.g. `{ owner, repo, title, body, labels }` for GitHub). Capture the new id and URL from the response.
-4. Else → check `mcp_capabilities.capabilities.update`:
-   - **`true`** → call the MCP "update" tool with the existing `platform_id`.
-   - **`false`** → inform the user that this MCP lacks update support, then either (a) fall back to CLI for this task, or (b) skip with reason `mcp-update-unavailable`. Ask once if unsure.
-5. Patch the local file's frontmatter:
-   - `platform_id: "<id>"`
-   - `platform_url: <url>`
-   - `status: synced`
-   - `updated_at: <now ISO 8601>`
+2. Build labels: original `labels` ∪ `[type:<type>, priority:<priority>]`, deduped.
+3. If `platform_id` is null → call the MCP create tool (detected by heuristic).
+4. Else → if `update` capability exists, call update tool; else skip with warning.
+5. Patch local file: `platform_id`, `platform_url`, `status: synced`, `updated_at`.
 6. Continue on per-task failure but record the error.
 
 ## CLI channel — steps
 
 1. Run `issuer push` in the project directory.
-2. Read its stdout / non-zero exit and report.
-3. Do not also patch files yourself — `issuer push` already did.
+2. Read stdout / exit code and report.
+3. CLI patches files itself — don't duplicate.
 
 ## Output
 
-A table per task: `id | action (created/updated/skipped/failed) | channel (mcp/cli) | platform_id | url | error?`
+Table per task: `id | action | channel | platform_id | url | error?`
 
-Also print a **capability summary** at the end:
+Capability summary at end:
 
 ```
 MCP capabilities: create ✓ | update ✗ (fell back to CLI) | search ✓ | read ✓ | comment ✗
@@ -103,8 +132,10 @@ MCP capabilities: create ✓ | update ✗ (fell back to CLI) | search ✓ | read
 
 ## Guardrails
 
-- **Never touch tasks with `status: draft` or `status: synced`.** Only `ready`.
-- **Never push tasks whose `platform` field does not match the configured platform.** Skip with reason `platform-mismatch`.
-- **Never invent labels** beyond the `type:*` / `priority:*` auto-pair; user-supplied labels are passed through verbatim.
-- **Never silently downgrade from MCP to CLI.** Always report the gap and the chosen fallback.
-- If neither a matching MCP server nor the `issuer` CLI is available, stop and tell the user to install `@issuer/cli` or wire up the relevant MCP server. **But first verify CLI availability by trying `issuer push --help` before declaring it unavailable.**
+- **Only sync `status: ready` tasks** — never draft or synced.
+- **Check platform match** — skip if task.platform ≠ config.platform.
+- **Never silently downgrade** — always report channel changes.
+- **Prompt when blocked** — if MCP insufficient and no adapter, give user options:
+  1. Configure MCP server with proper tools
+  2. Wait for API adapter support
+  3. Develop custom adapter
