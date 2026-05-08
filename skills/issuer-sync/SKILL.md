@@ -5,6 +5,8 @@ description: Push `status: ready` task files to the configured platform. Prefers
 
 # issuer-sync
 
+**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-sync`). Never auto-trigger after task breakdown or during workflow discussions. The user must explicitly request sync before this skill runs.
+
 Atomic skill. Sync local task files to the configured platform. Two channels:
 
 1. **MCP-first** — use whatever MCP server tools the agent already has access to. Works for **any platform** via heuristic capability detection. Zero extra credentials needed in `issuer`.

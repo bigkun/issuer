@@ -5,6 +5,8 @@ description: Three-stage orchestrator that takes raw requirement text all the wa
 
 # issuer
 
+**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer` or `/issuer <text>`). Never auto-trigger during requirement discussions or casual conversation. The agent should only run this skill when the user clearly requests it.
+
 End-to-end orchestrator. Chains the three atomic skills with explicit user checkpoints between every stage. Never auto-advances.
 
 ## Pipeline

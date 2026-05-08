@@ -5,6 +5,8 @@ description: Enrich and structure raw requirement / bug report / task text into 
 
 # issuer-refine
 
+**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-refine` or `/issuer-refine <text>`). Never auto-trigger during requirement discussions or casual conversation. When the user is describing a feature or discussing needs, respond normally — do not invoke this skill unless the user explicitly asks for it.
+
 Atomic skill. Take rough requirement text from the user and **enrich it** into a comprehensive, well-structured PM brief. The goal is to add **meaningful, valuable information** — clearer problem context, sharper motivation, verifiable acceptance criteria, and actionable edge cases. **Every expansion must serve clarity and actionability, not word count.** Padding with filler words or redundant descriptions is forbidden. **No network, no other skills.** This skill only produces text and optionally writes a file.
 
 ## Inputs

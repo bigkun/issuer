@@ -5,6 +5,8 @@ description: Split a refined brief into one or more `.issuer/tasks/<date>-<slug>
 
 # issuer-breakdown
 
+**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-breakdown` or `/issuer-breakdown <path>`). Never auto-trigger during requirement discussions or after refining a brief. The user must explicitly request task breakdown before this skill runs.
+
 Atomic skill. Read a refined PM brief (typically the output of `issuer-refine`) and emit one Markdown file per work item under `.issuer/tasks/`. **Always operate on a brief file under `.issuer/briefs/`**; if no such file exists for the input, delegate to `issuer-refine` first. **No network, no syncing.** This skill only writes local files.
 
 ## Inputs
