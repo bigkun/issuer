@@ -200,6 +200,16 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 2. `<PLATFORM>_TOKEN`
 3. `~/.issuer/credentials.yml`
 
+### Tested platforms
+
+| Platform | MCP channel | CLI (API) channel | Notes |
+|---|---|---|---|
+| GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via both channels |
+| GitLab | ✓ Tests pass | ✓ Tests pass | MCP lacks `update`, CLI covers gap |
+| 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | MCP 3/5, CLI via OpenAPI → full 5/5 |
+
+Both channels are production-ready for all supported platforms.
+
 ## Commands
 
 | Command | Description |
