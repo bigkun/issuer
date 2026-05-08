@@ -3,7 +3,7 @@ import {
   ADAPTER_REGISTRY,
   getRegistryEntry,
   capabilitiesFromRegistry,
-  capabilitiesFromProbe,
+  capabilitiesFromProbeWithRegistry,
   formatCapabilitySummary,
   type McpCapabilities,
   type AdapterRegistryEntry,
@@ -103,9 +103,9 @@ describe('capabilitiesFromRegistry', () => {
   });
 });
 
-describe('capabilitiesFromProbe', () => {
+describe('capabilitiesFromProbeWithRegistry', () => {
   it('matches probed tools to registry baseline for github', () => {
-    const caps = capabilitiesFromProbe('github', [
+    const caps = capabilitiesFromProbeWithRegistry('github', [
       'create_issue',
       'update_issue',
       'search_issues',
@@ -125,7 +125,7 @@ describe('capabilitiesFromProbe', () => {
   });
 
   it('detects missing update for gitlab', () => {
-    const caps = capabilitiesFromProbe('gitlab', [
+    const caps = capabilitiesFromProbeWithRegistry('gitlab', [
       'create_issue',
       'get_issue',
       'search',
@@ -139,7 +139,7 @@ describe('capabilitiesFromProbe', () => {
   });
 
   it('detects missing update for yunxiao', () => {
-    const caps = capabilitiesFromProbe('yunxiao', [
+    const caps = capabilitiesFromProbeWithRegistry('yunxiao', [
       'create_work_item',
       'search_workitems',
       'get_work_item',
@@ -151,8 +151,8 @@ describe('capabilitiesFromProbe', () => {
     expect(caps.capabilities.comment).toBe(false);
   });
 
-  it('falls back to cli when no create or update', () => {
-    const caps = capabilitiesFromProbe('yunxiao', [
+  it('falls back to cli when no create or read', () => {
+    const caps = capabilitiesFromProbeWithRegistry('yunxiao', [
       'search_workitems',
       'get_work_item',
     ]);
@@ -161,8 +161,8 @@ describe('capabilitiesFromProbe', () => {
     expect(caps.capabilities.update).toBe(false);
   });
 
-  it('does best-effort keyword match for unknown platforms', () => {
-    const caps = capabilitiesFromProbe('jira', [
+  it('does heuristic match for unknown platforms', () => {
+    const caps = capabilitiesFromProbeWithRegistry('jira', [
       'create_issue',
       'update_issue',
       'search_issues',
@@ -178,7 +178,7 @@ describe('capabilitiesFromProbe', () => {
   });
 
   it('sets cli channel for unknown platform with no matching tools', () => {
-    const caps = capabilitiesFromProbe('custom', ['some_unrelated_tool']);
+    const caps = capabilitiesFromProbeWithRegistry('custom', ['some_unrelated_tool']);
     expect(caps.channel).toBe('cli');
   });
 });

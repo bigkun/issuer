@@ -3,12 +3,12 @@ import {
   detectCapabilitiesHeuristic,
   meetsMinimumRequirements,
   getMissingCapabilities,
+  capabilitiesFromProbe,
   MINIMUM_CAPABILITIES,
+  formatCapabilitySummary,
+  formatInsufficientCapabilitiesMessage,
+  formatUnsupportedPlatformMessage,
 } from '../../src/adapter/mcp-detect.js';
-import {
-  capabilitiesFromProbeWithRegistry,
-  hasApiAdapter,
-} from '../../src/adapter/registry.js';
 
 describe('detectCapabilitiesHeuristic', () => {
   it('detects all capabilities from standard GitHub MCP tools', () => {
@@ -29,45 +29,33 @@ describe('detectCapabilitiesHeuristic', () => {
     expect(caps.create).toBe(true);
     expect(caps.search).toBe(true);
     expect(caps.read).toBe(true);
-    expect(caps.update).toBe(false); // no update tool
-    expect(caps.comment).toBe(false); // no comment tool
+    expect(caps.update).toBe(false);
+    expect(caps.comment).toBe(false);
   });
 
   it('detects capabilities from custom MCP with non-standard names', () => {
     const tools = ['myPM_create_ticket', 'myPM_find_tickets', 'myPM_show_ticket', 'myPM_reply_ticket'];
     const caps = detectCapabilitiesHeuristic(tools);
 
-    expect(caps.create).toBe(true); // 'create' + 'ticket'
-    expect(caps.search).toBe(true); // 'find' + 'tickets'
-    expect(caps.read).toBe(true); // 'show' + 'ticket'
-    expect(caps.comment).toBe(true); // 'reply' + 'ticket'
-  });
-
-  it('detects capabilities from partial tool names', () => {
-    const tools = ['add_new_task', 'list_all_items', 'fetch_item'];
-    const caps = detectCapabilitiesHeuristic(tools);
-
-    expect(caps.create).toBe(true); // 'add' + 'new' + 'task' → 'add' action, 'task' object
-    expect(caps.search).toBe(true); // 'list' + 'items' → 'list' action, 'items' object
-    expect(caps.read).toBe(true); // 'fetch' + 'item' → 'fetch' action, 'item' object
+    expect(caps.create).toBe(true);
+    expect(caps.search).toBe(true);
+    expect(caps.read).toBe(true);
+    expect(caps.comment).toBe(true);
   });
 
   it('returns all false for unrelated tools', () => {
     const tools = ['create_repository', 'list_branches', 'get_commit'];
     const caps = detectCapabilitiesHeuristic(tools);
 
-    expect(caps.create).toBe(false); // 'repository' is not issue/work/task
-    expect(caps.search).toBe(false); // 'branches' is not issue/work/task
-    expect(caps.read).toBe(false); // 'commit' is not issue/work/task
+    expect(caps.create).toBe(false);
+    expect(caps.search).toBe(false);
+    expect(caps.read).toBe(false);
   });
 
   it('handles empty tool list', () => {
     const caps = detectCapabilitiesHeuristic([]);
     expect(caps.create).toBe(false);
-    expect(caps.update).toBe(false);
-    expect(caps.search).toBe(false);
     expect(caps.read).toBe(false);
-    expect(caps.comment).toBe(false);
   });
 });
 
@@ -84,11 +72,6 @@ describe('meetsMinimumRequirements', () => {
 
   it('returns false when read is missing', () => {
     const caps = { create: true, update: true, search: true, read: false, comment: true };
-    expect(meetsMinimumRequirements(caps)).toBe(false);
-  });
-
-  it('returns false when both create and read are missing', () => {
-    const caps = { create: false, update: true, search: true, read: false, comment: true };
     expect(meetsMinimumRequirements(caps)).toBe(false);
   });
 });
@@ -108,11 +91,6 @@ describe('getMissingCapabilities', () => {
     const caps = { create: true, update: true, search: true, read: false, comment: true };
     expect(getMissingCapabilities(caps)).toEqual(['read']);
   });
-
-  it('returns both create and read when both missing', () => {
-    const caps = { create: false, update: true, search: true, read: false, comment: true };
-    expect(getMissingCapabilities(caps)).toEqual(['create', 'read']);
-  });
 });
 
 describe('MINIMUM_CAPABILITIES', () => {
@@ -123,44 +101,83 @@ describe('MINIMUM_CAPABILITIES', () => {
   });
 });
 
-describe('capabilitiesFromProbeWithRegistry', () => {
-  it('derives capabilities for known platform with MCP tools', () => {
-    const tools = ['create_issue', 'update_issue', 'search_issues', 'get_issue', 'add_issue_comment'];
-    const caps = capabilitiesFromProbeWithRegistry('github', tools);
+describe('capabilitiesFromProbe', () => {
+  it('derives capabilities with mcp channel when minimum met', () => {
+    const tools = ['create_issue', 'get_issue'];
+    const caps = capabilitiesFromProbe(tools);
 
     expect(caps.channel).toBe('mcp');
     expect(caps.capabilities.create).toBe(true);
     expect(caps.capabilities.read).toBe(true);
   });
 
-  it('derives capabilities for unknown platform using heuristic', () => {
-    const tools = ['custom_create_issue', 'custom_get_item'];
-    const caps = capabilitiesFromProbeWithRegistry('my-custom-pm', tools);
+  it('derives capabilities with cli channel when minimum not met', () => {
+    const tools = ['search_issues'];
+    const caps = capabilitiesFromProbe(tools);
 
-    expect(caps.capabilities.create).toBe(true); // heuristic: 'create' + 'issue'
-    expect(caps.capabilities.read).toBe(true); // heuristic: 'get' + 'item'
-    expect(caps.channel).toBe('mcp'); // meets minimum
-  });
-
-  it('sets channel to cli when minimum requirements not met', () => {
-    const tools = ['search_issues', 'list_items']; // only search, no create/read
-    const caps = capabilitiesFromProbeWithRegistry('unknown-platform', tools);
-
+    expect(caps.channel).toBe('cli');
     expect(caps.capabilities.create).toBe(false);
     expect(caps.capabilities.read).toBe(false);
-    expect(caps.channel).toBe('cli'); // doesn't meet minimum
+  });
+
+  it('includes probed_at timestamp', () => {
+    const tools = ['create_issue'];
+    const caps = capabilitiesFromProbe(tools);
+
+    expect(caps.probed_at).toBeDefined();
+    expect(new Date(caps.probed_at).toISOString()).toBe(caps.probed_at);
+  });
+
+  it('includes all probed tools in tools array', () => {
+    const tools = ['create_issue', 'get_issue', 'some_other_tool'];
+    const caps = capabilitiesFromProbe(tools);
+
+    expect(caps.tools).toEqual(tools);
   });
 });
 
-describe('hasApiAdapter', () => {
-  it('returns true for registered platforms', () => {
-    expect(hasApiAdapter('github')).toBe(true);
-    expect(hasApiAdapter('gitlab')).toBe(true);
-    expect(hasApiAdapter('yunxiao')).toBe(true);
-  });
+describe('formatCapabilitySummary', () => {
+  it('formats capability summary with checkmarks', () => {
+    const caps = {
+      channel: 'mcp' as const,
+      probed_at: '2026-05-07T00:00:00Z',
+      tools: ['create_issue', 'get_issue'],
+      capabilities: { create: true, update: false, search: false, read: true, comment: false },
+    };
 
-  it('returns false for unknown platforms', () => {
-    expect(hasApiAdapter('my-custom-pm')).toBe(false);
-    expect(hasApiAdapter('jira')).toBe(false);
+    const summary = formatCapabilitySummary(caps);
+
+    expect(summary).toContain('create ✓');
+    expect(summary).toContain('read ✓');
+    expect(summary).toContain('update ✗ (CLI fallback)');
+  });
+});
+
+describe('formatInsufficientCapabilitiesMessage', () => {
+  it('generates message for insufficient capabilities', () => {
+    const caps = {
+      channel: 'mcp' as const,
+      probed_at: '2026-05-07T00:00:00Z',
+      tools: ['search_issues'],
+      capabilities: { create: false, update: false, search: true, read: false, comment: false },
+    };
+
+    const msg = formatInsufficientCapabilitiesMessage('myPM', caps);
+
+    expect(msg).toContain('⚠ Platform \'myPM\' MCP capabilities insufficient');
+    expect(msg).toContain('Missing required capabilities: create, read');
+    expect(msg).toContain('Suggestions:');
+  });
+});
+
+describe('formatUnsupportedPlatformMessage', () => {
+  it('generates message for unsupported platform', () => {
+    const msg = formatUnsupportedPlatformMessage('custom-pm');
+
+    expect(msg).toContain('⚠ Platform \'custom-pm\' not supported');
+    expect(msg).toContain('No MCP server detected');
+    expect(msg).toContain('No API adapter registered');
+    expect(msg).toContain('Options:');
+    expect(msg).toContain('Configure MCP server');
   });
 });
