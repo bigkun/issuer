@@ -84,6 +84,44 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 
 **MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). `update` falls back to CLI.
 
+## Supported Agents
+
+| Agent | Skills Path | Notes |
+|-------|-------------|-------|
+| **Claude Code** | `~/.claude/skills/` | Primary target, [agentskills.io](https://agentskills.io) originator |
+| **Cursor** | `~/.claude/skills/` | Uses Claude standard (Nightly channel) |
+| **VS Code Copilot** | `~/.github/skills/` or `~/.copilot/skills/` | Multi-path support |
+| **Qoder / OpenCode** | `~/.qoder/skills/` | Custom path |
+
+### Quick start with specific agent
+
+```bash
+# Claude Code
+issuer init -y --platform github --owner my-org --repo my-repo --agent claude
+issuer skill install --target ~/.claude/skills
+
+# Cursor
+issuer init -y --platform github --owner my-org --repo my-repo --agent cursor
+issuer skill install --target ~/.claude/skills
+
+# VS Code Copilot
+issuer init -y --platform github --owner my-org --repo my-repo --agent copilot
+issuer skill install --target ~/.github/skills
+
+# Qoder / OpenCode
+issuer init -y --platform github --owner my-org --repo my-repo --agent qoder
+issuer skill install --target ~/.qoder/skills
+```
+
+### Auto-detect (default)
+
+If `--agent` is not specified, `issuer skill install` auto-detects existing skills directories:
+
+```bash
+issuer init -y --platform github --owner my-org --repo my-repo
+issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
+```
+
 ## Sync channels
 
 `issuer-sync` picks one of:

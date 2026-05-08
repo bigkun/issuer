@@ -12,6 +12,7 @@ export interface InitOptions {
   owner?: string;
   repo?: string;
   token?: string;
+  agent?: string;
   force?: boolean;
   nonInteractive?: boolean;
   /** Pre-probed MCP tool list (from a live probe). If omitted, the registry baseline is used. */
@@ -21,7 +22,17 @@ export interface InitOptions {
 export interface InitResult {
   configPath: string;
   credentialsPath?: string;
+  skillsPath?: string;
 }
+
+// Agent-to-skills-path mapping
+const AGENT_SKILLS_PATHS: Record<string, string> = {
+  'claude': '.claude/skills',
+  'cursor': '.claude/skills',
+  'copilot': '.github/skills',
+  'qoder': '.qoder/skills',
+  'opencode': '.qoder/skills',
+};
 
 export async function runInit(opts: InitOptions): Promise<InitResult> {
   const issuerDir = join(opts.cwd, '.issuer');
@@ -138,5 +149,21 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     console.log('\n⚠ No MCP server detected — all sync operations will use CLI.');
   }
 
-  return { configPath: cfgPath, credentialsPath };
+  // Determine recommended skills path based on agent
+  const skillsPath = opts.agent
+    ? AGENT_SKILLS_PATHS[opts.agent] ?? '.claude/skills'
+    : undefined;
+
+  // Print next steps
+  console.log('\n📋 Next steps:');
+  if (skillsPath) {
+    console.log(`1. Install skills for ${opts.agent}:`);
+    console.log(`   issuer skill install --target ~/${skillsPath}`);
+  } else {
+    console.log('1. Install skills (auto-detect):');
+    console.log('   issuer skill install');
+  }
+  console.log('2. In your agent, invoke: /issuer <your-requirement>');
+
+  return { configPath: cfgPath, credentialsPath, skillsPath };
 }

@@ -12,7 +12,18 @@ export interface SkillInstallResult {
   installed: string[];
 }
 
-const CANDIDATE_TARGETS = ['.agents/skills', '.claude/skills', '.qoder/skills'];
+const CANDIDATE_TARGETS = [
+  // Claude Code (primary, most compatible)
+  '.claude/skills',
+  // VS Code Copilot (multiple paths supported)
+  '.copilot/skills',
+  '.github/skills',
+  // Agent Skills standard (agentskills.io)
+  '.agents/skills',
+  // Qoder / OpenCode
+  '.qoder/skills',
+  // Cursor uses Claude standard (.claude/skills)
+];
 
 export function detectTargetPath(home: string = homedir()): string {
   for (const c of CANDIDATE_TARGETS) {

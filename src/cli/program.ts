@@ -46,6 +46,7 @@ export function buildProgram() {
     .option('--owner <owner>', 'platform owner / org')
     .option('--repo <repo>', 'platform repo name')
     .option('--token <token>', 'platform authentication token')
+    .option('--agent <agent>', 'target agent (claude, cursor, copilot, qoder, opencode)')
     .option('--force', 'overwrite existing config')
     .option('-y, --yes', 'non-interactive')
     .action(async (opts) => {
@@ -55,6 +56,7 @@ export function buildProgram() {
         owner: opts.owner,
         repo: opts.repo,
         token: opts.token,
+        agent: opts.agent,
         force: !!opts.force,
         nonInteractive: !!opts.yes,
       });
