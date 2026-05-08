@@ -3,12 +3,10 @@ import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
 import {
   taskToCreateBody,
-  taskToUpdateFields,
-  taskToCommentBody,
+  taskToUpdateBody,
   workitemToRemote,
   YunxiaoCreateResponse,
-  YunxiaoListResponse,
-  YunxiaoUpdateResponse,
+  YunxiaoSearchResponse,
   YunxiaoCommentResponse,
 } from './mapper.js';
 
@@ -30,11 +28,10 @@ export interface YunxiaoAdapterOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Adapter
+// Constants - 使用新版 API (oapi/v1/projex)
 // ---------------------------------------------------------------------------
 
 const DEFAULT_DOMAIN = 'openapi-rdc.aliyuncs.com';
-const API_VERSION = '2021-06-25';
 
 export class YunxiaoAdapter implements Adapter {
   readonly name = 'yunxiao';
@@ -53,16 +50,16 @@ export class YunxiaoAdapter implements Adapter {
   }
 
   // -----------------------------------------------------------------------
-  // createIssue → POST /organization/{orgId}/workitems/create
+  // createIssue → POST /oapi/v1/projex/organizations/{orgId}/workitems
   // -----------------------------------------------------------------------
 
   async createIssue(task: TaskFile): Promise<IssueRef> {
     const body = taskToCreateBody(task, this.spaceIdentifierId);
-    const path = `/organization/${this.organizationId}/workitems/create`;
+    const path = `/organizations/${this.organizationId}/workitems`;
 
     const res = await this.request<YunxiaoCreateResponse>('POST', path, body);
 
-    if (!res.success || !res.workitem) {
+    if (!res.id) {
       throw new AdapterError(
         `createIssue failed: ${res.errorMsg ?? res.errorCode ?? 'unknown'}`,
         this.name,
@@ -70,13 +67,13 @@ export class YunxiaoAdapter implements Adapter {
     }
 
     return {
-      id: res.workitem.identifier,
-      url: `https://devops.aliyun.com/organization/${this.organizationId}/workitem/${res.workitem.identifier}`,
+      id: res.id,
+      url: `https://devops.aliyun.com/organization/${this.organizationId}/workitem/${res.id}`,
     };
   }
 
   // -----------------------------------------------------------------------
-  // updateIssue → POST /organization/{orgId}/workitems/update
+  // updateIssue → PUT /oapi/v1/projex/organizations/{orgId}/workitems/{id}
   // -----------------------------------------------------------------------
 
   async updateIssue(task: TaskFile): Promise<IssueRef> {
@@ -84,19 +81,10 @@ export class YunxiaoAdapter implements Adapter {
       throw new AdapterError(`Task ${task.id} has no platform_id`, this.name);
     }
 
-    const fields = taskToUpdateFields(task);
-    // 云效 UpdateWorkItem 一次只更新一个字段，需逐个调用
-    for (const field of fields) {
-      const path = `/organization/${this.organizationId}/workitems/update`;
-      const res = await this.request<YunxiaoUpdateResponse>('POST', path, field);
+    const updateBody = taskToUpdateBody(task);
+    const path = `/organizations/${this.organizationId}/workitems/${task.platform_id}`;
 
-      if (!res.success) {
-        throw new AdapterError(
-          `updateIssue field "${field.propertyKey}" failed: ${res.errorMessage ?? res.errorCode ?? 'unknown'}`,
-          this.name,
-        );
-      }
-    }
+    const res = await this.request<void>('PUT', path, updateBody);
 
     return {
       id: task.platform_id,
@@ -105,60 +93,51 @@ export class YunxiaoAdapter implements Adapter {
   }
 
   // -----------------------------------------------------------------------
-  // listRemote → GET /organization/{orgId}/listWorkitems
+  // listRemote → POST /oapi/v1/projex/organizations/{orgId}/workitems:search
   // -----------------------------------------------------------------------
 
   async listRemote(): Promise<RemoteIssue[]> {
     const items: RemoteIssue[] = [];
-    let nextToken = '';
+    let page = 1;
+    const perPage = 200;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const params = new URLSearchParams({
-        spaceType: 'Project',
-        spaceIdentifier: this.spaceIdentifierId,
+      const body = {
         category: 'Req',
-        maxResults: '200',
-      });
-      if (nextToken) {
-        params.set('nextToken', nextToken);
-      }
+        spaceId: this.spaceIdentifierId,
+        spaceType: 'Project',
+        page,
+        perPage,
+      };
 
-      const path = `/organization/${this.organizationId}/listWorkitems?${params.toString()}`;
-      const res = await this.request<YunxiaoListResponse>('GET', path);
+      const path = `/organizations/${this.organizationId}/workitems:search`;
+      const res = await this.request<YunxiaoSearchResponse>('POST', path, body);
 
-      if (!res.success) {
-        throw new AdapterError(
-          `listRemote failed: ${res.errorMsg ?? res.errorCode ?? 'unknown'}`,
-          this.name,
-        );
-      }
-
-      if (res.workitems) {
-        for (const { workitem } of res.workitems) {
-          items.push(workitemToRemote(this.organizationId, workitem));
+      if (res && res.length > 0) {
+        for (const wi of res) {
+          items.push(workitemToRemote(this.organizationId, wi));
         }
       }
 
-      nextToken = res.nextToken;
-      if (!nextToken) break;
+      if (!res || res.length < perPage) break;
+      page++;
     }
 
     return items;
   }
 
   // -----------------------------------------------------------------------
-  // addComment → POST /organization/{orgId}/workitems/comment
-  // (not in Adapter interface yet, exposed for issuer-sync skill)
+  // addComment → POST /oapi/v1/projex/organizations/{orgId}/workitems/{id}/comments
   // -----------------------------------------------------------------------
 
   async addComment(workitemIdentifier: string, content: string): Promise<void> {
-    const body = taskToCommentBody(workitemIdentifier, content);
-    const path = `/organization/${this.organizationId}/workitems/comment`;
+    const body = { content };
+    const path = `/organizations/${this.organizationId}/workitems/${workitemIdentifier}/comments`;
 
     const res = await this.request<YunxiaoCommentResponse>('POST', path, body);
 
-    if (res.success !== 'true') {
+    if (!res.id) {
       throw new AdapterError(
         `addComment failed: ${res.errorMsg ?? res.errorCode ?? 'unknown'}`,
         this.name,
@@ -167,19 +146,19 @@ export class YunxiaoAdapter implements Adapter {
   }
 
   // -----------------------------------------------------------------------
-  // Internal HTTP helper
+  // Internal HTTP helper - 使用新版 API 认证头
   // -----------------------------------------------------------------------
 
   private async request<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PUT',
     path: string,
     body?: unknown,
   ): Promise<T> {
-    const url = `https://${this.domain}/api/${API_VERSION}${path}`;
+    const url = `https://${this.domain}/oapi/v1/projex${path}`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`,
+      'x-yunxiao-token': this.token,
     };
 
     const res = await this.httpFetch(url, {
@@ -194,6 +173,11 @@ export class YunxiaoAdapter implements Adapter {
         `HTTP ${res.status} ${res.statusText}: ${text.slice(0, 200)}`,
         this.name,
       );
+    }
+
+    // PUT may return empty body
+    if (method === 'PUT') {
+      return undefined as T;
     }
 
     return res.json() as Promise<T>;

@@ -69,122 +69,67 @@ export function taskToCreateBody(
 }
 
 // ---------------------------------------------------------------------------
-// UpdateWorkitem request body
+// UpdateWorkitem request body - 新版 API 格式
 // ---------------------------------------------------------------------------
 
-export interface UpdateWorkitemField {
-  identifier: string;
-  propertyKey: string;
-  propertyValue: string;
-  fieldType: string;
-}
-
-/** Build update fields for a task (title + description). */
-export function taskToUpdateFields(task: TaskFile): UpdateWorkitemField[] {
-  const fields: UpdateWorkitemField[] = [
-    {
-      identifier: task.platform_id!,
-      propertyKey: 'subject',
-      propertyValue: task.title,
-      fieldType: 'subject',
-    },
-    {
-      identifier: task.platform_id!,
-      propertyKey: 'description',
-      propertyValue: task.body,
-      fieldType: 'document',
-    },
-  ];
-  return fields;
+/** Build update body for a task (新版 API: {"fieldId":"value"} 格式). */
+export function taskToUpdateBody(task: TaskFile): Record<string, string> {
+  return {
+    subject: task.title,
+    description: task.body,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// CreateWorkitemComment request body
+// CreateWorkitemComment request body - 新版 API 格式
 // ---------------------------------------------------------------------------
 
-export interface CreateCommentBody {
-  workitemIdentifier: string;
-  content: string;
-  formatType: string;
-}
-
-/** Build a comment body. */
+/** Build a comment body (新版 API). */
 export function taskToCommentBody(
   workitemIdentifier: string,
   content: string,
-): CreateCommentBody {
-  return {
-    workitemIdentifier,
-    content,
-    formatType: 'MARKDOWN',
-  };
+): { content: string } {
+  return { content };
 }
 
 // ---------------------------------------------------------------------------
-// API response shapes
+// API response shapes - 新版 API 格式
 // ---------------------------------------------------------------------------
 
 export interface YunxiaoWorkitem {
-  identifier: string;
+  id: string;
   subject: string;
-  document?: string;
-  assignedTo?: string;
-  status?: string;
-  statusStageIdentifier?: string;
-  spaceIdentifier?: string;
-  spaceName?: string;
-  spaceType?: string;
+  description?: string;
+  assignedTo?: { id: string; name: string };
+  status?: { id: string; displayName: string };
+  space?: { id: string; name: string };
   logicalStatus?: string;
-  categoryIdentifier?: string;
-  parentIdentifier?: string;
-  workitemTypeIdentifier?: string;
-  updateStatusAt?: number;
+  categoryId?: string;
+  parentId?: string;
+  workitemType?: { id: string; name: string };
+  gmtCreate?: string;
+  gmtModified?: string;
+  creator?: { id: string; name: string };
+  modifier?: { id: string; name: string };
+  sprint?: { id: string; name: string };
   serialNumber?: string;
-  gmtCreate?: number;
-  gmtModified?: number;
-  creator?: string;
-  modifier?: string;
-  statusIdentifier?: string;
-  sprintIdentifier?: string;
-  documentFormat?: string;
 }
 
+/** 新版 CreateWorkitem 返回 { id } */
 export interface YunxiaoCreateResponse {
-  requestId: string;
-  success: boolean;
-  errorCode?: string;
+  id?: string;
   errorMsg?: string;
-  workitem?: YunxiaoWorkitem;
-}
-
-export interface YunxiaoUpdateResponse {
-  requestId: string;
-  success: boolean;
   errorCode?: string;
-  errorMessage?: string;
-  workitem?: YunxiaoWorkitem;
 }
 
-export interface YunxiaoListResponse {
-  requestId: string;
-  success: boolean;
-  errorCode?: string;
-  errorMsg?: string;
-  totalCount: number;
-  nextToken: string;
-  maxResults: number;
-  workitems?: Array<{ workitem: YunxiaoWorkitem }>;
-}
+/** 新版 SearchWorkitems 返回数组 */
+export type YunxiaoSearchResponse = YunxiaoWorkitem[];
 
+/** 新版 CreateWorkitemComment 返回 { id } */
 export interface YunxiaoCommentResponse {
-  requestId: string;
-  success: string;
-  errorCode?: string;
+  id?: string;
   errorMsg?: string;
-  Comment?: {
-    Id: number;
-    content: string;
-  };
+  errorCode?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +138,7 @@ export interface YunxiaoCommentResponse {
 
 /** Build the web URL for a work item. */
 export function workitemUrl(organizationId: string, workitem: YunxiaoWorkitem): string {
-  return `https://devops.aliyun.com/organization/${organizationId}/workitem/${workitem.identifier}`;
+  return `https://devops.aliyun.com/organization/${organizationId}/workitem/${workitem.id}`;
 }
 
 /** Convert a YunxiaoWorkitem to the generic RemoteIssue shape. */
@@ -202,9 +147,9 @@ export function workitemToRemote(
   wi: YunxiaoWorkitem,
 ): RemoteIssue {
   return {
-    id: wi.identifier,
+    id: wi.id,
     title: wi.subject,
-    state: wi.status ?? 'unknown',
+    state: wi.status?.displayName ?? 'unknown',
     url: workitemUrl(organizationId, wi),
   };
 }

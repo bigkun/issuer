@@ -247,8 +247,12 @@ export async function validateToken(
         if (!owner) return { valid: false, error: 'organizationId is required to validate 云效 token' };
         const domain = 'openapi-rdc.aliyuncs.com';
         const res = await httpFetch(
-          `https://${domain}/oapi/v1/organization/${owner}/workitems/list?maxResults=1`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          `https://${domain}/oapi/v1/projex/organizations/${owner}/workitems:search`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-yunxiao-token': token },
+            body: JSON.stringify({ category: 'Req', spaceType: 'Project', page: 1, perPage: 1 }),
+          },
         );
         if (!res.ok) return { valid: false, error: `云效 API ${res.status}` };
         return { valid: true };

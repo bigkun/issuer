@@ -3,7 +3,7 @@ import {
   workTypeToCategory,
   priorityToFieldValue,
   taskToCreateBody,
-  taskToUpdateFields,
+  taskToUpdateBody,
   taskToCommentBody,
   workitemToRemote,
 } from '../../src/adapter/yunxiao/mapper.js';
@@ -65,29 +65,23 @@ describe('yunxiao/mapper', () => {
     expect(body.fieldValueList![0].value).toBe('high');
   });
 
-  it('builds update fields for title and description', () => {
+  it('builds update body (新版 API 格式)', () => {
     const task = makeTask({ platform_id: 'wi-abc123' });
-    const fields = taskToUpdateFields(task);
-    expect(fields).toHaveLength(2);
-    expect(fields[0].propertyKey).toBe('subject');
-    expect(fields[0].propertyValue).toBe('Test story');
-    expect(fields[0].fieldType).toBe('subject');
-    expect(fields[1].propertyKey).toBe('description');
-    expect(fields[1].fieldType).toBe('document');
+    const body = taskToUpdateBody(task);
+    expect(body.subject).toBe('Test story');
+    expect(body.description).toBe('## Description\nThis is a test.');
   });
 
-  it('builds comment body', () => {
+  it('builds comment body (新版 API 格式)', () => {
     const body = taskToCommentBody('wi-123', 'Hello world');
-    expect(body.workitemIdentifier).toBe('wi-123');
     expect(body.content).toBe('Hello world');
-    expect(body.formatType).toBe('MARKDOWN');
   });
 
-  it('converts workitem to RemoteIssue', () => {
+  it('converts workitem to RemoteIssue (新版 API 格式)', () => {
     const wi = {
-      identifier: 'wi-xyz',
+      id: 'wi-xyz',
       subject: 'My item',
-      status: '进行中',
+      status: { id: '28', displayName: '进行中' },
     };
     const remote = workitemToRemote('org-123', wi as any);
     expect(remote.id).toBe('wi-xyz');
@@ -103,13 +97,13 @@ describe('yunxiao/mapper', () => {
 // ---------------------------------------------------------------------------
 
 describe('YunxiaoAdapter', () => {
-  function mockFetch(responses: Array<{ ok: boolean; json: unknown }>) {
+  function mockFetch(responses: Array<{ ok: boolean; json: unknown; status?: number }>) {
     let callIndex = 0;
     return async (url: string, init?: RequestInit) => {
       const resp = responses[callIndex++] ?? { ok: false, json: { success: false } };
       return {
         ok: resp.ok,
-        status: resp.ok ? 200 : 400,
+        status: resp.ok ? 200 : (resp.status ?? 400),
         statusText: resp.ok ? 'OK' : 'Bad Request',
         json: async () => resp.json,
         text: async () => JSON.stringify(resp.json),
@@ -128,11 +122,7 @@ describe('YunxiaoAdapter', () => {
       ...opts,
       fetch: mockFetch([{
         ok: true,
-        json: {
-          success: true,
-          requestId: 'req-1',
-          workitem: { identifier: 'wi-new', subject: 'Test story' },
-        },
+        json: { id: 'wi-new' },  // 新版 API 返回 { id }
       }]),
     });
 
@@ -146,20 +136,20 @@ describe('YunxiaoAdapter', () => {
       ...opts,
       fetch: mockFetch([{
         ok: true,
-        json: { success: false, errorCode: 'Openapi.RequestError', errorMsg: 'bad request' },
+        json: { errorMsg: 'bad request', errorCode: 'Openapi.RequestError' },
       }]),
     });
 
     await expect(adapter.createIssue(makeTask())).rejects.toThrow('createIssue failed');
   });
 
-  it('updateIssue sends POST for each field and returns IssueRef', async () => {
+  it('updateIssue sends PUT and returns IssueRef', async () => {
     const adapter = new YunxiaoAdapter({
       ...opts,
-      fetch: mockFetch([
-        { ok: true, json: { success: true, requestId: 'req-2', workitem: { identifier: 'wi-old' } } },
-        { ok: true, json: { success: true, requestId: 'req-3', workitem: { identifier: 'wi-old' } } },
-      ]),
+      fetch: mockFetch([{
+        ok: true,
+        json: {},  // PUT 可能返回空
+      }]),
     });
 
     const ref = await adapter.updateIssue(makeTask({ platform_id: 'wi-old' }));
@@ -177,33 +167,20 @@ describe('YunxiaoAdapter', () => {
       fetch: mockFetch([
         {
           ok: true,
-          json: {
-            success: true,
-            requestId: 'req-4',
-            totalCount: 2,
-            nextToken: 'page2',
-            maxResults: 1,
-            workitems: [{ workitem: { identifier: 'wi-1', subject: 'Item 1', status: '待处理' } }],
-          },
+          json: [
+            { id: 'wi-1', subject: 'Item 1', status: { id: '28', displayName: '待处理' } },
+          ],  // 新版 API 返回数组
         },
         {
           ok: true,
-          json: {
-            success: true,
-            requestId: 'req-5',
-            totalCount: 2,
-            nextToken: '',
-            maxResults: 1,
-            workitems: [{ workitem: { identifier: 'wi-2', subject: 'Item 2', status: '已完成' } }],
-          },
+          json: [],  // 第二页空，结束
         },
       ]),
     });
 
     const items = await adapter.listRemote();
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(1);
     expect(items[0].id).toBe('wi-1');
-    expect(items[1].id).toBe('wi-2');
   });
 
   it('addComment sends POST and succeeds', async () => {
@@ -211,11 +188,7 @@ describe('YunxiaoAdapter', () => {
       ...opts,
       fetch: mockFetch([{
         ok: true,
-        json: {
-          success: 'true',
-          requestId: 'req-6',
-          Comment: { Id: 42, content: 'note' },
-        },
+        json: { id: 'comment-42' },  // 新版 API 返回 { id }
       }]),
     });
 
@@ -227,7 +200,7 @@ describe('YunxiaoAdapter', () => {
       ...opts,
       fetch: mockFetch([{
         ok: true,
-        json: { success: 'false', errorCode: 'Openapi.RequestError', errorMsg: 'no perm' },
+        json: { errorMsg: 'no perm', errorCode: 'Openapi.RequestError' },
       }]),
     });
 

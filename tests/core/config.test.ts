@@ -181,9 +181,10 @@ describe('validateToken', () => {
     expect(result.valid).toBe(true);
   });
   it('validates yunxiao token successfully', async () => {
-    const mockFetch = async (url: string) => {
-      if (url.includes('workitems/list')) {
-        return { ok: true, json: async () => ({}) };
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      // 新版 API: POST workitems:search
+      if (url.includes('workitems:search')) {
+        return { ok: true, json: async () => [] };
       }
       return { ok: false, status: 401 };
     };
