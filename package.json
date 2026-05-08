@@ -1,7 +1,7 @@
 {
   "name": "@issuer/cli",
-  "version": "0.1.0",
-  "description": "Skill-driven PM gateway: structure requirements with agent skills, push to GitHub Issues via CLI.",
+  "version": "0.1.1",
+  "description": "CLI tool that bridges requirements → PM platforms (GitHub, GitLab, Yunxiao). Refine → Breakdown → Sync pipeline. MCP-first, CLI fallback.",
   "type": "module",
   "bin": {
     "issuer": "dist/index.js"
@@ -39,10 +39,23 @@
   "keywords": [
     "pm",
     "github",
+    "gitlab",
+    "yunxiao",
     "issues",
     "skill",
     "agent",
-    "cli"
+    "mcp",
+    "cli",
+    "requirements"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bigkun/issuer.git"
+  },
+  "homepage": "https://github.com/bigkun/issuer#readme",
+  "bugs": {
+    "url": "https://github.com/bigkun/issuer/issues"
+  },
+  "author": "bigkun"
 }
