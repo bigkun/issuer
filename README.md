@@ -130,7 +130,11 @@ issuer init -y --platform yunxiao --owner <organizationId> --repo <spaceIdentifi
 2. `YUNXIAO_TOKEN`
 3. `~/.issuer/credentials.yml` → `yunxiao_token: xxxx`
 
-Create a Personal Access Token at 云效 → 个人设置 → 个人访问令牌，勾选「项目协作」权限。
+Create a Personal Access Token at 云效 → 个人设置 → 个人访问令牌，勾选以下权限:
+- **项目协作** (工作项读写) — create/update/search work items
+- **组织管理 - 用户** (只读) — fetch your user ID on first push (GetUserByToken API)
+
+> **Note**: On first `issuer push`, the CLI automatically fetches your user ID via GetUserByToken API and saves it to `.issuer/config.yml`. This requires the 「组织管理 - 用户」(只读) permission.
 
 **MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/5). Update and comment fall back to the CLI adapter, which calls the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — closing the full 5/5 capability gap.
 
