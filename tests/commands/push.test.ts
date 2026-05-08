@@ -8,6 +8,11 @@ import type { Adapter } from '../../src/adapter/interface.js';
 function setup() {
   const cwd = mkdtempSync(join(tmpdir(), 'issuer-push-'));
   mkdirSync(join(cwd, '.issuer', 'tasks'), { recursive: true });
+  // Create config.yml for dedup settings
+  writeFileSync(
+    join(cwd, '.issuer', 'config.yml'),
+    `platform: github\nowner: test\nrepo: test\ndefault_labels: []\n`,
+  );
   const fmA = `---
 id: 2026-05-06-a
 type: task
@@ -67,6 +72,10 @@ describe('runPush', () => {
   it('skips tasks with mismatching platform', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'issuer-push-'));
     mkdirSync(join(cwd, '.issuer', 'tasks'), { recursive: true });
+    writeFileSync(
+      join(cwd, '.issuer', 'config.yml'),
+      `platform: github\nowner: test\nrepo: test\ndefault_labels: []\n`,
+    );
     writeFileSync(
       join(cwd, '.issuer', 'tasks', 'x.md'),
       `---\nid: x\ntype: task\ntitle: X\nstatus: ready\nplatform: gitlab\nplatform_id: null\nplatform_url: null\npriority: low\nlabels: []\ncreated_at: "2026-05-06T00:00:00Z"\nupdated_at: "2026-05-06T00:00:00Z"\n---\nbody\n`,

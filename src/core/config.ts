@@ -11,7 +11,22 @@ export interface ProjectConfig {
   repo: string;
   default_labels: string[];
   mcp_capabilities?: McpCapabilities;
+  dedup?: DedupConfig;
 }
+
+export interface DedupConfig {
+  enabled: boolean;
+  threshold: number;
+  ttl_hours: number;
+  on_match: 'prompt' | 'skip' | 'continue';
+}
+
+export const DEFAULT_DEDUP_CONFIG: DedupConfig = {
+  enabled: true,
+  threshold: 0.85,
+  ttl_hours: 24,
+  on_match: 'prompt',
+};
 
 export async function loadProjectConfig(projectRoot: string): Promise<ProjectConfig> {
   const cfgPath = join(projectRoot, '.issuer', 'config.yml');

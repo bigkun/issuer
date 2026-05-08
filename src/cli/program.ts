@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync, unlinkSync } from 'node:fs';
 import { createProgram } from './parser.js';
 import { runInit } from '../commands/init.js';
 import { runAuth } from '../commands/auth.js';
@@ -7,10 +8,12 @@ import { runPush } from '../commands/push.js';
 import { runStatus } from '../commands/status.js';
 import { runListRemote } from '../commands/list-remote.js';
 import { runSkillInstall } from '../commands/skill-install.js';
+import { runCacheRefresh } from '../commands/cache.js';
 import { GitHubAdapter } from '../adapter/github/index.js';
 import { GitLabAdapter } from '../adapter/gitlab/index.js';
 import { YunxiaoAdapter } from '../adapter/yunxiao/index.js';
 import { loadProjectConfig, resolveToken } from '../core/config.js';
+import { loadCache, getCachePath, getCacheAge } from '../core/cache.js';
 import { success, table, error } from './output.js';
 import type { Adapter } from '../adapter/interface.js';
 
@@ -84,9 +87,22 @@ export function buildProgram() {
   program
     .command('push')
     .description('Push status: ready tasks to the configured platform')
-    .action(async () => {
+    .option('--skip-dedup', 'skip duplicate detection')
+    .action(async (opts) => {
       const adapter = await buildAdapter(process.cwd());
-      const s = await runPush({ cwd: process.cwd(), adapter });
+      const s = await runPush({ cwd: process.cwd(), adapter, skipDedup: opts.skipDedup });
+      // Show duplicates if found
+      if (s.duplicates.length > 0) {
+        console.log('\n⚠ Potential duplicates detected:');
+        for (const d of s.duplicates) {
+          console.log(`  "${d.task.title}" matches:`);
+          for (const m of d.matches) {
+            console.log(`    - #${m.issue.id} "${m.issue.title}" (${Math.round(m.score * 100)}%)`);
+          }
+        }
+        console.log('\nTo skip duplicates, set dedup.on_match: skip in config');
+        console.log('To force upload anyway, use --skip-dedup\n');
+      }
       success(
         `Pushed: ${s.created.length} created, ${s.updated.length} updated, ${s.skipped.length} skipped`,
       );
@@ -129,6 +145,43 @@ export function buildProgram() {
         targetPath: opts.target,
       });
       success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+    });
+
+  const cache = program.command('cache').description('Manage local issue cache');
+  cache
+    .command('refresh')
+    .description('Refresh local issue cache from platform')
+    .action(async () => {
+      const adapter = await buildAdapter(process.cwd());
+      const r = await runCacheRefresh({ cwd: process.cwd(), adapter });
+      success(`Refreshed ${r.count} issues into ${r.path}`);
+    });
+
+  cache
+    .command('status')
+    .description('Show cache status')
+    .action(async () => {
+      const c = loadCache(process.cwd());
+      if (!c) {
+        console.log('No cache found. Run `issuer cache refresh` first.');
+        return;
+      }
+      const age = getCacheAge(c);
+      console.log(`Cache: ${c.issues.length} issues from ${c.platform}`);
+      console.log(`Fetched: ${c.fetched_at} (${age}h ago)`);
+    });
+
+  cache
+    .command('clear')
+    .description('Clear local issue cache')
+    .action(async () => {
+      const path = getCachePath(process.cwd());
+      if (existsSync(path)) {
+        unlinkSync(path);
+        success('Cache cleared');
+      } else {
+        console.log('No cache to clear');
+      }
     });
 
   return program;
