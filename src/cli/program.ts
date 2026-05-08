@@ -27,7 +27,13 @@ async function buildAdapter(cwd: string): Promise<Adapter> {
     case 'gitlab':
       return new GitLabAdapter({ token, owner: cfg.owner, repo: cfg.repo });
     case 'yunxiao':
-      return new YunxiaoAdapter({ token, organizationId: cfg.owner, spaceIdentifierId: cfg.repo });
+      return new YunxiaoAdapter({
+        token,
+        organizationId: cfg.owner,
+        spaceIdentifierId: cfg.repo,
+        workitemTypeId: cfg.workitem_type_id ?? '',
+        assignedTo: cfg.assigned_to,
+      });
     default:
       throw new Error(`Unsupported platform: ${cfg.platform}`);
   }

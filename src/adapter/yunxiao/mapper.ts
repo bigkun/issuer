@@ -28,42 +28,34 @@ export function priorityToFieldValue(priority: Priority): string {
 }
 
 // ---------------------------------------------------------------------------
-// CreateWorkitem request body
+// CreateWorkitem request body - 新版 API 格式
 // ---------------------------------------------------------------------------
 
 export interface CreateWorkitemBody {
   subject: string;
+  spaceId: string;
+  workitemTypeId: string;
+  assignedTo: string;
   description?: string;
-  descriptionFormat?: string;
-  assignedTo?: string;
-  space: string;
-  spaceIdentifier: string;
-  spaceType: string;
-  category: string;
-  workitemType?: string;
-  parent?: string;
-  fieldValueList?: Array<{
-    fieldIdentifier: string;
-    value: string;
-  }>;
+  customFieldValues?: Record<string, string>;
 }
 
 /** Convert a TaskFile to a CreateWorkitem request body. */
 export function taskToCreateBody(
   task: TaskFile,
-  spaceIdentifierId: string,
+  spaceId: string,
+  workitemTypeId: string,
+  assignedTo: string,
 ): CreateWorkitemBody {
   const body: CreateWorkitemBody = {
     subject: task.title,
+    spaceId,
+    workitemTypeId,
+    assignedTo,
     description: task.body,
-    descriptionFormat: 'MARKDOWN',
-    space: spaceIdentifierId,
-    spaceIdentifier: spaceIdentifierId,
-    spaceType: 'Project',
-    category: workTypeToCategory(task.type),
-    fieldValueList: [
-      { fieldIdentifier: 'priority', value: priorityToFieldValue(task.priority) },
-    ],
+    customFieldValues: {
+      priority: priorityToFieldValue(task.priority),
+    },
   };
   return body;
 }

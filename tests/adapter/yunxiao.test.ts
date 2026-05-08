@@ -52,17 +52,15 @@ describe('yunxiao/mapper', () => {
     expect(priorityToFieldValue(Priority.Low)).toBe('low');
   });
 
-  it('builds CreateWorkitem body', () => {
+  it('builds CreateWorkitem body (新版 API 格式)', () => {
     const task = makeTask();
-    const body = taskToCreateBody(task, 'space-123');
+    const body = taskToCreateBody(task, 'space-123', 'type-abc', 'user-xyz');
     expect(body.subject).toBe('Test story');
     expect(body.description).toBe('## Description\nThis is a test.');
-    expect(body.descriptionFormat).toBe('MARKDOWN');
-    expect(body.spaceIdentifier).toBe('space-123');
-    expect(body.category).toBe('Req');
-    expect(body.fieldValueList).toHaveLength(1);
-    expect(body.fieldValueList![0].fieldIdentifier).toBe('priority');
-    expect(body.fieldValueList![0].value).toBe('high');
+    expect(body.spaceId).toBe('space-123');
+    expect(body.workitemTypeId).toBe('type-abc');
+    expect(body.assignedTo).toBe('user-xyz');
+    expect(body.customFieldValues?.priority).toBe('high');
   });
 
   it('builds update body (新版 API 格式)', () => {
@@ -115,6 +113,8 @@ describe('YunxiaoAdapter', () => {
     token: 'test-pat',
     organizationId: 'org-abc',
     spaceIdentifierId: 'space-123',
+    workitemTypeId: 'type-abc',
+    assignedTo: 'user-xyz',
   };
 
   it('createIssue sends POST and returns IssueRef', async () => {

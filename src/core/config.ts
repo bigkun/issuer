@@ -12,6 +12,10 @@ export interface ProjectConfig {
   default_labels: string[];
   mcp_capabilities?: McpCapabilities;
   dedup?: DedupConfig;
+  /** Yunxiao: default work item type ID for create */
+  workitem_type_id?: string;
+  /** Yunxiao: default assignedTo userId for create */
+  assigned_to?: string;
 }
 
 export interface DedupConfig {

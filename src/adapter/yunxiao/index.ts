@@ -21,6 +21,10 @@ export interface YunxiaoAdapterOptions {
   organizationId: string;
   /** Space identifier ID (project ID / spaceIdentifierId). */
   spaceIdentifierId: string;
+  /** Default work item type ID (workitemTypeId) — required for create. */
+  workitemTypeId: string;
+  /** Default assignedTo userId — required for create. */
+  assignedTo?: string;
   /** API domain — defaults to `openapi-rdc.aliyuncs.com`. */
   domain?: string;
   /** Custom fetch implementation (for testing). */
@@ -38,6 +42,8 @@ export class YunxiaoAdapter implements Adapter {
   private readonly token: string;
   private readonly organizationId: string;
   private readonly spaceIdentifierId: string;
+  private readonly workitemTypeId: string;
+  private readonly assignedTo?: string;
   private readonly domain: string;
   private readonly httpFetch: (...args: any[]) => Promise<any>;
 
@@ -45,6 +51,8 @@ export class YunxiaoAdapter implements Adapter {
     this.token = opts.token;
     this.organizationId = opts.organizationId;
     this.spaceIdentifierId = opts.spaceIdentifierId;
+    this.workitemTypeId = opts.workitemTypeId;
+    this.assignedTo = opts.assignedTo;
     this.domain = opts.domain ?? DEFAULT_DOMAIN;
     this.httpFetch = (opts.fetch ?? globalThis.fetch) as (...args: any[]) => Promise<any>;
   }
@@ -54,7 +62,10 @@ export class YunxiaoAdapter implements Adapter {
   // -----------------------------------------------------------------------
 
   async createIssue(task: TaskFile): Promise<IssueRef> {
-    const body = taskToCreateBody(task, this.spaceIdentifierId);
+    if (!this.assignedTo) {
+      throw new AdapterError('assignedTo is required for createIssue — set in config or CLI', this.name);
+    }
+    const body = taskToCreateBody(task, this.spaceIdentifierId, this.workitemTypeId, this.assignedTo);
     const path = `/organizations/${this.organizationId}/workitems`;
 
     const res = await this.request<YunxiaoCreateResponse>('POST', path, body);
