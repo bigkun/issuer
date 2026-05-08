@@ -34,6 +34,23 @@ Also confirm the current working directory contains `.issuer/config.yml` (from `
 - If the file does not exist, stop and tell the user to run `issuer init`.
 - **Ensure a brief file exists** at `.issuer/briefs/<slug>.md` for the current input. If not, invoke `issuer-refine` (in its own Quick mode) with the raw text and proceed only after the brief file has been written.
 
+### Brief quality evaluation
+
+Before breakdown, evaluate the brief's completeness using the **five-dimension score** (same as `issuer-refine`).
+
+- **Score ≥ 50** → Proceed with breakdown directly.
+- **Score < 50** → Warn user and offer options:
+  ```
+  Brief quality score: 35/100 (insufficient for breakdown)
+  Missing: Clear acceptance criteria, goal statement vague
+  Options:
+  1. Refine first → invoke issuer-refine to enhance this brief
+  2. Proceed anyway → breakdown may produce incomplete tasks
+  → Choose 1 or 2?
+  ```
+
+  Default recommendation: Option 1 (refine first). Only proceed with Option 2 if user explicitly confirms.
+
 ## Output
 
 For each identified work item, write `.issuer/tasks/YYYY-MM-DD-<slug>.md` with this exact frontmatter:
@@ -124,6 +141,7 @@ After writing the task files, update the index:
 
 ## Guardrails
 
+- **Evaluate brief quality before breakdown.** If score < 50, recommend refinement first. Never silently breakdown an incomplete brief.
 - **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
 - **Always work from a brief file.** Never fabricate tasks from raw text directly — invoke `issuer-refine` first when no brief file exists.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.

@@ -13,7 +13,7 @@ Two input modes:
 
 ### Quick mode (preferred when arguments are provided)
 
-If the user invokes `/issuer-refine <text>` with a direct text argument (e.g. `我的app需要登录功能`):
+If the user invokes `/issuer-refine <text>` with a direct text argument (e.g. `User login function supports login via mobile phone number and verification code.`):
 
 1. **Source** — the argument text itself; no further confirmation needed.
 2. **Output mode** — defaults to `new-file`; write the brief to `.issuer/briefs/<slug>.md`. The user may override with `--replace`.
@@ -76,6 +76,32 @@ Omit the section if none apply.
 ```
 
 ## Steps
+
+0. **Evaluate input completeness.** Before processing, assess the source using the **five-dimension completeness score**:
+
+   | Dimension | Weight | What to check |
+   |-----------|--------|----------------|
+   | Structure | 30% | Are core sections present (Problem/Goal/Acceptance criteria)? |
+   | Professional phrasing | 20% | Professional terminology vs casual language (e.g. "≤2s" vs "faster") |
+   | Verifiability | 25% | Acceptance criteria are independently testable with checkboxes? |
+   | Boundaries | 15% | Non-goals or constraint boundaries defined? |
+   | Assumptions explicit | 10% | Ambiguous points listed or clearly unnecessary? |
+
+   Compute score (0-100) and determine action:
+   - **Score < 30** → `FULL_ENRICHMENT`: Complete expansion, list assumptions, fill all sections.
+   - **Score 30-60** → `PARTIAL_ENRICHMENT`: Fill missing sections, improve vague criteria.
+   - **Score 60-80** → `LIGHT_TOUCH`: Format validation, minor tweaks only.
+   - **Score ≥ 80** → `SKIP`: Document is professional. Tell user "Input quality sufficient (X/100). No refinement needed."
+
+   **Inform the user** before proceeding:
+   ```
+   Input Completeness Score: 45/100
+   Missing: Assumptions, Boundaries, 2 vague acceptance criteria
+   Recommendation: PARTIAL_ENRICHMENT
+   → Proceed with enrichment? (y/n)
+   ```
+
+   If user declines or input is `SKIP`, stop here.
 
 1. Read the source text.
 2. **Surface assumptions immediately.** If the source contains ambiguous or incomplete requirements, list what you're assuming before writing any brief content. Format:
