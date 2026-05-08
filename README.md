@@ -36,6 +36,67 @@ The agent will:
 3. Ask you which to flip to `status: ready`.
 4. Push the ready ones to the configured platform (`issuer-sync`).
 
+## How it works
+
+Three atomic skills chained with explicit user checkpoints:
+
+```
+raw text
+  └─▶ issuer-refine     →  enriched PRD-style brief (.issuer/briefs/<slug>.md)
+          [CHECKPOINT — user approves]
+  └─▶ issuer-breakdown  →  task files (.issuer/tasks/*.md, status: draft)
+          [CHECKPOINT — user selects which to promote]
+  └─▶ issuer-sync       →  remote issues (status: synced)
+```
+
+### `/issuer` — Orchestrator
+
+End-to-end pipeline. Chains the three atomic skills with checkpoints between every stage.
+
+| Stage | Skill | Output | Checkpoint |
+|-------|-------|--------|------------|
+| 1 | `issuer-refine` | `.issuer/briefs/<slug>.md` | User approves brief text |
+| 2 | `issuer-breakdown` | `.issuer/tasks/*.md` (draft) | User selects which files → ready |
+| 3 | `issuer-sync` | Remote issues (synced) | None — auto-pushes ready files |
+
+**Two invocation modes:**
+- **Quick mode**: `/issuer <text>` — skips source confirmation, still requires Stage 1 & 2 checkpoints
+- **Interactive mode**: `/issuer` — asks for source scope and working directory
+
+### `/issuer-refine` — Enrich raw requirements
+
+Takes rough requirement text and **enriches** it into a professional PRD-style brief.
+
+**Key steps:**
+1. **Evaluate input quality** — five-dimension score (Structure, Professional phrasing, Verifiability, Boundaries, Assumptions)
+2. **Surface assumptions** — list ambiguous interpretations before proceeding
+3. **Reframe vague requirements** — "faster" → "≤2s", "better UX" → "≤3 steps"
+4. **Write brief** — Problem / Goal / Assumptions / Boundaries / Acceptance criteria (checkboxes)
+
+**Output**: `.issuer/briefs/<slug>.md` with localized headings matching user's language.
+
+### `/issuer-breakdown` — Split brief into tasks
+
+Reads a refined brief and emits one Markdown file per work item.
+
+**Key steps:**
+1. **Evaluate brief quality** — score ≥50 → proceed; <50 → recommend refine first
+2. **Parse brief** — identify work items (bug/story/task/epic)
+3. **Write task files** — `.issuer/tasks/YYYY-MM-DD-<slug>.md` with YAML frontmatter
+4. **Present approval prompt** — user selects which files to set `status: ready`
+
+**Output format:**
+```yaml
+---
+id: 2026-05-07-fix-login
+type: bug
+title: Fix login validation error
+status: draft  # → ready after user selection
+platform: github
+labels: []
+---
+```
+
 ## Platform setup
 
 ### GitHub
