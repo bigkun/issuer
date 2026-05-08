@@ -14,7 +14,7 @@ export interface ProjectConfig {
   dedup?: DedupConfig;
   /** Yunxiao: default work item type ID for create */
   workitem_type_id?: string;
-  /** Yunxiao: default assignedTo userId for create */
+  /** Yunxiao: default assignedTo userId for create (auto-fetched from token if not set) */
   assigned_to?: string;
 }
 
@@ -76,7 +76,20 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     repo: data.repo as string,
     default_labels: (labels as string[] | undefined) ?? [],
     mcp_capabilities,
+    workitem_type_id: data.workitem_type_id as string | undefined,
+    assigned_to: data.assigned_to as string | undefined,
   };
+}
+
+/** Save project config with updated fields. */
+export function saveProjectConfig(projectRoot: string, updates: Partial<ProjectConfig>): void {
+  const cfgPath = join(projectRoot, '.issuer', 'config.yml');
+  if (!existsSync(cfgPath)) {
+    throw new ConfigError(`Missing ${cfgPath}. Cannot save.`);
+  }
+  const existing = yamlParse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>;
+  const merged = { ...existing, ...updates };
+  writeFileSync(cfgPath, yamlStringify(merged), 'utf8');
 }
 
 export interface TokenResolveOptions {

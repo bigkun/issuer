@@ -8,6 +8,7 @@ import {
   YunxiaoCreateResponse,
   YunxiaoSearchResponse,
   YunxiaoCommentResponse,
+  YunxiaoUserResponse,
 } from './mapper.js';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,37 @@ export class YunxiaoAdapter implements Adapter {
     this.assignedTo = opts.assignedTo;
     this.domain = opts.domain ?? DEFAULT_DOMAIN;
     this.httpFetch = (opts.fetch ?? globalThis.fetch) as (...args: any[]) => Promise<any>;
+  }
+
+  // -----------------------------------------------------------------------
+  // getCurrentUser → GET /oapi/v1/platform/user
+  // -----------------------------------------------------------------------
+
+  async getCurrentUser(): Promise<{ id: string; name: string }> {
+    const url = `https://${this.domain}/oapi/v1/platform/user`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-yunxiao-token': this.token,
+    };
+
+    const res = await this.httpFetch(url, { method: 'GET', headers });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new AdapterError(`getCurrentUser HTTP ${res.status}: ${text.slice(0, 200)}`, this.name);
+    }
+
+    const data = await res.json() as YunxiaoUserResponse;
+    if (!data.id) {
+      throw new AdapterError('getCurrentUser failed: no user id returned', this.name);
+    }
+
+    return { id: data.id, name: data.name ?? data.username ?? '' };
+  }
+
+  /** Update assignedTo after fetching user ID. */
+  updateAssignedTo(userId: string): void {
+    (this as any).assignedTo = userId;
   }
 
   // -----------------------------------------------------------------------

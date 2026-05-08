@@ -124,6 +124,14 @@ export interface YunxiaoCommentResponse {
   errorCode?: string;
 }
 
+/** GetUserByToken 返回用户信息 */
+export interface YunxiaoUserResponse {
+  id?: string;
+  name?: string;
+  username?: string;
+  email?: string;
+}
+
 // ---------------------------------------------------------------------------
 // YunxiaoWorkitem → RemoteIssue
 // ---------------------------------------------------------------------------
