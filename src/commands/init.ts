@@ -119,8 +119,8 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   let mcp_capabilities: McpCapabilities;
   const entry = getRegistryEntry(platform);
   if (opts.probedTools && opts.probedTools.length > 0) {
-    const { capabilitiesFromProbe } = await import('../adapter/registry.js');
-    mcp_capabilities = capabilitiesFromProbe(platform, opts.probedTools);
+    const { capabilitiesFromProbeWithRegistry } = await import('../adapter/registry.js');
+    mcp_capabilities = capabilitiesFromProbeWithRegistry(platform, opts.probedTools);
   } else if (entry) {
     mcp_capabilities = capabilitiesFromRegistry(entry);
   } else {
