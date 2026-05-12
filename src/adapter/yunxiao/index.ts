@@ -1,7 +1,7 @@
 import { TaskFile } from '../../core/types.js';
 import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
-import { saveProjectConfig, type WorkitemTypeMap } from '../../core/config.js';
+import { saveProjectConfig, loadProjectConfig, type WorkitemTypeMap, type SeverityFieldMap } from '../../core/config.js';
 import {
   taskToCreateBody,
   taskToUpdateBody,
@@ -169,33 +169,128 @@ export class YunxiaoAdapter implements Adapter {
   /**
    * Ensure all required fields have values in the create body.
    * Auto-fills default values for required fields that are missing.
+   * For Bug type: queries and caches severity field mapping on first push.
    */
   private async ensureRequiredFields(
     body: any,
     workitemTypeId: string,
+    category: 'Req' | 'Bug' | 'Task',
   ): Promise<void> {
-    const fields = await this.getFieldConfig(workitemTypeId);
-    const requiredFields = fields.filter(f => f.required);
+    // For Bug type, ensure severity field mapping is cached
+    if (category === 'Bug') {
+      await this.ensureSeverityFieldMapping(workitemTypeId);
+    }
 
-    for (const field of requiredFields) {
-      // Skip if already set in body
-      if (body.customFields?.[field.id]) continue;
-      if (body[field.id]) continue;
-
-      // For severity field (严重程度), auto-fill with default value
-      if (field.identifier === 'severity' || field.name === '严重程度') {
-        const defaultOptionId = findRequiredFieldDefault(fields, field.identifier);
-        if (defaultOptionId) {
-          if (!body.customFields) body.customFields = {};
-          body.customFields[field.id] = defaultOptionId;
-          console.log(`  → Auto-filled required field "${field.name}" with default value`);
-        } else {
-          throw new AdapterError(
-            `Required field "${field.name}" (${field.identifier}) has no default value. Please configure it in 云效.`,
-            this.name,
-          );
-        }
+    // Only process if we have severity field mapping
+    if (category === 'Bug' && this.severityFieldMap) {
+      // Map task priority to severity option
+      const severityOptionId = this.getSeverityOptionId(body._taskPriority);
+      if (severityOptionId) {
+        if (!body.customFields) body.customFields = {};
+        body.customFields[this.severityFieldMap.fieldId] = severityOptionId;
+        console.log(`  → Set severity based on priority: ${body._taskPriority} → severity`);
       }
+    }
+  }
+
+  /** Cache for severity field mapping */
+  private severityFieldMap?: SeverityFieldMap;
+
+  /**
+   * Ensure severity field mapping is cached (auto-fetch on first Bug push).
+   */
+  private async ensureSeverityFieldMapping(workitemTypeId: string): Promise<void> {
+    // Try to load from config first
+    if (!this.severityFieldMap) {
+      try {
+        const cfg = await loadProjectConfig(this.projectRoot);
+        if (cfg.severity_field_map) {
+          this.severityFieldMap = cfg.severity_field_map;
+          console.log('Loaded severity field mapping from config');
+          return;
+        }
+      } catch {
+        // Config load failed, will fetch from API
+      }
+    }
+
+    if (this.severityFieldMap) return;
+
+    console.log('Fetching severity field config for Bug type...');
+    const fields = await this.getFieldConfig(workitemTypeId);
+    
+    // Find severity field
+    const severityField = fields.find(f => 
+      f.identifier === 'severity' || f.name === '严重程度'
+    );
+
+    if (!severityField || !severityField.options) {
+      console.log('  → No severity field found, skipping');
+      return;
+    }
+
+    // Build priority → option mapping
+    const options = severityField.options;
+    const optionMap: import('../../core/config.js').SeverityFieldMap['options'] = {};
+
+    // Try to match by option name (common Chinese names)
+    for (const opt of options) {
+      const name = opt.name.toLowerCase();
+      if (name.includes('致命') || name.includes('critical') || name.includes('block')) {
+        optionMap.critical = opt.id;
+      } else if (name.includes('严重') || name.includes('high') || name.includes('major')) {
+        optionMap.high = opt.id;
+      } else if (name.includes('一般') || name.includes('medium') || name.includes('normal')) {
+        optionMap.medium = opt.id;
+      } else if (name.includes('建议') || name.includes('low') || name.includes('minor')) {
+        optionMap.low = opt.id;
+      }
+    }
+
+    // Fallback: use first 4 options in order
+    if (Object.keys(optionMap).length === 0 && options.length >= 4) {
+      optionMap.critical = options[0].id;
+      optionMap.high = options[1].id;
+      optionMap.medium = options[2].id;
+      optionMap.low = options[3].id;
+    }
+
+    this.severityFieldMap = {
+      fieldId: severityField.id,
+      options: optionMap,
+    };
+
+    // Save to config
+    try {
+      saveProjectConfig(this.projectRoot, {
+        severity_field_map: this.severityFieldMap,
+      });
+    } catch (err) {
+      console.log(`  → Warning: Could not save severity field mapping to config: ${err}`);
+    }
+
+    console.log(`  → Cached severity field mapping: fieldId=${severityField.id}`);
+    console.log(`     critical=${optionMap.critical}, high=${optionMap.high}, medium=${optionMap.medium}, low=${optionMap.low}`);
+  }
+
+  /**
+   * Get severity option ID based on task priority.
+   */
+  private getSeverityOptionId(priority?: string): string | undefined {
+    if (!this.severityFieldMap) return undefined;
+    
+    switch (priority) {
+      case 'critical':
+        return this.severityFieldMap.options.critical;
+      case 'high':
+        return this.severityFieldMap.options.high;
+      case 'medium':
+        return this.severityFieldMap.options.medium;
+      case 'low':
+        return this.severityFieldMap.options.low;
+      default:
+        // Default to medium if not specified
+        return this.severityFieldMap.options.medium;
     }
   }
 
@@ -239,8 +334,11 @@ export class YunxiaoAdapter implements Adapter {
 
     const body = taskToCreateBody(task, this.spaceIdentifierId, workitemTypeId, assignedTo);
     
+    // Pass priority for severity mapping
+    (body as any)._taskPriority = task.priority;
+    
     // Ensure all required fields have values (auto-fill defaults)
-    await this.ensureRequiredFields(body, workitemTypeId);
+    await this.ensureRequiredFields(body, workitemTypeId, category);
     
     const path = `/organizations/${this.organizationId}/workitems`;
 

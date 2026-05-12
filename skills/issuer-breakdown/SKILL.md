@@ -238,7 +238,12 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 
 1. Parse the brief.
 2. Decide how many work items it contains. A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
-3. For each item: pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
+3. For each item: Pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
+   - **For Bug type**: `priority` is REQUIRED and maps to platform severity field:
+     - `critical` (P0) - System crash, data loss, blocker
+     - `high` (P1) - Major feature broken, no workaround
+     - `medium` (P2) - Feature impaired, workaround exists
+     - `low` (P3) - Cosmetic, minor inconvenience
 4. Compute slug (see Slug rules), build frontmatter, write the file.
 5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using this **exact template** (translate only the natural-language parts to match the user's interaction language):
 

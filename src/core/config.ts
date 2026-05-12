@@ -16,6 +16,8 @@ export interface ProjectConfig {
   assigned_to?: string;
   /** Yunxiao: workitem type mapping (auto-fetched via ListWorkitemTypes) */
   workitem_type_map?: WorkitemTypeMap;
+  /** Yunxiao: Bug severity field mapping (auto-fetched on first Bug push) */
+  severity_field_map?: SeverityFieldMap;
   /** Custom path for task files (default: .issuer/tasks) */
   tasks_dir?: string;
   /** Custom path for refine output (default: .issuer/refine) */
@@ -27,6 +29,19 @@ export interface WorkitemTypeMap {
   Req?: string;   // 需求类型
   Bug?: string;   // 缺陷类型
   Task?: string;  // 任务类型
+}
+
+/** Yunxiao Bug severity field mapping (priority → severity field option ID). */
+export interface SeverityFieldMap {
+  /** Cloud effect severity field ID */
+  fieldId: string;
+  /** Priority to severity option ID mapping */
+  options: {
+    critical?: string;  // P0 - 致命
+    high?: string;      // P1 - 严重
+    medium?: string;    // P2 - 一般
+    low?: string;       // P3 - 建议
+  };
 }
 
 export interface DedupConfig {
@@ -71,6 +86,26 @@ function parseWorkitemTypeMap(raw: unknown): WorkitemTypeMap | undefined {
     Req: typeof map.Req === 'string' ? map.Req : undefined,
     Bug: typeof map.Bug === 'string' ? map.Bug : undefined,
     Task: typeof map.Task === 'string' ? map.Task : undefined,
+  };
+}
+
+/** Parse severity_field_map from raw config data. */
+function parseSeverityFieldMap(raw: unknown): SeverityFieldMap | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const data = raw as Record<string, unknown>;
+  if (typeof data.fieldId !== 'string') return undefined;
+  
+  const optionsData = data.options as Record<string, unknown> | undefined;
+  if (!optionsData || typeof optionsData !== 'object') return undefined;
+  
+  return {
+    fieldId: data.fieldId as string,
+    options: {
+      critical: typeof optionsData.critical === 'string' ? optionsData.critical : undefined,
+      high: typeof optionsData.high === 'string' ? optionsData.high : undefined,
+      medium: typeof optionsData.medium === 'string' ? optionsData.medium : undefined,
+      low: typeof optionsData.low === 'string' ? optionsData.low : undefined,
+    },
   };
 }
 
@@ -154,6 +189,7 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     dedup: data.dedup as DedupConfig | undefined,
     assigned_to: data.assigned_to as string | undefined,
     workitem_type_map: parseWorkitemTypeMap(data.workitem_type_map),
+    severity_field_map: parseSeverityFieldMap(data.severity_field_map),
     tasks_dir: data.tasks_dir as string | undefined,
     refine_dir: data.refine_dir as string | undefined,
   };

@@ -133,9 +133,10 @@ describe('YunxiaoAdapter', () => {
               type: 'DROPDOWN',
               required: true,
               options: [
-                { id: 'opt-1', name: '致命', isDefault: false },
-                { id: 'opt-2', name: '严重', isDefault: true },
-                { id: 'opt-3', name: '一般', isDefault: false },
+                { id: 'opt-critical', name: '致命', isDefault: false },
+                { id: 'opt-high', name: '严重', isDefault: false },
+                { id: 'opt-medium', name: '一般', isDefault: true },
+                { id: 'opt-low', name: '建议', isDefault: false },
               ],
             },
           ],
@@ -148,7 +149,7 @@ describe('YunxiaoAdapter', () => {
       ]),
     });
 
-    const ref = await adapter.createIssue(makeTask());
+    const ref = await adapter.createIssue(makeTask({ type: WorkType.Bug, priority: Priority.High }));
     expect(ref.id).toBe('wi-new');
     expect(ref.url).toContain('wi-new');
   });
@@ -157,7 +158,7 @@ describe('YunxiaoAdapter', () => {
     const adapter = new YunxiaoAdapter({
       ...opts,
       fetch: mockFetch([
-        // First call: getFieldConfig
+        // First call: getFieldConfig (for Bug type)
         {
           ok: true,
           json: [],
@@ -171,7 +172,7 @@ describe('YunxiaoAdapter', () => {
       ]),
     });
 
-    await expect(adapter.createIssue(makeTask())).rejects.toThrow('HTTP 400');
+    await expect(adapter.createIssue(makeTask({ type: WorkType.Story }))).rejects.toThrow('createIssue failed');
   });
 
   it('updateIssue sends PUT and returns IssueRef', async () => {
