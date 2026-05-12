@@ -12,6 +12,10 @@
 #   ttl_hours: 24
 #   on_match: prompt
 
+# Custom directory paths (relative to project root)
+# tasks_dir: .issuer/tasks
+# refine_dir: .issuer/refine
+
 # Yunxiao: Default assignee (applies to all Yunxiao projects)
 # assigned_to: "your-user-id"
 

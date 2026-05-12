@@ -1,5 +1,6 @@
 import { TaskStore } from '../core/task-store.js';
 import { Status } from '../core/types.js';
+import { loadProjectConfig } from '../core/config.js';
 
 export interface StatusSummary {
   draft: number;
@@ -9,7 +10,10 @@ export interface StatusSummary {
 }
 
 export async function runStatus(opts: { cwd: string }): Promise<StatusSummary> {
-  const store = new TaskStore(opts.cwd);
+  const cfg = await loadProjectConfig(opts.cwd);
+  const store = new TaskStore(opts.cwd, {
+    tasksDir: cfg.tasks_dir,
+  });
   const all = await store.list();
   const summary: StatusSummary = { draft: 0, ready: 0, synced: 0, total: all.length };
   for (const t of all) {

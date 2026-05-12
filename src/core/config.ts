@@ -16,6 +16,10 @@ export interface ProjectConfig {
   assigned_to?: string;
   /** Yunxiao: workitem type mapping (auto-fetched via ListWorkitemTypes) */
   workitem_type_map?: WorkitemTypeMap;
+  /** Custom path for task files (default: .issuer/tasks) */
+  tasks_dir?: string;
+  /** Custom path for refine output (default: .issuer/refine) */
+  refine_dir?: string;
 }
 
 /** Yunxiao workitem type mapping (categoryId → workitemTypeId). */
@@ -53,6 +57,10 @@ export interface GlobalConfig {
   assigned_to?: string;
   /** Priority mappings */
   priority_map?: Record<string, string>;
+  /** Default tasks directory */
+  tasks_dir?: string;
+  /** Default refine directory */
+  refine_dir?: string;
 }
 
 /** Parse workitem_type_map from raw config data. */
@@ -91,8 +99,10 @@ function mergeConfigs(global: GlobalConfig | null, project: ProjectConfig): Proj
   
   return {
     ...project,
-    // Global assigned_to as fallback
+    // Global values as fallback
     assigned_to: project.assigned_to ?? global.assigned_to,
+    tasks_dir: project.tasks_dir ?? global.tasks_dir,
+    refine_dir: project.refine_dir ?? global.refine_dir,
     dedup: mergedDedup as DedupConfig | undefined,
   };
 }
@@ -144,6 +154,8 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     dedup: data.dedup as DedupConfig | undefined,
     assigned_to: data.assigned_to as string | undefined,
     workitem_type_map: parseWorkitemTypeMap(data.workitem_type_map),
+    tasks_dir: data.tasks_dir as string | undefined,
+    refine_dir: data.refine_dir as string | undefined,
   };
 
   // Load and merge global config

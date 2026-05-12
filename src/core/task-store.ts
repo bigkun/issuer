@@ -3,17 +3,29 @@ import { join } from 'node:path';
 import { TaskFile, Status } from './types.js';
 import { parseTaskFile, serializeTaskFile } from './task-file.js';
 
-export const TASKS_DIR = '.issuer/tasks';
+export const DEFAULT_TASKS_DIR = '.issuer/tasks';
 
 export interface ListOptions {
   status?: Status;
 }
 
+export interface TaskStoreOptions {
+  /** Custom tasks directory path (relative to cwd) */
+  tasksDir?: string;
+}
+
 export class TaskStore {
-  constructor(private readonly cwd: string) {}
+  private readonly tasksDirPath: string;
+
+  constructor(
+    private readonly cwd: string,
+    options: TaskStoreOptions = {},
+  ) {
+    this.tasksDirPath = join(this.cwd, options.tasksDir ?? DEFAULT_TASKS_DIR);
+  }
 
   get tasksDir(): string {
-    return join(this.cwd, TASKS_DIR);
+    return this.tasksDirPath;
   }
 
   ensureLayout(): void {

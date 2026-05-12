@@ -22,10 +22,20 @@ body
 `;
 }
 
+function createMockConfig(cwd: string): void {
+  const issuerDir = join(cwd, '.issuer');
+  mkdirSync(issuerDir, { recursive: true });
+  writeFileSync(
+    join(issuerDir, 'config.yml'),
+    'platform: github\nowner: test\nrepo: test\n'
+  );
+}
+
 describe('runStatus', () => {
   it('counts tasks by status', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'issuer-status-'));
     mkdirSync(join(cwd, '.issuer', 'tasks'), { recursive: true });
+    createMockConfig(cwd);
     writeFileSync(join(cwd, '.issuer', 'tasks', 'a.md'), fm('a', 'draft'));
     writeFileSync(join(cwd, '.issuer', 'tasks', 'b.md'), fm('b', 'ready'));
     writeFileSync(join(cwd, '.issuer', 'tasks', 'c.md'), fm('c', 'synced'));
@@ -34,6 +44,7 @@ describe('runStatus', () => {
 
   it('returns zeros when no tasks', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'issuer-status-'));
+    createMockConfig(cwd);
     expect(await runStatus({ cwd })).toEqual({ draft: 0, ready: 0, synced: 0, total: 0 });
   });
 });

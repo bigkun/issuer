@@ -35,7 +35,9 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   // Use CLI-provided dedupConfig if available, otherwise use config file defaults
   const dedup = opts.dedupConfig ?? cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
 
-  const store = new TaskStore(opts.cwd);
+  const store = new TaskStore(opts.cwd, {
+    tasksDir: cfg.tasks_dir,
+  });
   const ready = await store.list({ status: Status.Ready });
   const created: TaskFile[] = [];
   const updated: TaskFile[] = [];

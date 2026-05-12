@@ -5,6 +5,7 @@ import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
 import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, type McpCapabilities } from '../adapter/registry.js';
 import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
+import { DEFAULT_TASKS_DIR } from '../core/task-store.js';
 
 export interface InitOptions {
   cwd: string;
@@ -140,6 +141,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     default_labels: [] as string[],
     mcp_capabilities,
     dedup: DEFAULT_DEDUP_CONFIG,
+    tasks_dir: DEFAULT_TASKS_DIR,
   };
   writeFileSync(cfgPath, yamlStringify(cfg), 'utf8');
 
