@@ -39,8 +39,8 @@ export interface CreateWorkitemBody {
   assignedTo: string;
   description?: string;
   formatType?: 'RICHTEXT' | 'MARKDOWN';
-  // Note: priority 字段需要 priorityId（UUID），而非 P0-P3 字符串
-  // 暂不设置，使用云效默认值。后续可通过 getWorkItemTypeFieldConfig 获取优先级选项 ID
+  /** Custom fields in format { fieldId: fieldValue } */
+  customFields?: Record<string, string>;
 }
 
 /** Convert a TaskFile to a CreateWorkitem request body. */
@@ -148,6 +148,27 @@ export interface YunxiaoWorkitemType {
   description?: string;
 }
 
+/** 字段配置中的选项 */
+export interface FieldOption {
+  id: string;
+  name: string;
+  value?: string;
+  isDefault?: boolean;
+}
+
+/** 字段配置 */
+export interface FieldConfig {
+  id: string;
+  name: string;
+  identifier: string;  // 字段标识符，如 'severity', 'priority'
+  type: string;  // 'STRING', 'DROPDOWN', 'MULTI_SELECT' 等
+  required: boolean;
+  options?: FieldOption[];
+}
+
+/** 获取工作项类型字段配置的返回 */
+export type FieldConfigResponse = FieldConfig[];
+
 // WorkitemTypeMap moved to core/config.ts for unified config management
 
 // ---------------------------------------------------------------------------
@@ -186,6 +207,27 @@ export function buildTypeMap(types: YunxiaoWorkitemType[]): WorkitemTypeMap {
     if (matched) map[category] = matched.id;
   }
   return map;
+}
+
+/**
+ * Find the default value for a required field by its identifier.
+ * Returns the default option ID, or the first option ID if no default.
+ */
+export function findRequiredFieldDefault(
+  fields: FieldConfig[],
+  fieldIdentifier: string,
+): string | null {
+  const field = fields.find(f => f.identifier === fieldIdentifier);
+  if (!field || !field.options || field.options.length === 0) {
+    return null;
+  }
+
+  // Try to find default option
+  const defaultOption = field.options.find(opt => opt.isDefault);
+  if (defaultOption) return defaultOption.id;
+
+  // Fallback to first option
+  return field.options[0].id;
 }
 
 // ---------------------------------------------------------------------------

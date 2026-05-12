@@ -121,10 +121,31 @@ describe('YunxiaoAdapter', () => {
   it('createIssue sends POST and returns IssueRef', async () => {
     const adapter = new YunxiaoAdapter({
       ...opts,
-      fetch: mockFetch([{
-        ok: true,
-        json: { id: 'wi-new' },  // 新版 API 返回 { id }
-      }]),
+      fetch: mockFetch([
+        // First call: getFieldConfig
+        {
+          ok: true,
+          json: [
+            {
+              id: 'field-severity',
+              name: '严重程度',
+              identifier: 'severity',
+              type: 'DROPDOWN',
+              required: true,
+              options: [
+                { id: 'opt-1', name: '致命', isDefault: false },
+                { id: 'opt-2', name: '严重', isDefault: true },
+                { id: 'opt-3', name: '一般', isDefault: false },
+              ],
+            },
+          ],
+        },
+        // Second call: createIssue
+        {
+          ok: true,
+          json: { id: 'wi-new' },
+        },
+      ]),
     });
 
     const ref = await adapter.createIssue(makeTask());
@@ -135,13 +156,22 @@ describe('YunxiaoAdapter', () => {
   it('createIssue throws on API error', async () => {
     const adapter = new YunxiaoAdapter({
       ...opts,
-      fetch: mockFetch([{
-        ok: true,
-        json: { errorMsg: 'bad request', errorCode: 'Openapi.RequestError' },
-      }]),
+      fetch: mockFetch([
+        // First call: getFieldConfig
+        {
+          ok: true,
+          json: [],
+        },
+        // Second call: createIssue - error
+        {
+          ok: false,
+          status: 400,
+          json: { errorMsg: 'bad request', errorCode: 'Openapi.RequestError' },
+        },
+      ]),
     });
 
-    await expect(adapter.createIssue(makeTask())).rejects.toThrow('createIssue failed');
+    await expect(adapter.createIssue(makeTask())).rejects.toThrow('HTTP 400');
   });
 
   it('updateIssue sends PUT and returns IssueRef', async () => {

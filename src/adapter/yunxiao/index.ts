@@ -9,11 +9,13 @@ import {
   workTypeToCategory,
   matchWorkitemType,
   buildTypeMap,
+  findRequiredFieldDefault,
   YunxiaoCreateResponse,
   YunxiaoSearchResponse,
   YunxiaoCommentResponse,
   YunxiaoUserResponse,
   YunxiaoWorkitemType,
+  FieldConfigResponse,
 } from './mapper.js';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,8 @@ export class YunxiaoAdapter implements Adapter {
   private readonly projectRoot: string;
   private assignedTo?: string;
   private workitemTypeMap?: WorkitemTypeMap;
+  /** Cache of workitemTypeId → field configs */
+  private fieldConfigCache = new Map<string, FieldConfigResponse>();
   private readonly domain: string;
   private readonly httpFetch: (...args: any[]) => Promise<any>;
 
@@ -145,6 +149,56 @@ export class YunxiaoAdapter implements Adapter {
     return typeId;
   }
 
+  /**
+   * Get field configuration for a workitem type.
+   * Caches the result to avoid repeated API calls.
+   */
+  async getFieldConfig(workitemTypeId: string): Promise<FieldConfigResponse> {
+    if (this.fieldConfigCache.has(workitemTypeId)) {
+      return this.fieldConfigCache.get(workitemTypeId)!;
+    }
+
+    console.log(`Fetching field config for workitem type ${workitemTypeId}...`);
+    const path = `/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes/${workitemTypeId}/fields`;
+    const fields = await this.request<FieldConfigResponse>('GET', path);
+    
+    this.fieldConfigCache.set(workitemTypeId, fields);
+    return fields;
+  }
+
+  /**
+   * Ensure all required fields have values in the create body.
+   * Auto-fills default values for required fields that are missing.
+   */
+  private async ensureRequiredFields(
+    body: any,
+    workitemTypeId: string,
+  ): Promise<void> {
+    const fields = await this.getFieldConfig(workitemTypeId);
+    const requiredFields = fields.filter(f => f.required);
+
+    for (const field of requiredFields) {
+      // Skip if already set in body
+      if (body.customFields?.[field.id]) continue;
+      if (body[field.id]) continue;
+
+      // For severity field (严重程度), auto-fill with default value
+      if (field.identifier === 'severity' || field.name === '严重程度') {
+        const defaultOptionId = findRequiredFieldDefault(fields, field.identifier);
+        if (defaultOptionId) {
+          if (!body.customFields) body.customFields = {};
+          body.customFields[field.id] = defaultOptionId;
+          console.log(`  → Auto-filled required field "${field.name}" with default value`);
+        } else {
+          throw new AdapterError(
+            `Required field "${field.name}" (${field.identifier}) has no default value. Please configure it in 云效.`,
+            this.name,
+          );
+        }
+      }
+    }
+  }
+
   // -----------------------------------------------------------------------
   // getCurrentUser → GET /oapi/v1/platform/user
   // -----------------------------------------------------------------------
@@ -184,6 +238,10 @@ export class YunxiaoAdapter implements Adapter {
     const workitemTypeId = await this.ensureWorkitemTypeId(category);
 
     const body = taskToCreateBody(task, this.spaceIdentifierId, workitemTypeId, assignedTo);
+    
+    // Ensure all required fields have values (auto-fill defaults)
+    await this.ensureRequiredFields(body, workitemTypeId);
+    
     const path = `/organizations/${this.organizationId}/workitems`;
 
     const res = await this.request<YunxiaoCreateResponse>('POST', path, body);
