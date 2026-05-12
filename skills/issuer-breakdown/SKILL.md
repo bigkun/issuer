@@ -288,8 +288,10 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 ## <Topic / module>
 
 - **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)
-  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
-  - [x] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+  - [ ] `story` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] `bug` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+  - [ ] `task` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] `epic` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
 ```
 
 After writing the task files, update the index:
@@ -299,7 +301,8 @@ After writing the task files, update the index:
    - **Match found**: append the new task bullets under the existing brief entry. Do not duplicate the brief line.
    - **No match**: append a new brief entry under a suitable topic heading (same topic-selection logic as `issuer-refine`), linked to `briefs/<slug>.md`. Since breakdown always runs after a brief file exists (see Preconditions), the link target is always valid.
 3. Under that brief entry, append each newly created task as an indented sub-bullet (two spaces):
-   `  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->`
+   `  - [ ] <type> <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->`
+   Where `<type>` is one of: `story`, `bug`, `task`, `epic` (from the task's frontmatter `type:` field).
 4. Do not re-add a task line that already exists for the same `<id>`.
 5. Preserve every existing topic, brief, and task line untouched. Never reorder or remove entries.
 

@@ -11,3 +11,4 @@ coverage/
 .issuer/credentials.yml
 .issuer/
 docs/alibabacloud-devops-mcp-server-master/
+AGENTS.md

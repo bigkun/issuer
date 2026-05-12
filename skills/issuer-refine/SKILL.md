@@ -163,8 +163,10 @@ Omit the section if none apply.
 ## <Topic / module>
 
 - **<Brief title>** — [briefs/<slug>.md](briefs/<slug>.md)
-  - [ ] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
-  - [x] <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+  - [ ] `story` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] `bug` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
+  - [ ] `task` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: draft -->
+  - [x] `epic` <Task title> — [tasks/<id>.md](tasks/<id>.md)  <!-- status: synced, <platform_url> -->
 ```
 
 After writing a brief (only in `new-file` mode), update the index:
