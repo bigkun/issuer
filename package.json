@@ -1,7 +1,7 @@
 {
   "name": "@issuer/cli",
-  "version": "0.1.1",
-  "description": "CLI tool that bridges requirements → PM platforms (GitHub, GitLab, Yunxiao). Refine → Breakdown → Sync pipeline. MCP-first, CLI fallback.",
+  "version": "0.2.0",
+  "description": "CLI tool that bridges requirements → PM platforms (GitHub, GitLab, Yunxiao). Breakdown → Sync pipeline with optional refine. MCP-first, CLI fallback.",
   "type": "module",
   "bin": {
     "issuer": "dist/index.js"
