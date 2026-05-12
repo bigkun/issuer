@@ -79,12 +79,12 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;
-        } else if (dedup.on_match === 'continue') {
-          // Auto-upload duplicates (no user interaction)
+        } else if (dedup.on_match === 'upload') {
+          // Auto-upload duplicates (force upload)
           duplicateUploaded.push(task);
           // Fall through to upload logic below
         } else {
-          // on_match: 'prompt' - skip upload, let CLI handle user interaction
+          // on_match: 'prompt' - skip upload temporarily, let CLI handle user interaction
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;

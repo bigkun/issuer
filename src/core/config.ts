@@ -26,17 +26,21 @@ export interface WorkitemTypeMap {
 }
 
 export interface DedupConfig {
+  /** Whether duplicate detection is enabled */
   enabled: boolean;
+  /** Similarity threshold (0.0-1.0) */
   threshold: number;
+  /** Cache TTL in hours */
   ttl_hours: number;
-  on_match: 'prompt' | 'skip' | 'continue';
+  /** Action when duplicate is detected: 'upload' | 'skip' | 'prompt' */
+  on_match: 'upload' | 'skip' | 'prompt';
 }
 
 export const DEFAULT_DEDUP_CONFIG: DedupConfig = {
   enabled: true,
   threshold: 0.85,
   ttl_hours: 24,
-  on_match: 'prompt',
+  on_match: 'prompt', // Default: prompt user for action
 };
 
 /** Parse workitem_type_map from raw config data. */
