@@ -1,0 +1,23 @@
+# Global issuer configuration
+# Location: ~/.issuer/config.yml
+# These defaults apply to all projects unless overridden by ./.issuer/config.yml
+
+# Default platform for new projects (optional)
+# default_platform: yunxiao
+
+# Global dedup settings (can be overridden per project)
+# dedup:
+#   enabled: true
+#   threshold: 0.85
+#   ttl_hours: 24
+#   on_match: prompt
+
+# Yunxiao: Default assignee (applies to all Yunxiao projects)
+# assigned_to: "your-user-id"
+
+# Priority mapping for different platforms
+# priority_map:
+#   critical: "P0"
+#   high: "P1"
+#   medium: "P2"
+#   low: "P3"

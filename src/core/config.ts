@@ -43,6 +43,18 @@ export const DEFAULT_DEDUP_CONFIG: DedupConfig = {
   on_match: 'prompt', // Default: prompt user for action
 };
 
+/** Global config interface (can include default values). */
+export interface GlobalConfig {
+  /** Default platform for new projects */
+  default_platform?: string;
+  /** Global dedup settings */
+  dedup?: Partial<DedupConfig>;
+  /** Yunxiao: default assignedTo userId */
+  assigned_to?: string;
+  /** Priority mappings */
+  priority_map?: Record<string, string>;
+}
+
 /** Parse workitem_type_map from raw config data. */
 function parseWorkitemTypeMap(raw: unknown): WorkitemTypeMap | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -51,6 +63,37 @@ function parseWorkitemTypeMap(raw: unknown): WorkitemTypeMap | undefined {
     Req: typeof map.Req === 'string' ? map.Req : undefined,
     Bug: typeof map.Bug === 'string' ? map.Bug : undefined,
     Task: typeof map.Task === 'string' ? map.Task : undefined,
+  };
+}
+
+/** Load global config from ~/.issuer/config.yml */
+export function loadGlobalConfig(): GlobalConfig | null {
+  const globalPath = join(homedir(), '.issuer', 'config.yml');
+  if (!existsSync(globalPath)) return null;
+  
+  try {
+    const raw = yamlParse(readFileSync(globalPath, 'utf8'));
+    if (!raw || typeof raw !== 'object') return null;
+    return raw as GlobalConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Merge global and project configs (project takes precedence). */
+function mergeConfigs(global: GlobalConfig | null, project: ProjectConfig): ProjectConfig {
+  if (!global) return project;
+  
+  // Deep merge dedup config
+  const mergedDedup = global.dedup && project.dedup
+    ? { ...global.dedup, ...project.dedup }
+    : (global.dedup ?? project.dedup);
+  
+  return {
+    ...project,
+    // Global assigned_to as fallback
+    assigned_to: project.assigned_to ?? global.assigned_to,
+    dedup: mergedDedup as DedupConfig | undefined,
   };
 }
 
@@ -92,15 +135,20 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     };
   }
 
-  return {
+  const projectConfig: ProjectConfig = {
     platform: data.platform as string,
     owner: data.owner as string,
     repo: data.repo as string,
     default_labels: (labels as string[] | undefined) ?? [],
     mcp_capabilities,
+    dedup: data.dedup as DedupConfig | undefined,
     assigned_to: data.assigned_to as string | undefined,
     workitem_type_map: parseWorkitemTypeMap(data.workitem_type_map),
   };
+
+  // Load and merge global config
+  const globalConfig = loadGlobalConfig();
+  return mergeConfigs(globalConfig, projectConfig);
 }
 
 /** Save project config with updated fields. */

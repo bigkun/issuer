@@ -123,3 +123,49 @@ describe('findSimilarIssues', () => {
     }
   });
 });
+
+describe('real-world similarity cases', () => {
+  it('calculates similarity for user-reported titles', () => {
+    const cases = [
+      { old: '书籍录入功能', new: '书籍录入管理' },
+      { old: '书籍分类管理', new: '书籍分类体系' },
+      { old: '书架管理功能', new: '书架空间管理' },
+      { old: '阅读状态与进度追踪', new: '阅读进度追踪' },
+      { old: '书籍录入功能', new: '书籍录入功' }, // 少一个字的情况
+    ];
+
+    console.log('\n=== Similarity Analysis ===');
+    for (const { old, new: newTitle } of cases) {
+      const score = titleSimilarity(old, newTitle);
+      console.log(`"${old}" vs "${newTitle}" => ${score.toFixed(3)} (${(score * 100).toFixed(1)}%)`);
+    }
+
+    // Test case 1
+    const score1 = titleSimilarity('书籍录入功能', '书籍录入管理');
+    console.log(`\n书籍录入: ${score1.toFixed(3)}`);
+    // Tokenization:
+    // 书籍录入功能: 书籍, 籍录, 录入, 入功, 功能
+    // 书籍录入管理: 书籍, 籍录, 录入, 入管, 管理
+    // Intersection: 书籍, 籍录, 录入 (3/7 = 0.429)
+
+    // Test case 2
+    const score2 = titleSimilarity('书籍分类管理', '书籍分类体系');
+    console.log(`书籍分类: ${score2.toFixed(3)}`);
+
+    // Test case 3
+    const score3 = titleSimilarity('书架管理功能', '书架空间管理');
+    console.log(`书架管理: ${score3.toFixed(3)}`);
+
+    // Test case 4
+    const score4 = titleSimilarity('阅读状态与进度追踪', '阅读进度追踪');
+    console.log(`阅读进度: ${score4.toFixed(3)}`);
+
+    // Test case 5: 少一个字的情况
+    const score5 = titleSimilarity('书籍录入功能', '书籍录入功');
+    console.log(`\n少一字测试: ${score5.toFixed(3)}`);
+    console.log('  Tokenization analysis:');
+    console.log('  "书籍录入功能" => 书籍, 籍录, 录入, 入功, 功能');
+    console.log('  "书籍录入功" => 书籍, 籍录, 录入, 入功');
+    console.log('  Intersection: 书籍, 籍录, 录入, 入功 (4/5 = 0.800)');
+  });
+});

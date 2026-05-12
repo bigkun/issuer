@@ -181,13 +181,6 @@ export function buildProgram() {
       }
       
       // Show summary
-      console.log('\n═══════════════════════════════════════════════════════');
-      console.log('  Push Summary');
-      console.log('═══════════════════════════════════════════════════════');
-      console.log(`  Created:    ${s.created.length}`);
-      console.log(`  Updated:    ${s.updated.length}`);
-      console.log(`  Skipped:    ${s.skipped.length}`);
-      
       if (s.duplicates.length > 0) {
         console.log('\n───────────────────────────────────────────────────────');
         console.log('  Duplicate Detection');
@@ -211,7 +204,7 @@ export function buildProgram() {
         }
       }
       
-      console.log('═══════════════════════════════════════════════════════\n');
+      console.log('');
       
       success(
         `Pushed: ${s.created.length} created, ${s.updated.length} updated, ${s.skipped.length} skipped`,
