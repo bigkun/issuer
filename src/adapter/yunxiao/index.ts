@@ -176,27 +176,106 @@ export class YunxiaoAdapter implements Adapter {
     workitemTypeId: string,
     category: 'Req' | 'Bug' | 'Task',
   ): Promise<void> {
-    // For Bug type, ensure severity field mapping is cached
+    // For Bug type, ensure severity and priority field mappings are cached
     if (category === 'Bug') {
       await this.ensureSeverityFieldMapping(workitemTypeId);
+      await this.ensurePriorityFieldMapping(workitemTypeId);
     }
 
-    // Only process if we have severity field mapping
-    if (category === 'Bug' && this.severityFieldMap) {
-      // Map task priority to severity option
-      const severityOptionId = this.getSeverityOptionId(body._taskPriority);
-      if (severityOptionId) {
-        if (!body.customFieldValues) body.customFieldValues = {};
-        body.customFieldValues[this.severityFieldMap.fieldId] = severityOptionId;
-        console.log(`  → Set severity based on priority: ${body._taskPriority} → severity`);
-        console.log(`  → Field ID: ${this.severityFieldMap.fieldId}, Option ID: ${severityOptionId}`);
-        console.log(`  → customFieldValues:`, JSON.stringify(body.customFieldValues));
+    // Only process if we have field mappings
+    if (category === 'Bug' && (this.severityFieldMap || this.priorityFieldMap)) {
+      if (!body.customFieldValues) body.customFieldValues = {};
+      
+      // Set severity based on priority
+      if (this.severityFieldMap) {
+        const severityOptionId = this.getSeverityOptionId(body._taskPriority);
+        if (severityOptionId) {
+          body.customFieldValues[this.severityFieldMap.fieldId] = severityOptionId;
+          console.log(`  → Set severity: ${body._taskPriority} → ${this.severityFieldMap.fieldId}`);
+        }
+      }
+      
+      // Set priority field
+      if (this.priorityFieldMap) {
+        const priorityOptionId = this.getPriorityOptionId(body._taskPriority);
+        if (priorityOptionId) {
+          body.customFieldValues[this.priorityFieldMap.fieldId] = priorityOptionId;
+          console.log(`  → Set priority: ${body._taskPriority} → ${this.priorityFieldMap.fieldId}`);
+        }
       }
     }
   }
 
   /** Cache for severity field mapping */
   private severityFieldMap?: SeverityFieldMap;
+  
+  /** Cache for priority field mapping */
+  private priorityFieldMap?: SeverityFieldMap;
+
+  /**
+   * Ensure priority field mapping is cached (auto-fetch on first Bug push).
+   */
+  private async ensurePriorityFieldMapping(workitemTypeId: string): Promise<void> {
+    if (this.priorityFieldMap) return;
+
+    console.log('Fetching priority field config for Bug type...');
+    const fields = await this.getFieldConfig(workitemTypeId);
+    
+    // Find priority field (different from severity)
+    const priorityField = fields.find(f => 
+      (f.identifier === 'priority' || f.name === '优先级') &&
+      f.identifier !== 'seriousLevel' &&
+      f.name !== '严重程度'
+    );
+
+    if (!priorityField || !priorityField.options) {
+      console.log('  → No priority field found, skipping');
+      return;
+    }
+
+    // Build priority → option mapping
+    const options = priorityField.options;
+    const optionMap: SeverityFieldMap['options'] = {};
+
+    // Try to match by option name
+    for (const opt of options) {
+      const name = opt.name?.toLowerCase() || '';
+      if (name.includes('紧急') || name.includes('critical') || name.includes('urgent') || name.includes('p0')) {
+        optionMap.critical = opt.id;
+      } else if (name.includes('高') || name.includes('high') || name.includes('p1')) {
+        optionMap.high = opt.id;
+      } else if (name.includes('中') || name.includes('medium') || name.includes('normal') || name.includes('p2')) {
+        optionMap.medium = opt.id;
+      } else if (name.includes('低') || name.includes('low') || name.includes('p3')) {
+        optionMap.low = opt.id;
+      }
+    }
+
+    // Fallback: use first 4 options in order
+    if (Object.keys(optionMap).length === 0 && options.length >= 4) {
+      optionMap.critical = options[0].id;
+      optionMap.high = options[1].id;
+      optionMap.medium = options[2].id;
+      optionMap.low = options[3].id;
+    }
+
+    this.priorityFieldMap = {
+      fieldId: priorityField.id,
+      options: optionMap,
+    };
+
+    // Save to config
+    try {
+      const cfg = await loadProjectConfig(this.projectRoot);
+      saveProjectConfig(this.projectRoot, {
+        severity_field_map: { ...cfg.severity_field_map, ...this.priorityFieldMap },
+      });
+    } catch (err) {
+      console.log(`  → Warning: Could not save priority field mapping: ${err}`);
+    }
+
+    console.log(`  → Cached priority field mapping: fieldId=${priorityField.id}`);
+  }
 
   /**
    * Ensure severity field mapping is cached (auto-fetch on first Bug push).
@@ -293,6 +372,27 @@ export class YunxiaoAdapter implements Adapter {
       default:
         // Default to medium if not specified
         return this.severityFieldMap.options.medium;
+    }
+  }
+
+  /**
+   * Get priority option ID based on task priority.
+   */
+  private getPriorityOptionId(priority?: string): string | undefined {
+    if (!this.priorityFieldMap) return undefined;
+    
+    switch (priority) {
+      case 'critical':
+        return this.priorityFieldMap.options.critical;
+      case 'high':
+        return this.priorityFieldMap.options.high;
+      case 'medium':
+        return this.priorityFieldMap.options.medium;
+      case 'low':
+        return this.priorityFieldMap.options.low;
+      default:
+        // Default to medium if not specified
+        return this.priorityFieldMap.options.medium;
     }
   }
 
