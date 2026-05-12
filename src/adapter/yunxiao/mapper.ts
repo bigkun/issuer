@@ -39,8 +39,8 @@ export interface CreateWorkitemBody {
   assignedTo: string;
   description?: string;
   formatType?: 'RICHTEXT' | 'MARKDOWN';
-  /** Custom fields in format { fieldId: fieldValue } */
-  customFields?: Record<string, string>;
+  /** Custom field values in format { fieldId: fieldValue } */
+  customFieldValues?: Record<string, string>;
 }
 
 /** Convert a TaskFile to a CreateWorkitem request body. */

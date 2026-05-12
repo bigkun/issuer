@@ -186,9 +186,11 @@ export class YunxiaoAdapter implements Adapter {
       // Map task priority to severity option
       const severityOptionId = this.getSeverityOptionId(body._taskPriority);
       if (severityOptionId) {
-        if (!body.customFields) body.customFields = {};
-        body.customFields[this.severityFieldMap.fieldId] = severityOptionId;
+        if (!body.customFieldValues) body.customFieldValues = {};
+        body.customFieldValues[this.severityFieldMap.fieldId] = severityOptionId;
         console.log(`  → Set severity based on priority: ${body._taskPriority} → severity`);
+        console.log(`  → Field ID: ${this.severityFieldMap.fieldId}, Option ID: ${severityOptionId}`);
+        console.log(`  → customFieldValues:`, JSON.stringify(body.customFieldValues));
       }
     }
   }
@@ -339,6 +341,14 @@ export class YunxiaoAdapter implements Adapter {
     
     // Ensure all required fields have values (auto-fill defaults)
     await this.ensureRequiredFields(body, workitemTypeId, category);
+    
+    // Debug: log the final body (without sensitive data)
+    console.log('Creating workitem with body:', JSON.stringify({
+      subject: body.subject,
+      spaceId: body.spaceId,
+      workitemTypeId: body.workitemTypeId,
+      customFieldValues: body.customFieldValues,
+    }, null, 2));
     
     const path = `/organizations/${this.organizationId}/workitems`;
 
