@@ -120,9 +120,27 @@ Omit the section if none apply.
    - "Better UX" → "Click-to-action ≤ 3 steps, error feedback ≤ 2s"
 5. Fill each section above. Do not invent acceptance criteria the source does not support — leave them in `Open questions` instead.
 6. Render the brief in the user's interaction language.
-7. Apply the chosen output mode.
-8. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
-9. If `new-file` mode: update `.issuer/index.md` per the **Index upkeep** section below.
+7. **Checkpoint:** Present the brief for approval using the platform's native approval UI or text prompt:
+
+   **Preferred: Use Agent's native approval UI** (if available):
+   - Present "Accept" / "Edit" / "Abort" buttons or quick actions
+   - On "Accept" → proceed to write the file
+   - On "Edit" → open editor with the brief content, then re-checkpoint after user saves
+   - On "Abort" → discard changes and stop
+
+   **Fallback: Text-based prompt**:
+   ```
+   Please review the refined brief above.
+
+   Type one of:
+   - accept  — Approve and save the brief
+   - edit <your changes>  — Provide revisions
+   - abort  — Discard and stop
+   ```
+
+8. Apply the chosen output mode (write file).
+9. If `new-file` mode: create `.issuer/briefs/` directory if missing, derive `<slug>` in the user's interaction language (see Slug rules), write `<slug>.md`, and report the file path to the user.
+10. If `new-file` mode: update `.issuer/index.md` per the **Index upkeep** section below.
 
 ## Slug rules
 

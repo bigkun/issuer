@@ -253,8 +253,17 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
        - `low` - Cosmetic issue, minor inconvenience
      - Example: A typo on the homepage has `priority: low` but `severity: low`. A database corruption bug has `priority: critical` and `severity: critical`.
 4. Compute slug (see Slug rules), build frontmatter, write the file.
-5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using this **exact template** (translate only the natural-language parts to match the user's interaction language):
+5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using the platform's native approval UI or this **exact template** (translate only the natural-language parts to match the user's interaction language):
 
+   **Preferred: Use Agent's native approval UI** (if available):
+   - Display task list with checkboxes or selection UI
+   - Allow user to select which tasks to promote to `ready`
+   - Present "Confirm" / "Edit" / "Skip" actions
+   - On "Confirm" → patch selected files' `status:` from `draft` to `ready`
+   - On "Edit" → open selected task file(s) for modification
+   - On "Skip" → no tasks promoted, stop here
+
+   **Fallback: Text-based prompt**:
    ```
    Select tasks to set as ready and push to <platform>:
 

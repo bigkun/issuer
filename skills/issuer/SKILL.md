@@ -45,8 +45,15 @@ If the user invokes `/issuer <text>` with a direct text argument (e.g. `My app n
 
 1. Invoke the `issuer-breakdown` skill with the raw text (or refined brief if user opted for refine).
 2. List the newly created `.issuer/tasks/*.md` files (all `status: draft`).
-3. **Checkpoint:** present the approval prompt using this template (translate only the natural-language parts to match the user's interaction language):
+3. **Checkpoint:** present the approval prompt using the platform's native approval UI or this template (translate only the natural-language parts to match the user's interaction language):
 
+   **Preferred: Use Agent's native approval UI** (if available):
+   - Present "Approve" / "Edit" / "Abort" buttons or quick actions
+   - On "Edit" → open editor with the content for modification
+   - On "Approve" → proceed to next stage
+   - On "Abort" → stop pipeline
+
+   **Fallback: Text-based prompt** (when native UI unavailable):
    ```
    Select tasks to set as ready and push to <platform>:
 
@@ -76,7 +83,17 @@ Run this stage ONLY if:
 
 1. Invoke the `issuer-refine` skill with the source. In Quick mode, pass the argument text directly so that `issuer-refine` runs in its own Quick mode.
 2. Show the enriched brief (expanded with context, motivation, acceptance criteria per PRD best practices).
-3. **Checkpoint:** ask the user to confirm. Allowed answers: `accept` / `edit <revised text>` / `abort`.
+3. **Checkpoint:** ask the user to confirm using the platform's native approval UI or text prompt:
+
+   **Preferred: Use Agent's native approval UI** (if available):
+   - Present "Accept" / "Edit" / "Abort" buttons or quick actions
+   - On "Accept" → proceed to Breakdown stage
+   - On "Edit" → open editor with the brief for modification, then re-checkpoint
+   - On "Abort" → stop pipeline
+
+   **Fallback: Text-based prompt**:
+   - Allowed answers: `accept` / `edit <revised text>` / `abort`.
+
 4. Only continue on `accept` → proceed to Breakdown stage.
 
 ## Final report
