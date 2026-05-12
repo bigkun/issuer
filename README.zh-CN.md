@@ -90,10 +90,29 @@ Agent 将：
 
 读取原始文本（或精炼的简报）并为每个工作项生成一个 Markdown 文件。
 
+**平台自适应风格**：自动适配您平台的最佳实践 — **零配置即可使用**！
+
+| 平台 | 风格 | 验收标准 | 工作量估算 |
+|----------|-------|---------------------|-------------------|
+| 云效 (Yunxiao) | 正式、结构化 | Given-When-Then 格式 | ✅ 必需 |
+| GitHub | 随意、开发者友好 | Markdown 复选框 | ❌ 可选 |
+| GitLab | 技术、精确 | 复选框 + 技术说明 | ❌ 可选 |
+
 **关键步骤：**
 1. **解析输入** — 识别工作项（bug/story/task/epic）
-2. **写入任务文件** — `.issuer/tasks/YYYY-MM-DD-<slug>.md`，带有 YAML frontmatter
-3. **展示批准提示** — 用户选择哪些文件设置为 `status: ready`
+2. **应用平台风格** — 根据配置中的 `platform` 自动格式化
+3. **写入任务文件** — `.issuer/tasks/YYYY-MM-DD-<slug>.md`，带有 YAML frontmatter
+4. **展示批准提示** — 用户选择哪些文件设置为 `status: ready`
+
+**自定义模板**（可选）：
+```bash
+# 创建自定义模板
+cp docs/examples/breakdown-template.md .issuer/templates/breakdown.md
+
+# 添加到 config.yml
+breakdown:
+  template: .issuer/templates/breakdown.md
+```
 
 **输出格式：**
 ```yaml

@@ -36,6 +36,144 @@ Also confirm the current working directory contains `.issuer/config.yml` (from `
 - If the file does not exist, stop and tell the user to run `issuer init`.
 - **Input can be**: raw text, or a brief file at `.issuer/briefs/<slug>.md`.
 
+## Platform-aware breakdown styles
+
+This skill **automatically** applies platform-specific best practices based on your `.issuer/config.yml` `platform` field. **Zero configuration required** — it just works!
+
+### 云效 (Yunxiao) Style
+
+**Characteristics**: Formal, structured, enterprise-ready
+
+**Task body structure**:
+```markdown
+## 用户故事
+作为 [角色]
+我想要 [功能]
+以便于 [价值]
+
+## 验收标准 (Given-When-Then)
+
+**场景 1：[场景名称]**
+- Given [前置条件]
+- When [操作]
+- Then [期望结果]
+
+**场景 2：[场景名称]**
+- Given [前置条件]
+- When [操作]
+- Then [期望结果]
+
+## 工作量估算
+- 开发：X 小时
+- 测试：Y 小时
+```
+
+**Rules**:
+- ✅ Always use Given-When-Then format for acceptance criteria
+- ✅ Include effort estimation (hours)
+- ✅ Formal tone, complete sentences
+- ✅ Minimum 3 acceptance scenarios
+- ✅ Use Chinese for user stories (if input is Chinese)
+
+### GitHub Style
+
+**Characteristics**: Casual, developer-friendly, concise
+
+**Task body structure**:
+```markdown
+## User Story
+As a [role]
+I want [feature]
+So that [benefit]
+
+## Acceptance Criteria
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
+- [ ] [Criterion 4]
+```
+
+**Rules**:
+- ✅ Use Markdown checklist format (`- [ ]`)
+- ✅ Casual, direct language
+- ✅ No effort estimation required
+- ✅ Minimum 3 checklist items
+- ✅ Technical details in code blocks if needed
+
+### GitLab Style
+
+**Characteristics**: Technical, precise, test-focused
+
+**Task body structure**:
+```markdown
+## User Story
+As a [role]
+I want [feature]
+So that [benefit]
+
+## Acceptance Criteria
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
+
+## Technical Notes
+- Implementation details
+- API changes
+- Database migrations
+
+## Testing Strategy
+- Unit tests to add
+- Integration tests needed
+```
+
+**Rules**:
+- ✅ Markdown checklist + technical notes
+- ✅ Include testing strategy section
+- ✅ Precise, technical language
+- ✅ Mention affected components
+
+### Auto-detection
+
+The skill **automatically** detects platform from `.issuer/config.yml`:
+
+```yaml
+platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
+```
+
+**No extra configuration needed!**
+
+### Custom templates (optional)
+
+For project-specific requirements, create `.issuer/templates/breakdown.md`:
+
+```markdown
+# [Project Name] Breakdown Rules
+
+## Task Granularity
+- Max 2 days per task
+- Split if larger
+
+## Required Sections
+- User story (mandatory)
+- Acceptance criteria (min 3)
+- Technical notes (optional)
+
+## Labeling Rules
+- Must include: `frontend` or `backend`
+- Must include module: `auth`, `payment`, etc.
+```
+
+The skill will **merge** your template rules with platform defaults.
+
+To use custom template, add to `.issuer/config.yml`:
+
+```yaml
+breakdown:
+  template: .issuer/templates/breakdown.md
+```
+
+**Most projects don't need this.** Platform defaults work great out of the box.
+
 ### Brief quality evaluation (optional, only when using a refined brief)
 
 When breaking down from a refined brief (not raw text), evaluate the brief's completeness using the **five-dimension score**.

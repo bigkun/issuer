@@ -90,10 +90,29 @@ Takes rough requirement text and **enriches** it into a professional PRD-style b
 
 Reads raw text (or a refined brief) and emits one Markdown file per work item.
 
+**Platform-aware styles**: Automatically adapts to your platform's best practices — **zero configuration needed**!
+
+| Platform | Style | Acceptance Criteria | Effort Estimation |
+|----------|-------|---------------------|-------------------|
+| 云效 (Yunxiao) | Formal, structured | Given-When-Then format | ✅ Required |
+| GitHub | Casual, developer-friendly | Markdown checklist | ❌ Optional |
+| GitLab | Technical, precise | Checklist + technical notes | ❌ Optional |
+
 **Key steps:**
 1. **Parse input** — identify work items (bug/story/task/epic)
-2. **Write task files** — `.issuer/tasks/YYYY-MM-DD-<slug>.md` with YAML frontmatter
-3. **Present approval prompt** — user selects which files to set `status: ready`
+2. **Apply platform style** — automatically format based on `platform` in config
+3. **Write task files** — `.issuer/tasks/YYYY-MM-DD-<slug>.md` with YAML frontmatter
+4. **Present approval prompt** — user selects which files to set `status: ready`
+
+**Custom templates** (optional):
+```bash
+# Create custom template
+cp docs/examples/breakdown-template.md .issuer/templates/breakdown.md
+
+# Add to config.yml
+breakdown:
+  template: .issuer/templates/breakdown.md
+```
 
 **Output format:**
 ```yaml
