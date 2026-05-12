@@ -95,12 +95,27 @@ export function buildProgram() {
   program
     .command('push')
     .description('Push status: ready tasks to the configured platform')
-    .option('--skip-dedup', 'skip duplicate detection')
+    .option('--no-dedup', 'Disable duplicate detection entirely (upload all tasks)')
+    .option('--dedup-action <action>', 'Action when duplicate detected: upload|skip|prompt (overrides config)', (val) => {
+      if (!['upload', 'skip', 'prompt'].includes(val)) {
+        throw new Error(`Invalid --dedup-action: ${val}. Must be upload, skip, or prompt`);
+      }
+      return val;
+    })
     .action(async (opts) => {
       const cwd = process.cwd();
       const adapter = await buildAdapter(cwd);
-
-      const s = await runPush({ cwd, adapter, skipDedup: opts.skipDedup });
+      const cfg = await loadProjectConfig(cwd);
+      const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
+      
+      // Build effective dedup config with CLI overrides
+      const effectiveDedup = {
+        ...dedup,
+        enabled: opts.noDedup ? false : dedup.enabled,
+        on_match: opts.dedupAction ?? dedup.on_match,
+      };
+      
+      const s = await runPush({ cwd, adapter, dedupConfig: effectiveDedup });
       
       // Show duplicates if found
       if (s.duplicates.length > 0) {
@@ -117,7 +132,7 @@ export function buildProgram() {
         const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
         
         // Handle 'prompt' mode with user interaction
-        if (dedup.on_match === 'prompt' && s.duplicateSkipped.length > 0) {
+        if (effectiveDedup.on_match === 'prompt' && s.duplicateSkipped.length > 0) {
           console.log(`Found ${s.duplicates.length} potential duplicate(s).`);
           console.log('What would you like to do?');
           console.log('  1) Upload all duplicates');

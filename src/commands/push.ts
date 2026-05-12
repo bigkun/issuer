@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { TaskStore } from '../core/task-store.js';
 import { serializeTaskFile } from '../core/task-file.js';
 import { Status, TaskFile } from '../core/types.js';
-import { loadProjectConfig, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
+import { loadProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
 import { loadCache, saveCache, needsRefresh } from '../core/cache.js';
 import { findSimilarIssues, type MatchResult } from '../core/similarity.js';
 import type { Adapter, RemoteIssue } from '../adapter/interface.js';
@@ -10,7 +10,8 @@ import type { Adapter, RemoteIssue } from '../adapter/interface.js';
 export interface PushOptions {
   cwd: string;
   adapter: Adapter;
-  skipDedup?: boolean;
+  /** Dedup configuration (CLI overrides take precedence) */
+  dedupConfig?: DedupConfig;
 }
 
 export interface PushSummary {
@@ -31,7 +32,8 @@ export interface DuplicateResult {
 
 export async function runPush(opts: PushOptions): Promise<PushSummary> {
   const cfg = await loadProjectConfig(opts.cwd);
-  const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
+  // Use CLI-provided dedupConfig if available, otherwise use config file defaults
+  const dedup = opts.dedupConfig ?? cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
 
   const store = new TaskStore(opts.cwd);
   const ready = await store.list({ status: Status.Ready });
@@ -44,7 +46,7 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
 
   // 每天首次 sync 时刷新缓存
   let cacheIssues: RemoteIssue[] = [];
-  if (dedup.enabled && !opts.skipDedup) {
+  if (dedup.enabled) {
     if (needsRefresh(opts.cwd, dedup.ttl_hours)) {
       console.log('Refreshing issue cache from platform...');
       cacheIssues = await opts.adapter.listRemote();
@@ -68,7 +70,7 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
     }
 
     // 去重检查（仅对新 issue，已 sync 的跳过）
-    if (dedup.enabled && !task.platform_id && !opts.skipDedup && cacheIssues.length > 0) {
+    if (dedup.enabled && !task.platform_id && cacheIssues.length > 0) {
       const matches = findSimilarIssues(task.title, cacheIssues, dedup.threshold);
       if (matches.length > 0) {
         duplicates.push({ task, matches });
@@ -119,7 +121,7 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   }
 
   // 保存增量更新的缓存
-  if (cacheIssues.length > 0 && dedup.enabled && !opts.skipDedup) {
+  if (cacheIssues.length > 0 && dedup.enabled) {
     const existing = loadCache(opts.cwd);
     if (existing) {
       existing.issues = cacheIssues;
