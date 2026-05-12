@@ -4,7 +4,7 @@ import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
 import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, type McpCapabilities } from '../adapter/registry.js';
-import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken } from '../core/config.js';
+import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
 
 export interface InitOptions {
   cwd: string;
@@ -133,7 +133,14 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     };
   }
 
-  const cfg = { platform, owner, repo, default_labels: [] as string[], mcp_capabilities };
+  const cfg = {
+    platform,
+    owner,
+    repo,
+    default_labels: [] as string[],
+    mcp_capabilities,
+    dedup: DEFAULT_DEDUP_CONFIG,
+  };
   writeFileSync(cfgPath, yamlStringify(cfg), 'utf8');
 
   // Print capability summary
