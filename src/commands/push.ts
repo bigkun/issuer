@@ -18,6 +18,10 @@ export interface PushSummary {
   updated: TaskFile[];
   skipped: TaskFile[];
   duplicates: DuplicateResult[];
+  /** Tasks that were duplicates but user chose to upload */
+  duplicateUploaded: TaskFile[];
+  /** Tasks that were duplicates and were skipped */
+  duplicateSkipped: TaskFile[];
 }
 
 export interface DuplicateResult {
@@ -35,6 +39,8 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   const updated: TaskFile[] = [];
   const skipped: TaskFile[] = [];
   const duplicates: DuplicateResult[] = [];
+  const duplicateUploaded: TaskFile[] = [];
+  const duplicateSkipped: TaskFile[] = [];
 
   // 每天首次 sync 时刷新缓存
   let cacheIssues: RemoteIssue[] = [];
@@ -66,12 +72,23 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       const matches = findSimilarIssues(task.title, cacheIssues, dedup.threshold);
       if (matches.length > 0) {
         duplicates.push({ task, matches });
+        
+        // Handle based on on_match strategy
         if (dedup.on_match === 'skip') {
+          // Auto-skip duplicates
           skipped.push(task);
+          duplicateSkipped.push(task);
+          continue;
+        } else if (dedup.on_match === 'continue') {
+          // Auto-upload duplicates (no user interaction)
+          duplicateUploaded.push(task);
+          // Fall through to upload logic below
+        } else {
+          // on_match: 'prompt' - skip upload, let CLI handle user interaction
+          skipped.push(task);
+          duplicateSkipped.push(task);
           continue;
         }
-        // on_match: prompt → 由外部处理（SKILL.md 或 CLI）
-        // on_match: continue → 继续上传
       }
     }
 
@@ -110,5 +127,5 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
     }
   }
 
-  return { created, updated, skipped, duplicates };
+  return { created, updated, skipped, duplicates, duplicateUploaded, duplicateSkipped };
 }

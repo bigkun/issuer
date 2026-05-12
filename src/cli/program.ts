@@ -12,8 +12,9 @@ import { runCacheRefresh } from '../commands/cache.js';
 import { GitHubAdapter } from '../adapter/github/index.js';
 import { GitLabAdapter } from '../adapter/gitlab/index.js';
 import { YunxiaoAdapter } from '../adapter/yunxiao/index.js';
-import { loadProjectConfig, resolveToken } from '../core/config.js';
+import { loadProjectConfig, resolveToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
 import { loadCache, getCachePath, getCacheAge } from '../core/cache.js';
+import { Status, TaskFile } from '../core/types.js';
 import { success, table, error } from './output.js';
 import type { Adapter } from '../adapter/interface.js';
 
@@ -100,6 +101,7 @@ export function buildProgram() {
       const adapter = await buildAdapter(cwd);
 
       const s = await runPush({ cwd, adapter, skipDedup: opts.skipDedup });
+      
       // Show duplicates if found
       if (s.duplicates.length > 0) {
         console.log('\n⚠ Potential duplicates detected:');
@@ -109,9 +111,93 @@ export function buildProgram() {
             console.log(`    - #${m.issue.id} "${m.issue.title}" (${Math.round(m.score * 100)}%)`);
           }
         }
-        console.log('\nTo skip duplicates, set dedup.on_match: skip in config');
-        console.log('To force upload anyway, use --skip-dedup\n');
+        console.log('');
+        
+        const cfg = await loadProjectConfig(cwd);
+        const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
+        
+        // Handle 'prompt' mode with user interaction
+        if (dedup.on_match === 'prompt' && s.duplicateSkipped.length > 0) {
+          console.log(`Found ${s.duplicates.length} potential duplicate(s).`);
+          console.log('What would you like to do?');
+          console.log('  1) Upload all duplicates');
+          console.log('  2) Skip all duplicates');
+          console.log('  3) Quit without uploading');
+          
+          const readline = await import('node:readline');
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          
+          const answer = await new Promise<string>((resolve) => {
+            rl.question('Enter your choice (1/2/3): ', (input) => {
+              rl.close();
+              resolve(input.trim());
+            });
+          });
+          
+          if (answer === '1') {
+            // Upload all duplicates
+            console.log('\nUploading all duplicates...');
+            for (const dup of s.duplicates) {
+              const task = dup.task;
+              const result = await adapter.createIssue(task);
+              const next = {
+                ...task,
+                platform_id: result.id,
+                platform_url: result.url,
+                status: Status.Synced,
+                updated_at: new Date().toISOString(),
+              } as TaskFile;
+              const { writeFileSync } = await import('node:fs');
+              const { serializeTaskFile } = await import('../core/task-file.js');
+              writeFileSync(task.filePath, serializeTaskFile(next), 'utf8');
+              s.created.push(next);
+            }
+            console.log(`✓ Uploaded ${s.duplicates.length} duplicate(s)\n`);
+          } else if (answer === '2') {
+            console.log(`✓ Skipped ${s.duplicates.length} duplicate(s)\n`);
+          } else {
+            console.log('✓ Cancelled\n');
+            return;
+          }
+        }
       }
+      
+      // Show summary
+      console.log('\n═══════════════════════════════════════════════════════');
+      console.log('  Push Summary');
+      console.log('═══════════════════════════════════════════════════════');
+      console.log(`  Created:    ${s.created.length}`);
+      console.log(`  Updated:    ${s.updated.length}`);
+      console.log(`  Skipped:    ${s.skipped.length}`);
+      
+      if (s.duplicates.length > 0) {
+        console.log('\n───────────────────────────────────────────────────────');
+        console.log('  Duplicate Detection');
+        console.log('───────────────────────────────────────────────────────');
+        console.log(`  Found:      ${s.duplicates.length}`);
+        console.log(`  Uploaded:   ${s.duplicateUploaded.length}`);
+        console.log(`  Skipped:    ${s.duplicateSkipped.length}`);
+        
+        if (s.duplicateUploaded.length > 0) {
+          console.log('\n  Uploaded duplicates:');
+          for (const t of s.duplicateUploaded) {
+            console.log(`    ✓ "${t.title}"`);
+          }
+        }
+        
+        if (s.duplicateSkipped.length > 0) {
+          console.log('\n  Skipped duplicates:');
+          for (const t of s.duplicateSkipped) {
+            console.log(`    ✗ "${t.title}"`);
+          }
+        }
+      }
+      
+      console.log('═══════════════════════════════════════════════════════\n');
+      
       success(
         `Pushed: ${s.created.length} created, ${s.updated.length} updated, ${s.skipped.length} skipped`,
       );
