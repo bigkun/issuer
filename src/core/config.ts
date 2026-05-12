@@ -12,10 +12,17 @@ export interface ProjectConfig {
   default_labels: string[];
   mcp_capabilities?: McpCapabilities;
   dedup?: DedupConfig;
-  /** Yunxiao: default work item type ID for create */
-  workitem_type_id?: string;
-  /** Yunxiao: default assignedTo userId for create (auto-fetched from token if not set) */
+  /** Yunxiao: default assignedTo userId for create (auto-fetched via getCurrentUser) */
   assigned_to?: string;
+  /** Yunxiao: workitem type mapping (auto-fetched via ListWorkitemTypes) */
+  workitem_type_map?: WorkitemTypeMap;
+}
+
+/** Yunxiao workitem type mapping (categoryId → workitemTypeId). */
+export interface WorkitemTypeMap {
+  Req?: string;   // 需求类型
+  Bug?: string;   // 缺陷类型
+  Task?: string;  // 任务类型
 }
 
 export interface DedupConfig {
@@ -31,6 +38,17 @@ export const DEFAULT_DEDUP_CONFIG: DedupConfig = {
   ttl_hours: 24,
   on_match: 'prompt',
 };
+
+/** Parse workitem_type_map from raw config data. */
+function parseWorkitemTypeMap(raw: unknown): WorkitemTypeMap | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const map = raw as Record<string, unknown>;
+  return {
+    Req: typeof map.Req === 'string' ? map.Req : undefined,
+    Bug: typeof map.Bug === 'string' ? map.Bug : undefined,
+    Task: typeof map.Task === 'string' ? map.Task : undefined,
+  };
+}
 
 export async function loadProjectConfig(projectRoot: string): Promise<ProjectConfig> {
   const cfgPath = join(projectRoot, '.issuer', 'config.yml');
@@ -76,8 +94,8 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     repo: data.repo as string,
     default_labels: (labels as string[] | undefined) ?? [],
     mcp_capabilities,
-    workitem_type_id: data.workitem_type_id as string | undefined,
     assigned_to: data.assigned_to as string | undefined,
+    workitem_type_map: parseWorkitemTypeMap(data.workitem_type_map),
   };
 }
 

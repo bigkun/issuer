@@ -1,14 +1,19 @@
 import { TaskFile } from '../../core/types.js';
 import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
+import { saveProjectConfig, type WorkitemTypeMap } from '../../core/config.js';
 import {
   taskToCreateBody,
   taskToUpdateBody,
   workitemToRemote,
+  workTypeToCategory,
+  matchWorkitemType,
+  buildTypeMap,
   YunxiaoCreateResponse,
   YunxiaoSearchResponse,
   YunxiaoCommentResponse,
   YunxiaoUserResponse,
+  YunxiaoWorkitemType,
 } from './mapper.js';
 
 // ---------------------------------------------------------------------------
@@ -22,10 +27,12 @@ export interface YunxiaoAdapterOptions {
   organizationId: string;
   /** Space identifier ID (project ID / spaceIdentifierId). */
   spaceIdentifierId: string;
-  /** Default work item type ID (workitemTypeId) — required for create. */
-  workitemTypeId: string;
-  /** Default assignedTo userId — required for create. */
+  /** Project root path for saving config updates. */
+  projectRoot: string;
+  /** Default assignedTo userId (optional, auto-fetched if not set). */
   assignedTo?: string;
+  /** Workitem type mapping (optional, auto-fetched if not set). */
+  workitemTypeMap?: WorkitemTypeMap;
   /** API domain — defaults to `openapi-rdc.aliyuncs.com`. */
   domain?: string;
   /** Custom fetch implementation (for testing). */
@@ -43,8 +50,9 @@ export class YunxiaoAdapter implements Adapter {
   private readonly token: string;
   private readonly organizationId: string;
   private readonly spaceIdentifierId: string;
-  private readonly workitemTypeId: string;
-  private readonly assignedTo?: string;
+  private readonly projectRoot: string;
+  private assignedTo?: string;
+  private workitemTypeMap?: WorkitemTypeMap;
   private readonly domain: string;
   private readonly httpFetch: (...args: any[]) => Promise<any>;
 
@@ -52,10 +60,89 @@ export class YunxiaoAdapter implements Adapter {
     this.token = opts.token;
     this.organizationId = opts.organizationId;
     this.spaceIdentifierId = opts.spaceIdentifierId;
-    this.workitemTypeId = opts.workitemTypeId;
+    this.projectRoot = opts.projectRoot;
     this.assignedTo = opts.assignedTo;
+    this.workitemTypeMap = opts.workitemTypeMap;
     this.domain = opts.domain ?? DEFAULT_DOMAIN;
     this.httpFetch = (opts.fetch ?? globalThis.fetch) as (...args: any[]) => Promise<any>;
+  }
+
+  // -----------------------------------------------------------------------
+  // Type mapping management
+  // -----------------------------------------------------------------------
+
+  /** Set assignedTo (used after auto-fetch). */
+  setAssignedTo(userId: string): void {
+    this.assignedTo = userId;
+  }
+
+  /** Set workitemTypeMap (used after auto-fetch). */
+  setWorkitemTypeMap(map: WorkitemTypeMap): void {
+    this.workitemTypeMap = map;
+  }
+
+  /** List workitem types for a specific category (project-level API).
+   * Note: API requires 'category' (singular) parameter, not 'categories'.
+   */
+  async listWorkitemTypes(category?: string): Promise<YunxiaoWorkitemType[]> {
+    const query = category ? `?category=${encodeURIComponent(category)}` : '';
+    const path = `/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes${query}`;
+    return this.request<YunxiaoWorkitemType[]>('GET', path);
+  }
+
+  /** List all workitem types by fetching each category separately. */
+  async listAllWorkitemTypes(): Promise<YunxiaoWorkitemType[]> {
+    const categories = ['Req', 'Bug', 'Task'];
+    const results = await Promise.all(
+      categories.map(cat => this.listWorkitemTypes(cat).catch(() => [] as YunxiaoWorkitemType[]))
+    );
+    return results.flat();
+  }
+
+  /**
+   * Ensure assignedTo is set (auto-fetch if needed).
+   * Returns true if already set or fetched successfully.
+   */
+  private async ensureAssignedTo(): Promise<string> {
+    if (this.assignedTo) return this.assignedTo;
+
+    console.log('Fetching current user from 云效...');
+    const user = await this.getCurrentUser();
+    this.assignedTo = user.id;
+    saveProjectConfig(this.projectRoot, { assigned_to: user.id });
+    console.log(`  → Saved assigned_to: ${user.id} (${user.name})`);
+    return user.id;
+  }
+
+  /**
+   * Ensure workitemTypeMap has the required category (auto-fetch if needed).
+   * Returns workitemTypeId for the given category.
+   */
+  private async ensureWorkitemTypeId(category: 'Req' | 'Bug' | 'Task'): Promise<string> {
+    // If already cached, use it
+    if (this.workitemTypeMap?.[category]) {
+      return this.workitemTypeMap[category]!;
+    }
+
+    // Fetch from API (all categories at once)
+    console.log('Fetching workitem types from 云效...');
+    const types = await this.listAllWorkitemTypes();
+    const newMap = buildTypeMap(types);
+
+    // Merge with existing map
+    this.workitemTypeMap = { ...this.workitemTypeMap, ...newMap };
+    saveProjectConfig(this.projectRoot, { workitem_type_map: this.workitemTypeMap });
+    console.log(`  → Saved workitem_type_map: Req=${newMap.Req}, Bug=${newMap.Bug}, Task=${newMap.Task}`);
+
+    // Return the specific category's ID
+    const typeId = this.workitemTypeMap[category];
+    if (!typeId) {
+      throw new AdapterError(
+        `No enabled workitem type for category "${category}". Check your 云效 project configuration.`,
+        this.name,
+      );
+    }
+    return typeId;
   }
 
   // -----------------------------------------------------------------------
@@ -84,20 +171,19 @@ export class YunxiaoAdapter implements Adapter {
     return { id: data.id, name: data.name ?? data.username ?? '' };
   }
 
-  /** Update assignedTo after fetching user ID. */
-  updateAssignedTo(userId: string): void {
-    (this as any).assignedTo = userId;
-  }
-
   // -----------------------------------------------------------------------
   // createIssue → POST /oapi/v1/projex/organizations/{orgId}/workitems
   // -----------------------------------------------------------------------
 
   async createIssue(task: TaskFile): Promise<IssueRef> {
-    if (!this.assignedTo) {
-      throw new AdapterError('assignedTo is required for createIssue — set in config or CLI', this.name);
-    }
-    const body = taskToCreateBody(task, this.spaceIdentifierId, this.workitemTypeId, this.assignedTo);
+    // Ensure assignedTo (auto-fetch if not set)
+    const assignedTo = await this.ensureAssignedTo();
+
+    // Ensure workitemTypeId for the task's category (auto-fetch if not set)
+    const category = workTypeToCategory(task.type) as 'Req' | 'Bug' | 'Task';
+    const workitemTypeId = await this.ensureWorkitemTypeId(category);
+
+    const body = taskToCreateBody(task, this.spaceIdentifierId, workitemTypeId, assignedTo);
     const path = `/organizations/${this.organizationId}/workitems`;
 
     const res = await this.request<YunxiaoCreateResponse>('POST', path, body);

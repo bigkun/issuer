@@ -45,11 +45,11 @@ describe('yunxiao/mapper', () => {
     expect(workTypeToCategory(WorkType.Epic)).toBe('Req');
   });
 
-  it('maps Priority to field value', () => {
-    expect(priorityToFieldValue(Priority.Critical)).toBe('critical');
-    expect(priorityToFieldValue(Priority.High)).toBe('high');
-    expect(priorityToFieldValue(Priority.Medium)).toBe('medium');
-    expect(priorityToFieldValue(Priority.Low)).toBe('low');
+  it('maps Priority to field value (P0-P3)', () => {
+    expect(priorityToFieldValue(Priority.Critical)).toBe('P0');
+    expect(priorityToFieldValue(Priority.High)).toBe('P1');
+    expect(priorityToFieldValue(Priority.Medium)).toBe('P2');
+    expect(priorityToFieldValue(Priority.Low)).toBe('P3');
   });
 
   it('builds CreateWorkitem body (新版 API 格式)', () => {
@@ -60,7 +60,7 @@ describe('yunxiao/mapper', () => {
     expect(body.spaceId).toBe('space-123');
     expect(body.workitemTypeId).toBe('type-abc');
     expect(body.assignedTo).toBe('user-xyz');
-    expect(body.customFieldValues?.priority).toBe('high');
+    // Note: priority 字段暂不设置，需要 priorityId（UUID）而非 P0-P3
   });
 
   it('builds update body (新版 API 格式)', () => {
@@ -113,8 +113,9 @@ describe('YunxiaoAdapter', () => {
     token: 'test-pat',
     organizationId: 'org-abc',
     spaceIdentifierId: 'space-123',
-    workitemTypeId: 'type-abc',
+    projectRoot: '/tmp/test-project',
     assignedTo: 'user-xyz',
+    workitemTypeMap: { Req: 'type-req', Bug: 'type-bug', Task: 'type-task' },
   };
 
   it('createIssue sends POST and returns IssueRef', async () => {

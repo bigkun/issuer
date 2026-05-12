@@ -12,7 +12,7 @@ import { runCacheRefresh } from '../commands/cache.js';
 import { GitHubAdapter } from '../adapter/github/index.js';
 import { GitLabAdapter } from '../adapter/gitlab/index.js';
 import { YunxiaoAdapter } from '../adapter/yunxiao/index.js';
-import { loadProjectConfig, resolveToken, saveProjectConfig } from '../core/config.js';
+import { loadProjectConfig, resolveToken } from '../core/config.js';
 import { loadCache, getCachePath, getCacheAge } from '../core/cache.js';
 import { success, table, error } from './output.js';
 import type { Adapter } from '../adapter/interface.js';
@@ -31,9 +31,10 @@ async function buildAdapter(cwd: string): Promise<Adapter> {
         token,
         organizationId: cfg.owner,
         spaceIdentifierId: cfg.repo,
-        workitemTypeId: cfg.workitem_type_id ?? '',
+        projectRoot: cwd,
         assignedTo: cfg.assigned_to,
-      }) as YunxiaoAdapter;
+        workitemTypeMap: cfg.workitem_type_map,
+      });
     default:
       throw new Error(`Unsupported platform: ${cfg.platform}`);
   }
@@ -96,18 +97,7 @@ export function buildProgram() {
     .option('--skip-dedup', 'skip duplicate detection')
     .action(async (opts) => {
       const cwd = process.cwd();
-      const cfg = await loadProjectConfig(cwd);
       const adapter = await buildAdapter(cwd);
-
-      // Yunxiao: auto-fetch assignedTo if not configured
-      if (cfg.platform === 'yunxiao' && !cfg.assigned_to && adapter instanceof YunxiaoAdapter) {
-        console.log('Fetching your user ID from Yunxiao...');
-        const user = await adapter.getCurrentUser();
-        console.log(`Got user ID: ${user.id} (${user.name})`);
-        saveProjectConfig(cwd, { assigned_to: user.id });
-        // Update adapter with fetched userId
-        (adapter as YunxiaoAdapter).updateAssignedTo(user.id);
-      }
 
       const s = await runPush({ cwd, adapter, skipDedup: opts.skipDedup });
       // Show duplicates if found
