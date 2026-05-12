@@ -1,6 +1,6 @@
 # @issuer/cli
 
-> 技能驱动的项目管理网关。使用 Agent 技能结构化需求，推送到 GitHub Issues / GitLab Issues / 云效 (Yunxiao)。
+> 技能驱动的项目管理网关。拆解需求 → 通过 MCP 同步到任意平台。内置支持：GitHub、GitLab、云效。
 
 [English](README.md) | **中文**
 

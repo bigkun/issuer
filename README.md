@@ -1,6 +1,6 @@
 # @issuer/cli
 
-> Skill-driven PM gateway. Structure requirements with agent skills, push to GitHub Issues / GitLab Issues / 云效 (Yunxiao) via CLI.
+> Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao.
 
 **English** | [中文](README.zh-CN.md)
 
