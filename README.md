@@ -26,46 +26,55 @@ issuer skill install
 
 # 3. In your agent (Claude / Qoder / Cursor / OpenCode / …) invoke:
 #       /issuer
-#    Paste raw requirement text. The skill chains: refine → breakdown → sync.
+#    Paste raw requirement text. The skill chains: breakdown → sync.
 ```
 
 The agent will:
 
-1. Refine your text into a PM-ready brief (`issuer-refine`).
-2. Split it into one `.issuer/tasks/YYYY-MM-DD-<slug>.md` file per work item, all `status: draft` (`issuer-breakdown`).
-3. Ask you which to flip to `status: ready`.
-4. Push the ready ones to the configured platform (`issuer-sync`).
+1. Split raw text into one `.issuer/tasks/YYYY-MM-DD-<slug>.md` file per work item, all `status: draft` (`issuer-breakdown`).
+2. Ask you which to flip to `status: ready`.
+3. Push the ready ones to the configured platform (`issuer-sync`).
+
+> **Optional**: Add `--refine` flag or ask the agent to refine first if you want a PRD-style brief before breakdown.
 
 ## How it works
 
-Three atomic skills chained with explicit user checkpoints:
+Two core skills chained with explicit user checkpoints (refine is optional):
 
 ```
 raw text
-  └─▶ issuer-refine     →  enriched PRD-style brief (.issuer/briefs/<slug>.md)
-          [CHECKPOINT — user approves]
-  └─▶ issuer-breakdown  →  task files (.issuer/tasks/*.md, status: draft)
+  ├─▶ [Optional: issuer-refine]  →  enriched PRD-style brief (.issuer/briefs/<slug>.md)
+  │         [CHECKPOINT — user approves]
+  └─▶ Stage 1: issuer-breakdown  →  task files (.issuer/tasks/*.md, status: draft)
           [CHECKPOINT — user selects which to promote]
-  └─▶ issuer-sync       →  remote issues (status: synced)
+  └─▶ Stage 2: issuer-sync       →  remote issues (status: synced)
 ```
 
 ### `/issuer` — Orchestrator
 
-End-to-end pipeline. Chains the three atomic skills with checkpoints between every stage.
+Primary pipeline. Chains breakdown → sync with checkpoints between stages.
 
 | Stage | Skill | Output | Checkpoint |
 |-------|-------|--------|------------|
-| 1 | `issuer-refine` | `.issuer/briefs/<slug>.md` | User approves brief text |
-| 2 | `issuer-breakdown` | `.issuer/tasks/*.md` (draft) | User selects which files → ready |
-| 3 | `issuer-sync` | Remote issues (synced) | None — auto-pushes ready files |
+| 0 (optional) | `issuer-refine` | `.issuer/briefs/<slug>.md` | User approves brief text |
+| 1 | `issuer-breakdown` | `.issuer/tasks/*.md` (draft) | User selects which files → ready |
+| 2 | `issuer-sync` | Remote issues (synced) | None — auto-pushes ready files |
 
 **Two invocation modes:**
-- **Quick mode**: `/issuer <text>` — skips source confirmation, still requires Stage 1 & 2 checkpoints
-- **Interactive mode**: `/issuer` — asks for source scope and working directory
+- **Quick mode**: `/issuer <text>` — proceeds directly to breakdown, still requires Stage 1 checkpoint
+- **Interactive mode**: `/issuer` — asks if you want to refine first, then source scope and working directory
+- **With refine**: `/issuer --refine <text>` or explicitly ask to refine → runs refine → breakdown → sync
 
-### `/issuer-refine` — Enrich raw requirements
+### `/issuer-refine` — Enrich raw requirements (Optional)
+
+> **Note**: This skill is optional. Only run when explicitly requested by the user.
 
 Takes rough requirement text and **enriches** it into a professional PRD-style brief.
+
+**When to use:**
+- Complex requirements that need structure and clarification
+- When you want acceptance criteria and assumptions documented
+- When the input is vague or incomplete
 
 **Key steps:**
 1. **Evaluate input quality** — five-dimension score (Structure, Professional phrasing, Verifiability, Boundaries, Assumptions)
@@ -77,13 +86,12 @@ Takes rough requirement text and **enriches** it into a professional PRD-style b
 
 ### `/issuer-breakdown` — Split brief into tasks
 
-Reads a refined brief and emits one Markdown file per work item.
+Reads raw text (or a refined brief) and emits one Markdown file per work item.
 
 **Key steps:**
-1. **Evaluate brief quality** — score ≥50 → proceed; <50 → recommend refine first
-2. **Parse brief** — identify work items (bug/story/task/epic)
-3. **Write task files** — `.issuer/tasks/YYYY-MM-DD-<slug>.md` with YAML frontmatter
-4. **Present approval prompt** — user selects which files to set `status: ready`
+1. **Parse input** — identify work items (bug/story/task/epic)
+2. **Write task files** — `.issuer/tasks/YYYY-MM-DD-<slug>.md` with YAML frontmatter
+3. **Present approval prompt** — user selects which files to set `status: ready`
 
 **Output format:**
 ```yaml
@@ -96,6 +104,16 @@ platform: github
 labels: []
 ---
 ```
+
+### `/issuer-sync` — Push tasks to platform
+
+Reads all `status: ready` task files and creates/updates remote work items.
+
+**Features:**
+- **MCP-first**: Uses MCP tools if available
+- **CLI fallback**: Falls back to platform API if MCP lacks capabilities
+- **Dedup detection**: Compares titles against cached remote issues
+- **Status update**: Marks successfully synced tasks as `status: synced`
 
 ## Platform setup
 
@@ -261,13 +279,14 @@ If MCP tools don't meet minimum requirements, issuer prompts you with options:
 
 ```
 .issuer/
-  config.yml           # platform + owner + repo + default labels + mcp_capabilities
-  briefs/               # refined PM-ready briefs
-    <slug>.md
+  config.yml           # platform + owner + repo + default labels + mcp_capabilities + dedup
+  credentials.yml      # platform tokens (optional, env vars preferred)
   tasks/                # one work item per file
     2026-05-06-add-login.md
-  index.md              # outline index (topic → brief → tasks)
+  cache.json            # cached remote issues (for dedup detection)
 ```
+
+> **Optional**: `.issuer/briefs/` directory stores refined PRD-style briefs when using `issuer-refine`.
 
 Each task file is YAML frontmatter + Markdown body. See [docs/plans/2026-05-06-issuer-v2-design.md](docs/plans/2026-05-06-issuer-v2-design.md) for the full schema and architecture.
 

@@ -1,13 +1,13 @@
 ---
 name: issuer-breakdown
-description: Split a refined brief into one or more `.issuer/tasks/<date>-<slug>.md` work-item files.
+description: Split raw requirement text or a refined brief into one or more `.issuer/tasks/<date>-<slug>.md` work-item files.
 ---
 
 # issuer-breakdown
 
-**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-breakdown` or `/issuer-breakdown <path>`). Never auto-trigger during requirement discussions or after refining a brief. The user must explicitly request task breakdown before this skill runs.
+**User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-breakdown` or `/issuer-breakdown <text>`). Never auto-trigger during requirement discussions. The user must explicitly request task breakdown before this skill runs.
 
-Atomic skill. Read a refined PM brief (typically the output of `issuer-refine`) and emit one Markdown file per work item under `.issuer/tasks/`. **Always operate on a brief file under `.issuer/briefs/`**; if no such file exists for the input, delegate to `issuer-refine` first. **No network, no syncing.** This skill only writes local files.
+Atomic skill. Read raw requirement text or a refined PM brief and emit one Markdown file per work item under `.issuer/tasks/`. **No network, no syncing.** This skill only writes local files.
 
 ## Inputs
 
@@ -17,16 +17,16 @@ Two input modes:
 
 If the user invokes `/issuer-breakdown <text-or-path>` with a direct argument:
 
-- **If the argument resolves to an existing file path** (e.g. `.issuer/briefs/foo.md`), read it as the brief.
-- **If the argument is raw text** (not a path, or a path that does not exist yet), do NOT treat it as the brief directly. Invoke the `issuer-refine` skill with the text first to produce `.issuer/briefs/<slug>.md`, then use that generated file as the brief for breakdown.
-- No further confirmation needed between refine and breakdown in Quick mode; proceed through both stages and report both outputs.
+- **If the argument is a file path** (e.g. `.issuer/briefs/foo.md`), read it as the brief.
+- **If the argument is raw text**, use it directly for breakdown. No need to refine first.
+- No further confirmation needed; proceed directly to breakdown and report outputs.
 
 ### Interactive mode (when no argument is given)
 
 Ask the user to supply one of:
 
-1. A path to an existing brief file under `.issuer/briefs/`.
-2. Raw requirement text — in which case invoke `issuer-refine` first to write a brief file, then continue with breakdown on that file.
+1. Raw requirement text — break it down directly into tasks.
+2. A path to an existing brief file under `.issuer/briefs/`.
 
 Also confirm the current working directory contains `.issuer/config.yml` (from `issuer init`).
 
@@ -34,11 +34,11 @@ Also confirm the current working directory contains `.issuer/config.yml` (from `
 
 - Read `.issuer/config.yml`. Use its `platform` and `default_labels` for new files.
 - If the file does not exist, stop and tell the user to run `issuer init`.
-- **Ensure a brief file exists** at `.issuer/briefs/<slug>.md` for the current input. If not, invoke `issuer-refine` (in its own Quick mode) with the raw text and proceed only after the brief file has been written.
+- **Input can be**: raw text, or a brief file at `.issuer/briefs/<slug>.md`.
 
-### Brief quality evaluation
+### Brief quality evaluation (optional, only when using a refined brief)
 
-Before breakdown, evaluate the brief's completeness using the **five-dimension score** (same as `issuer-refine`).
+When breaking down from a refined brief (not raw text), evaluate the brief's completeness using the **five-dimension score**.
 
 - **Score ≥ 50** → Proceed with breakdown directly.
 - **Score < 50** → Warn user and offer options:
@@ -52,6 +52,8 @@ Before breakdown, evaluate the brief's completeness using the **five-dimension s
   ```
 
   Default recommendation: Option 1 (refine first). Only proceed with Option 2 if user explicitly confirms.
+  
+> **Note**: When breaking down raw text directly, skip quality evaluation and proceed.
 
 ## Output
 
@@ -143,9 +145,8 @@ After writing the task files, update the index:
 
 ## Guardrails
 
-- **Evaluate brief quality before breakdown.** If score < 50, recommend refinement first. Never silently breakdown an incomplete brief.
 - **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
-- **Always work from a brief file.** Never fabricate tasks from raw text directly — invoke `issuer-refine` first when no brief file exists.
+- **Support both raw text and refined briefs.** No need to refine first unless user explicitly requests it.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
 - **Never set `status: ready` automatically.** The draft → ready promotion is a manual user act.
