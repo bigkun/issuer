@@ -235,7 +235,7 @@ export class YunxiaoAdapter implements Adapter {
 
     // Try to match by option name (common Chinese names)
     for (const opt of options) {
-      const name = opt.name.toLowerCase();
+      const name = opt.name?.toLowerCase() || '';
       if (name.includes('致命') || name.includes('critical') || name.includes('block')) {
         optionMap.critical = opt.id;
       } else if (name.includes('严重') || name.includes('high') || name.includes('major')) {
