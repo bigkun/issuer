@@ -2,6 +2,8 @@
 
 > Skill-driven PM gateway. Structure requirements with agent skills, push to GitHub Issues / GitLab Issues / 云效 (Yunxiao) via CLI.
 
+**English** | [中文](README.zh-CN.md)
+
 `issuer` is two thin layers stitched together:
 
 - **Skills** — Markdown contracts that constrain what your coding agent's AI does when it converts raw requirement text into structured PM work items. No AI lives inside `issuer` itself; the agent you already use provides it.
