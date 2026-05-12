@@ -249,5 +249,20 @@ export function workitemToRemote(
     title: wi.subject,
     state: wi.status?.displayName ?? 'unknown',
     url: workitemUrl(organizationId, wi),
+    type: wi.categoryId ? categoryIdToType(wi.categoryId) : undefined,
   };
+}
+
+/** Map 云效 categoryId to issuer work item type. */
+function categoryIdToType(categoryId: string): string | undefined {
+  switch (categoryId) {
+    case 'Bug':
+      return 'bug';
+    case 'Req':
+      return 'story';
+    case 'Task':
+      return 'task';
+    default:
+      return undefined;
+  }
 }

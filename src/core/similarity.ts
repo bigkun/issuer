@@ -46,6 +46,7 @@ export function titleSimilarity(a: string, b: string): number {
 
 /**
  * 找到相似 issues
+ * 优化：按类型分组，只比较同类型的工作项
  */
 export interface MatchResult {
   issue: RemoteIssue;
@@ -56,8 +57,14 @@ export function findSimilarIssues(
   taskTitle: string,
   cache: RemoteIssue[],
   threshold: number = 0.85,
+  taskType?: string,  // 新增：任务类型
 ): MatchResult[] {
-  return cache
+  // 如果指定了类型，只比较同类型的工作项
+  const filteredCache = taskType 
+    ? cache.filter(issue => issue.type === taskType || !issue.type)
+    : cache;
+
+  return filteredCache
     .map((issue) => ({
       issue,
       score: titleSimilarity(taskTitle, issue.title),

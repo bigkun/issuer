@@ -80,7 +80,8 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
 
     // 去重检查（仅对新 issue，已 sync 的跳过）
     if (dedup.enabled && !task.platform_id && cacheIssues.length > 0) {
-      const matches = findSimilarIssues(task.title, cacheIssues, dedup.threshold);
+      // 传递任务类型，按类型分组去重
+      const matches = findSimilarIssues(task.title, cacheIssues, dedup.threshold, task.type);
       if (matches.length > 0) {
         duplicates.push({ task, matches });
         

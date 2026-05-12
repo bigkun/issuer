@@ -35,14 +35,25 @@ export interface RawGitlabIssue {
   title: string;
   state: string;
   web_url: string;
+  labels?: Array<{ name: string }>;
 }
 
 /** Convert a raw GitLab issue to the generic RemoteIssue shape. */
 export function issueToRemote(raw: RawGitlabIssue): RemoteIssue {
+  // Extract type from labels (e.g., "type:bug")
+  let type: string | undefined;
+  if (raw.labels) {
+    const typeLabel = raw.labels.find(l => l.name.startsWith('type:'));
+    if (typeLabel) {
+      type = typeLabel.name.split(':')[1];
+    }
+  }
+
   return {
     id: String(raw.iid),
     title: raw.title,
     state: raw.state,
     url: raw.web_url,
+    type,
   };
 }

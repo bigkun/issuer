@@ -5,6 +5,8 @@ export interface RemoteIssue {
   title: string;
   state: string;
   url: string;
+  /** Work item type for better dedup accuracy (bug/story/task) */
+  type?: string;
 }
 
 export interface IssueRef {

@@ -18,13 +18,24 @@ export interface RawGitHubIssue {
   title: string;
   state: string;
   html_url: string;
+  labels?: Array<{ name: string }>;
 }
 
 export function issueToRemote(raw: RawGitHubIssue): RemoteIssue {
+  // Extract type from labels (e.g., "type:bug")
+  let type: string | undefined;
+  if (raw.labels) {
+    const typeLabel = raw.labels.find(l => l.name.startsWith('type:'));
+    if (typeLabel) {
+      type = typeLabel.name.split(':')[1];
+    }
+  }
+
   return {
     id: String(raw.number),
     title: raw.title,
     state: raw.state,
     url: raw.html_url,
+    type,
   };
 }
