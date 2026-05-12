@@ -6,6 +6,6 @@ describe('createProgram', () => {
     const p = createProgram();
     expect(p.name()).toBe('issuer');
     expect(p.description()).toMatch(/Skill-driven/);
-    expect(p.version()).toBe('0.1.0');
+    expect(p.version()).toBe('0.2.0');
   });
 });

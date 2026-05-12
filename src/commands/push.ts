@@ -49,7 +49,15 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   // 每天首次 sync 时刷新缓存
   let cacheIssues: RemoteIssue[] = [];
   if (dedup.enabled) {
-    if (needsRefresh(opts.cwd, dedup.ttl_hours)) {
+    const cache = loadCache(opts.cwd);
+    
+    // 验证缓存是否匹配当前项目配置
+    const cacheValid = cache && 
+      cache.platform === cfg.platform && 
+      cache.owner === cfg.owner && 
+      cache.repo === cfg.repo;
+    
+    if (!cacheValid || needsRefresh(opts.cwd, dedup.ttl_hours)) {
       console.log('Refreshing issue cache from platform...');
       cacheIssues = await opts.adapter.listRemote();
       saveCache(opts.cwd, {
@@ -60,8 +68,7 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
         issues: cacheIssues,
       });
     } else {
-      const loaded = loadCache(opts.cwd);
-      cacheIssues = loaded?.issues ?? [];
+      cacheIssues = cache?.issues ?? [];
     }
   }
 
