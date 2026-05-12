@@ -40,32 +40,32 @@ Also confirm the current working directory contains `.issuer/config.yml` (from `
 
 This skill **automatically** applies platform-specific best practices based on your `.issuer/config.yml` `platform` field. **Zero configuration required** — it just works!
 
-### 云效 (Yunxiao) Style
+### Yunxiao (Alibaba Cloud DevOps) Style
 
 **Characteristics**: Formal, structured, enterprise-ready
 
 **Task body structure**:
 ```markdown
-## 用户故事
-作为 [角色]
-我想要 [功能]
-以便于 [价值]
+## User Story
+As a [role]
+I want [feature]
+So that [benefit]
 
-## 验收标准 (Given-When-Then)
+## Acceptance Criteria (Given-When-Then)
 
-**场景 1：[场景名称]**
-- Given [前置条件]
-- When [操作]
-- Then [期望结果]
+**Scenario 1: [Scenario Name]**
+- Given [precondition]
+- When [action]
+- Then [expected result]
 
-**场景 2：[场景名称]**
-- Given [前置条件]
-- When [操作]
-- Then [期望结果]
+**Scenario 2: [Scenario Name]**
+- Given [precondition]
+- When [action]
+- Then [expected result]
 
-## 工作量估算
-- 开发：X 小时
-- 测试：Y 小时
+## Effort Estimation
+- Development: X hours
+- Testing: Y hours
 ```
 
 **Rules**:
@@ -73,7 +73,7 @@ This skill **automatically** applies platform-specific best practices based on y
 - ✅ Include effort estimation (hours)
 - ✅ Formal tone, complete sentences
 - ✅ Minimum 3 acceptance scenarios
-- ✅ Use Chinese for user stories (if input is Chinese)
+- ✅ Use the same language as the input text
 
 ### GitHub Style
 

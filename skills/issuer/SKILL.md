@@ -26,7 +26,7 @@ Two invocation modes:
 
 ### Quick mode (when an argument is provided)
 
-If the user invokes `/issuer <text>` with a direct text argument (e.g. `我的 app 需要登录功能`):
+If the user invokes `/issuer <text>` with a direct text argument (e.g. `My app needs login functionality`):
 
 - Use the argument as the raw source text for breakdown.
 - **Default: Skip refine** and proceed directly to breakdown.
