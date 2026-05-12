@@ -1,5 +1,5 @@
 import matter from 'gray-matter';
-import { TaskFile, WorkType, Status, Priority, WORK_TYPES, STATUSES, PRIORITIES } from './types.js';
+import { TaskFile, WorkType, Status, Priority, Severity, WORK_TYPES, STATUSES, PRIORITIES, SEVERITIES } from './types.js';
 import { TaskParseError } from './errors.js';
 
 const REQUIRED_FIELDS = [
@@ -57,6 +57,19 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
   if (!PRIORITIES.includes(fm.priority as Priority)) {
     throw new TaskParseError(`priority must be one of ${PRIORITIES.join('|')}`, filePath);
   }
+  
+  // severity is optional, but required for Bug type
+  if (fm.type === WorkType.Bug) {
+    if (!fm.severity) {
+      throw new TaskParseError('severity is required for Bug type', filePath);
+    }
+    if (!SEVERITIES.includes(fm.severity as Severity)) {
+      throw new TaskParseError(`severity must be one of ${SEVERITIES.join('|')}`, filePath);
+    }
+  } else if (fm.severity && !SEVERITIES.includes(fm.severity as Severity)) {
+    throw new TaskParseError(`severity must be one of ${SEVERITIES.join('|')}`, filePath);
+  }
+  
   if (!Array.isArray(fm.labels) || !fm.labels.every((l) => typeof l === 'string')) {
     throw new TaskParseError('labels must be an array of strings', filePath);
   }
@@ -72,6 +85,7 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
     platform_id: fm.platform_id as string | null,
     platform_url: fm.platform_url as string | null,
     priority: fm.priority as Priority,
+    severity: (fm.severity as Severity) || undefined,
     labels: fm.labels as string[],
     created_at,
     updated_at,
@@ -81,7 +95,7 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
 }
 
 export function serializeTaskFile(task: TaskFile): string {
-  const fm = {
+  const fm: Record<string, unknown> = {
     id: task.id,
     type: task.type,
     title: task.title,
@@ -94,5 +108,11 @@ export function serializeTaskFile(task: TaskFile): string {
     created_at: task.created_at,
     updated_at: task.updated_at,
   };
+  
+  // Only include severity for Bug type
+  if (task.type === WorkType.Bug && task.severity) {
+    fm.severity = task.severity;
+  }
+  
   return matter.stringify(task.body.endsWith('\n') ? task.body : task.body + '\n', fm);
 }

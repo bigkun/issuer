@@ -169,7 +169,7 @@ export class YunxiaoAdapter implements Adapter {
   /**
    * Ensure all required fields have values in the create body.
    * Auto-fills default values for required fields that are missing.
-   * For Bug type: queries and caches severity field mapping on first push.
+   * For Bug type: queries and caches severity and priority field mappings on first push.
    */
   private async ensureRequiredFields(
     body: any,
@@ -186,17 +186,17 @@ export class YunxiaoAdapter implements Adapter {
     if (category === 'Bug' && (this.severityFieldMap || this.priorityFieldMap)) {
       if (!body.customFieldValues) body.customFieldValues = {};
       
-      // Set severity based on priority
-      if (this.severityFieldMap) {
-        const severityOptionId = this.getSeverityOptionId(body._taskPriority);
+      // Set severity from task.severity (direct mapping)
+      if (this.severityFieldMap && body._taskSeverity) {
+        const severityOptionId = this.getSeverityOptionId(body._taskSeverity);
         if (severityOptionId) {
           body.customFieldValues[this.severityFieldMap.fieldId] = severityOptionId;
-          console.log(`  → Set severity: ${body._taskPriority} → ${this.severityFieldMap.fieldId}`);
+          console.log(`  → Set severity: ${body._taskSeverity} → ${this.severityFieldMap.fieldId}`);
         }
       }
       
-      // Set priority field
-      if (this.priorityFieldMap) {
+      // Set priority from task.priority
+      if (this.priorityFieldMap && body._taskPriority) {
         const priorityOptionId = this.getPriorityOptionId(body._taskPriority);
         if (priorityOptionId) {
           body.customFieldValues[this.priorityFieldMap.fieldId] = priorityOptionId;
@@ -436,8 +436,9 @@ export class YunxiaoAdapter implements Adapter {
 
     const body = taskToCreateBody(task, this.spaceIdentifierId, workitemTypeId, assignedTo);
     
-    // Pass priority for severity mapping
+    // Pass priority and severity for field mapping
     (body as any)._taskPriority = task.priority;
+    (body as any)._taskSeverity = (task as any).severity || task.priority;  // fallback to priority if severity not set
     
     // Ensure all required fields have values (auto-fill defaults)
     await this.ensureRequiredFields(body, workitemTypeId, category);

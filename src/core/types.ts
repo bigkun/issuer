@@ -18,6 +18,13 @@ export enum Priority {
   Low = 'low',
 }
 
+export enum Severity {
+  Critical = 'critical',
+  High = 'high',
+  Medium = 'medium',
+  Low = 'low',
+}
+
 export interface TaskFile {
   id: string;
   type: WorkType;
@@ -27,6 +34,7 @@ export interface TaskFile {
   platform_id: string | null;
   platform_url: string | null;
   priority: Priority;
+  severity?: Severity;  // Bug type only
   labels: string[];
   created_at: string;
   updated_at: string;
@@ -37,3 +45,4 @@ export interface TaskFile {
 export const WORK_TYPES = Object.values(WorkType);
 export const STATUSES = Object.values(Status);
 export const PRIORITIES = Object.values(Priority);
+export const SEVERITIES = Object.values(Severity);

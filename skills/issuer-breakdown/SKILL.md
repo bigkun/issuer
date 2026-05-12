@@ -207,6 +207,7 @@ platform: <from config>
 platform_id: null
 platform_url: null
 priority: critical | high | medium | low
+severity: critical | high | medium | low  # Bug type only
 labels: [<from config.default_labels>]
 created_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
@@ -239,11 +240,18 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 1. Parse the brief.
 2. Decide how many work items it contains. A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
 3. For each item: Pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
-   - **For Bug type**: `priority` is REQUIRED and maps to platform severity field:
-     - `critical` (P0) - System crash, data loss, blocker
-     - `high` (P1) - Major feature broken, no workaround
-     - `medium` (P2) - Feature impaired, workaround exists
-     - `low` (P3) - Cosmetic, minor inconvenience
+   - **For Bug type**: Both `priority` and `severity` are REQUIRED and MUST be set:
+     - `priority` - How urgently we need to fix it (process priority)
+       - `critical` (P0) - Fix immediately, drop everything
+       - `high` (P1) - Fix in current sprint
+       - `medium` (P2) - Fix in next sprint
+       - `low` (P3) - Fix when time permits
+     - `severity` - How bad is the impact on users/system
+       - `critical` - System crash, data loss, security breach
+       - `high` - Major feature broken, no workaround
+       - `medium` - Feature impaired, workaround exists
+       - `low` - Cosmetic issue, minor inconvenience
+     - Example: A typo on the homepage has `priority: low` but `severity: low`. A database corruption bug has `priority: critical` and `severity: critical`.
 4. Compute slug (see Slug rules), build frontmatter, write the file.
 5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using this **exact template** (translate only the natural-language parts to match the user's interaction language):
 
