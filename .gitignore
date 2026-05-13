@@ -8,6 +8,9 @@ coverage/
 .vscode/
 .idea/
 .qoder/
+.agents/
+.codex/
+.claude/
 .issuer/credentials.yml
 .issuer/
 docs/alibabacloud-devops-mcp-server-master/
