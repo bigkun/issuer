@@ -67,8 +67,9 @@ describe('resolveToken', () => {
   it('resolves yunxiao token via YUNXIAO_TOKEN', () => {
     expect(resolveToken('yunxiao', { env: { YUNXIAO_TOKEN: 'yx-123' } })).toBe('yx-123');
   });
-  it('throws for unknown platform', () => {
-    expect(() => resolveToken('bitbucket', { env: {} })).toThrow(/Unknown platform/);
+  it('derives token keys for generic platforms', () => {
+    // Generic platforms now derive env keys from platform name
+    expect(() => resolveToken('bitbucket', { env: {} })).toThrow(/No bitbucket token found.*ISSUER_BITBUCKET_TOKEN/);
   });
 });
 
@@ -153,74 +154,47 @@ describe('writeCredentialsFile', () => {
     expect(content).toContain('ghp_new');
     expect(content).not.toContain('ghp_old');
   });
-  it('throws for unknown platform', () => {
+  it('supports generic platform tokens', () => {
     const dir = mkdtempSync(join(tmpdir(), 'issuer-cred-'));
-    expect(() => writeCredentialsFile(join(dir, 'cred.yml'), 'bitbucket', 'x')).toThrow(ConfigError);
+    const filePath = join(dir, 'cred.yml');
+    writeCredentialsFile(filePath, 'bitbucket', 'bb-token');
+    const content = readFileSync(filePath, 'utf8');
+    expect(content).toContain('bitbucket_token');
+    expect(content).toContain('bb-token');
   });
 });
 
 describe('validateToken', () => {
-  it('validates github token via issue list', async () => {
-    const mockFetch = async (url: string) => {
-      if (url.includes('/repos/acme/demo/issues')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 404 };
-    };
-    const result = await validateToken('github', 'ghp_test', { owner: 'acme', repo: 'demo', fetch: mockFetch as any });
+  it('returns valid when adapter.listRemote() succeeds', async () => {
+    const adapter = {
+      name: 'test',
+      listRemote: async () => [],
+      createIssue: async () => ({ id: '1', url: '' }),
+      updateIssue: async () => ({ id: '1', url: '' }),
+    } as any;
+    const result = await validateToken(adapter);
     expect(result.valid).toBe(true);
   });
-  it('validates gitlab token via issue list', async () => {
-    const mockFetch = async (url: string) => {
-      if (url.includes('/api/v4/projects/') && url.includes('/issues')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 401 };
-    };
-    const result = await validateToken('gitlab', 'glpat_test', { owner: 'myorg', repo: 'myproject', fetch: mockFetch as any });
-    expect(result.valid).toBe(true);
-  });
-  it('validates yunxiao token successfully', async () => {
-    const mockFetch = async (url: string, init?: RequestInit) => {
-      // 新版 API: POST workitems:search
-      if (url.includes('workitems:search')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 401 };
-    };
-    const result = await validateToken('yunxiao', 'yx_test', { owner: 'org123', fetch: mockFetch as any });
-    expect(result.valid).toBe(true);
-  });
-  it('returns invalid for bad github token', async () => {
-    const mockFetch = async () => ({ ok: false, status: 401 });
-    const result = await validateToken('github', 'bad-token', { owner: 'acme', repo: 'demo', fetch: mockFetch as any });
+  it('returns invalid when adapter.listRemote() throws', async () => {
+    const adapter = {
+      name: 'test',
+      listRemote: async () => { throw new Error('API 401 Unauthorized'); },
+      createIssue: async () => ({ id: '1', url: '' }),
+      updateIssue: async () => ({ id: '1', url: '' }),
+    } as any;
+    const result = await validateToken(adapter);
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.error).toContain('401');
   });
-  it('returns error for unknown platform', async () => {
-    const result = await validateToken('bitbucket', 'x');
+  it('handles AdapterError with message', async () => {
+    const adapter = {
+      name: 'yunxiao',
+      listRemote: async () => { throw new Error('listRemote failed: Yunxiao API 400'); },
+      createIssue: async () => ({ id: '1', url: '' }),
+      updateIssue: async () => ({ id: '1', url: '' }),
+    } as any;
+    const result = await validateToken(adapter);
     expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toContain('Unknown platform');
-  });
-  it('returns error for github without owner/repo', async () => {
-    const result = await validateToken('github', 'ghp_test');
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toContain('owner and repo');
-  });
-  it('returns error for gitlab without owner/repo', async () => {
-    const result = await validateToken('gitlab', 'glpat_test');
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toContain('owner and repo');
-  });
-  it('returns error for yunxiao without owner', async () => {
-    const result = await validateToken('yunxiao', 'yx_test');
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toContain('organizationId');
-  });
-  it('handles network error', async () => {
-    const mockFetch = async () => { throw new Error('Network error'); };
-    const result = await validateToken('github', 'ghp_test', { owner: 'acme', repo: 'demo', fetch: mockFetch as any });
-    expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.error).toContain('Network error');
+    if (!result.valid) expect(result.error).toContain('Yunxiao');
   });
 });

@@ -239,3 +239,201 @@ describe('YunxiaoAdapter', () => {
     await expect(adapter.addComment('wi-1', 'fail')).rejects.toThrow('addComment failed');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Dual edition support tests (Center vs Region)
+// ---------------------------------------------------------------------------
+
+describe('YunxiaoAdapter - Dual Edition Support', () => {
+  const baseOpts = {
+    token: 'test-pat',
+    organizationId: 'org-abc',
+    spaceIdentifierId: 'space-123',
+    projectRoot: '/tmp/test-project',
+    assignedTo: 'user-xyz',
+    workitemTypeMap: { Req: 'type-req', Bug: 'type-bug', Task: 'type-task' },
+  };
+
+  function mockFetchWithUrlCapture(capturedUrls: string[], responses: Array<{ ok: boolean; json: unknown; status?: number }>) {
+    let callIndex = 0;
+    return async (url: string, init?: RequestInit) => {
+      capturedUrls.push(url);
+      const resp = responses[callIndex++] ?? { ok: false, json: { success: false } };
+      return {
+        ok: resp.ok,
+        status: resp.ok ? 200 : (resp.status ?? 400),
+        statusText: resp.ok ? 'OK' : 'Bad Request',
+        json: async () => resp.json,
+        text: async () => JSON.stringify(resp.json),
+      } as any;
+    };
+  }
+
+  it('uses center edition API paths by default', async () => {
+    const capturedUrls: string[] = [];
+    const adapter = new YunxiaoAdapter({
+      token: 'test-pat',
+      organizationId: 'org-abc',
+      spaceIdentifierId: 'space-123',
+      projectRoot: '/tmp/test-project',
+      assignedTo: 'user-xyz',
+      workitemTypeMap: { Req: 'type-req', Bug: 'type-bug', Task: 'type-task' },
+      fetch: mockFetchWithUrlCapture(capturedUrls, [
+        {
+          ok: true,
+          json: [
+            {
+              id: 'field-severity',
+              name: '严重程度',
+              identifier: 'severity',
+              type: 'DROPDOWN',
+              required: true,
+              options: [
+                { id: 'opt-critical', name: '致命', isDefault: false },
+                { id: 'opt-high', name: '严重', isDefault: false },
+                { id: 'opt-medium', name: '一般', isDefault: true },
+                { id: 'opt-low', name: '建议', isDefault: false },
+              ],
+            },
+          ],
+        },
+        {
+          ok: true,
+          json: { id: 'wi-new' },
+        },
+      ]),
+    });
+
+    await adapter.createIssue(makeTask({ type: WorkType.Bug, priority: Priority.High }));
+
+    // Verify center edition paths contain /organizations/{orgId}
+    expect(capturedUrls[0]).toContain('/organizations/org-abc/projects/space-123/workitemTypes');
+    expect(capturedUrls[1]).toContain('/organizations/org-abc/workitems');
+  });
+
+  it('uses region edition API paths when custom domain is provided', async () => {
+    const capturedUrls: string[] = [];
+    const adapter = new YunxiaoAdapter({
+      token: 'test-pat',
+      organizationId: 'default',
+      spaceIdentifierId: 'space-123',
+      projectRoot: '/tmp/test-project',
+      assignedTo: 'user-xyz',
+      workitemTypeMap: { Req: 'type-req', Bug: 'type-bug', Task: 'type-task' },
+      domain: 'rdc.cn-hangzhou.aliyuncs.com', // Region edition domain
+      fetch: mockFetchWithUrlCapture(capturedUrls, [
+        {
+          ok: true,
+          json: [
+            {
+              id: 'field-severity',
+              name: '严重程度',
+              identifier: 'severity',
+              type: 'DROPDOWN',
+              required: true,
+              options: [
+                { id: 'opt-critical', name: '致命', isDefault: false },
+                { id: 'opt-high', name: '严重', isDefault: false },
+                { id: 'opt-medium', name: '一般', isDefault: true },
+                { id: 'opt-low', name: '建议', isDefault: false },
+              ],
+            },
+          ],
+        },
+        {
+          ok: true,
+          json: { id: 'wi-new' },
+        },
+      ]),
+    });
+
+    await adapter.createIssue(makeTask({ type: WorkType.Bug, priority: Priority.High }));
+
+    // Verify region edition paths do NOT contain /organizations/{orgId}
+    expect(capturedUrls[0]).toContain('/projects/space-123/workitemTypes');
+    expect(capturedUrls[0]).not.toContain('/organizations/');
+    expect(capturedUrls[1]).toContain('/workitems');
+    expect(capturedUrls[1]).not.toContain('/organizations/');
+  });
+
+  it('uses correct URL domain for region edition', async () => {
+    const capturedUrls: string[] = [];
+    const adapter = new YunxiaoAdapter({
+      token: 'test-pat',
+      organizationId: 'default',
+      spaceIdentifierId: 'space-123',
+      projectRoot: '/tmp/test-project',
+      assignedTo: 'user-xyz',
+      workitemTypeMap: { Req: 'type-req', Bug: 'type-bug', Task: 'type-task' },
+      domain: 'rdc.cn-beijing.aliyuncs.com',
+      fetch: mockFetchWithUrlCapture(capturedUrls, [
+        {
+          ok: true,
+          json: [{ id: 'wi-1', subject: 'Item 1', status: { id: '28', displayName: '待处理' } }],
+        },
+        {
+          ok: true,
+          json: [],
+        },
+      ]),
+    });
+
+    await adapter.listRemote();
+
+    // Verify the domain in URL
+    expect(capturedUrls[0]).toContain('https://rdc.cn-beijing.aliyuncs.com/');
+    expect(capturedUrls[0]).not.toContain('openapi-rdc.aliyuncs.com');
+  });
+
+  it('listRemote uses correct paths for both editions', async () => {
+    // Center edition
+    const centerUrls: string[] = [];
+    const centerAdapter = new YunxiaoAdapter({
+      ...baseOpts,
+      fetch: mockFetchWithUrlCapture(centerUrls, [
+        { ok: true, json: [] },
+      ]),
+    });
+    await centerAdapter.listRemote();
+    expect(centerUrls[0]).toContain('/organizations/org-abc/workitems:search');
+
+    // Region edition
+    const regionUrls: string[] = [];
+    const regionAdapter = new YunxiaoAdapter({
+      ...baseOpts,
+      domain: 'rdc.cn-shanghai.aliyuncs.com',
+      fetch: mockFetchWithUrlCapture(regionUrls, [
+        { ok: true, json: [] },
+      ]),
+    });
+    await regionAdapter.listRemote();
+    expect(regionUrls[0]).toContain('/workitems:search');
+    expect(regionUrls[0]).not.toContain('/organizations/');
+  });
+
+  it('updateIssue uses correct paths for both editions', async () => {
+    // Center edition
+    const centerUrls: string[] = [];
+    const centerAdapter = new YunxiaoAdapter({
+      ...baseOpts,
+      fetch: mockFetchWithUrlCapture(centerUrls, [
+        { ok: true, json: {} },
+      ]),
+    });
+    await centerAdapter.updateIssue(makeTask({ platform_id: 'wi-123' }));
+    expect(centerUrls[0]).toContain('/organizations/org-abc/workitems/wi-123');
+
+    // Region edition
+    const regionUrls: string[] = [];
+    const regionAdapter = new YunxiaoAdapter({
+      ...baseOpts,
+      domain: 'rdc.cn-shenzhen.aliyuncs.com',
+      fetch: mockFetchWithUrlCapture(regionUrls, [
+        { ok: true, json: {} },
+      ]),
+    });
+    await regionAdapter.updateIssue(makeTask({ platform_id: 'wi-123' }));
+    expect(regionUrls[0]).toContain('/workitems/wi-123');
+    expect(regionUrls[0]).not.toContain('/organizations/');
+  });
+});

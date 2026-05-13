@@ -1,8 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runAuth } from '../../src/commands/auth.js';
+import type { Adapter } from '../../src/adapter/interface.js';
+
+/** Create a mock adapter that succeeds or fails on listRemote */
+function mockAdapter(succeeds: boolean): Adapter {
+  return {
+    name: 'test',
+    listRemote: succeeds
+      ? async () => []
+      : async () => { throw new Error('API 401 Unauthorized'); },
+    createIssue: async () => ({ id: '1', url: '' }),
+    updateIssue: async () => ({ id: '1', url: '' }),
+  };
+}
 
 describe('runAuth', () => {
   let cwd: string;
@@ -15,17 +28,10 @@ describe('runAuth', () => {
     );
   });
 
-  it('validates and saves a valid github token', async () => {
-    const mockFetch = async (url: string) => {
-      if (url.includes('/repos/acme/demo/issues')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 404 };
-    };
-    const result = await runAuth({ cwd, token: 'ghp_test', nonInteractive: true, fetch: mockFetch as any });
+  it('validates and saves a valid token', async () => {
+    const result = await runAuth({ cwd, token: 'ghp_test', nonInteractive: true, adapter: mockAdapter(true) });
     expect(result.platform).toBe('github');
     expect(result.valid).toBe(true);
-    // Check credentials file was written
     const credPath = join(cwd, '.issuer', 'credentials.yml');
     expect(existsSync(credPath)).toBe(true);
   });
@@ -43,28 +49,14 @@ describe('runAuth', () => {
   });
 
   it('uses --platform override', async () => {
-    const mockFetch = async (url: string) => {
-      if (url.includes('/api/v4/projects/') && url.includes('/issues')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 404 };
-    };
-    const result = await runAuth({ cwd, token: 'glpat_test', platform: 'gitlab', nonInteractive: true, fetch: mockFetch as any });
+    const result = await runAuth({ cwd, token: 'glpat_test', platform: 'gitlab', nonInteractive: true, adapter: mockAdapter(true) });
     expect(result.platform).toBe('gitlab');
     expect(result.valid).toBe(true);
   });
 
   it('finds existing token from project credentials', async () => {
-    // Write a token in project credentials
     writeFileSync(join(cwd, '.issuer', 'credentials.yml'), 'github_token: ghp_existing\n');
-    const mockFetch = async (url: string) => {
-      if (url.includes('/repos/acme/demo/issues')) {
-        return { ok: true, json: async () => [] };
-      }
-      return { ok: false, status: 404 };
-    };
-    // Without providing token, it should find the existing one
-    const result = await runAuth({ cwd, nonInteractive: true, fetch: mockFetch as any });
+    const result = await runAuth({ cwd, nonInteractive: true, adapter: mockAdapter(true) });
     expect(result.platform).toBe('github');
     expect(result.valid).toBe(true);
     const credPath = join(cwd, '.issuer', 'credentials.yml');
