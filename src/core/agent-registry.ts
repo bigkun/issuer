@@ -83,6 +83,16 @@ export const AGENT_REGISTRY: AgentConfig[] = [
   // 高优先级 Agent（用户量大）
   // ========================================================================
   {
+    id: 'agents',
+    name: 'Universal Agents (.agents)',
+    skillsDir: '.agents/skills',
+    detectionPaths: [
+      '.agents/skills',
+      '.agents',
+    ],
+    available: true,
+  },
+  {
     id: 'codex',
     name: 'OpenAI Codex CLI',
     skillsDir: '.codex/skills',
