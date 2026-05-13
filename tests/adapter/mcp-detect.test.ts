@@ -122,7 +122,7 @@ describe('determineChannel', () => {
 describe('capabilitiesFromProbe', () => {
   it('derives capabilities with mcp channel when minimum met', () => {
     const tools = ['create_issue', 'get_issue'];
-    const caps = capabilitiesFromProbe(tools);
+    const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.channel).toBe('mcp');
     expect(caps.capabilities.create).toBe(true);
@@ -160,24 +160,6 @@ describe('capabilitiesFromProbe', () => {
     const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.tools).toEqual(tools);
-  });
-});
-
-describe('determineChannel', () => {
-  it('returns mcp when minimum requirements met', () => {
-    const caps = { create: true, update: false, search: false, read: true, comment: false };
-    expect(determineChannel(caps, true)).toBe('mcp');
-    expect(determineChannel(caps, false)).toBe('mcp');
-  });
-
-  it('returns cli when MCP insufficient but CLI adapter available', () => {
-    const caps = { create: false, update: false, search: true, read: true, comment: false };
-    expect(determineChannel(caps, true)).toBe('cli');
-  });
-
-  it('returns unsupported when both MCP and CLI unavailable', () => {
-    const caps = { create: false, update: false, search: false, read: false, comment: false };
-    expect(determineChannel(caps, false)).toBe('unsupported');
   });
 });
 
