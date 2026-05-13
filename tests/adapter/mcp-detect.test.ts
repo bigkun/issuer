@@ -6,8 +6,8 @@ import {
   capabilitiesFromProbe,
   MINIMUM_CAPABILITIES,
   formatCapabilitySummary,
-  formatInsufficientCapabilitiesMessage,
   formatUnsupportedPlatformMessage,
+  determineChannel,
 } from '../../src/adapter/mcp-detect.js';
 
 describe('detectCapabilitiesHeuristic', () => {
@@ -101,6 +101,24 @@ describe('MINIMUM_CAPABILITIES', () => {
   });
 });
 
+describe('determineChannel', () => {
+  it('returns mcp when minimum requirements met', () => {
+    const caps = { create: true, update: false, search: false, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('mcp');
+    expect(determineChannel(caps, false)).toBe('mcp');
+  });
+
+  it('returns cli when MCP insufficient but CLI adapter available', () => {
+    const caps = { create: false, update: false, search: true, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('cli');
+  });
+
+  it('returns unsupported when both MCP and CLI unavailable', () => {
+    const caps = { create: false, update: false, search: false, read: false, comment: false };
+    expect(determineChannel(caps, false)).toBe('unsupported');
+  });
+});
+
 describe('capabilitiesFromProbe', () => {
   it('derives capabilities with mcp channel when minimum met', () => {
     const tools = ['create_issue', 'get_issue'];
@@ -111,9 +129,18 @@ describe('capabilitiesFromProbe', () => {
     expect(caps.capabilities.read).toBe(true);
   });
 
-  it('derives capabilities with cli channel when minimum not met', () => {
+  it('derives capabilities with unsupported channel when minimum not met and no CLI adapter', () => {
     const tools = ['search_issues'];
-    const caps = capabilitiesFromProbe(tools);
+    const caps = capabilitiesFromProbe(tools, false);
+
+    expect(caps.channel).toBe('unsupported');
+    expect(caps.capabilities.create).toBe(false);
+    expect(caps.capabilities.read).toBe(false);
+  });
+
+  it('derives capabilities with cli channel when minimum not met but CLI adapter available', () => {
+    const tools = ['search_issues'];
+    const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.channel).toBe('cli');
     expect(caps.capabilities.create).toBe(false);
@@ -122,7 +149,7 @@ describe('capabilitiesFromProbe', () => {
 
   it('includes probed_at timestamp', () => {
     const tools = ['create_issue'];
-    const caps = capabilitiesFromProbe(tools);
+    const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.probed_at).toBeDefined();
     expect(new Date(caps.probed_at).toISOString()).toBe(caps.probed_at);
@@ -130,9 +157,27 @@ describe('capabilitiesFromProbe', () => {
 
   it('includes all probed tools in tools array', () => {
     const tools = ['create_issue', 'get_issue', 'some_other_tool'];
-    const caps = capabilitiesFromProbe(tools);
+    const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.tools).toEqual(tools);
+  });
+});
+
+describe('determineChannel', () => {
+  it('returns mcp when minimum requirements met', () => {
+    const caps = { create: true, update: false, search: false, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('mcp');
+    expect(determineChannel(caps, false)).toBe('mcp');
+  });
+
+  it('returns cli when MCP insufficient but CLI adapter available', () => {
+    const caps = { create: false, update: false, search: true, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('cli');
+  });
+
+  it('returns unsupported when both MCP and CLI unavailable', () => {
+    const caps = { create: false, update: false, search: false, read: false, comment: false };
+    expect(determineChannel(caps, false)).toBe('unsupported');
   });
 });
 
@@ -149,24 +194,8 @@ describe('formatCapabilitySummary', () => {
 
     expect(summary).toContain('create ✓');
     expect(summary).toContain('read ✓');
-    expect(summary).toContain('update ✗ (CLI fallback)');
-  });
-});
-
-describe('formatInsufficientCapabilitiesMessage', () => {
-  it('generates message for insufficient capabilities', () => {
-    const caps = {
-      channel: 'mcp' as const,
-      probed_at: '2026-05-07T00:00:00Z',
-      tools: ['search_issues'],
-      capabilities: { create: false, update: false, search: true, read: false, comment: false },
-    };
-
-    const msg = formatInsufficientCapabilitiesMessage('myPM', caps);
-
-    expect(msg).toContain('⚠ Platform \'myPM\' MCP capabilities insufficient');
-    expect(msg).toContain('Missing required capabilities: create, read');
-    expect(msg).toContain('Suggestions:');
+    expect(summary).toContain('update ✗');
+    expect(summary).not.toContain('CLI fallback');
   });
 });
 
@@ -174,10 +203,10 @@ describe('formatUnsupportedPlatformMessage', () => {
   it('generates message for unsupported platform', () => {
     const msg = formatUnsupportedPlatformMessage('custom-pm');
 
-    expect(msg).toContain('⚠ Platform \'custom-pm\' not supported');
+    expect(msg).toContain('⚠ Platform \'custom-pm\' sync unavailable');
     expect(msg).toContain('No MCP server detected');
-    expect(msg).toContain('No API adapter registered');
-    expect(msg).toContain('Options:');
-    expect(msg).toContain('Configure MCP server');
+    expect(msg).toContain('No CLI adapter registered');
+    expect(msg).toContain('Install MCP server');
+    expect(msg).toContain('https://github.com/bigkun/issuer/issues');
   });
 });

@@ -6,7 +6,8 @@
  *
  * Design principle:
  * - Heuristic keyword matching (action + object) → capability detection
- * - Minimum requirements check (create + read) → channel decision
+ * - Minimum requirements check (create + read) → MCP channel decision
+ * - CLI adapter availability check → CLI channel decision
  * - Works for unknown platforms without registry entry
  */
 
@@ -17,10 +18,13 @@
 /** The five capability groups that issuer-sync depends on. */
 export type McpCapability = 'create' | 'update' | 'search' | 'read' | 'comment';
 
+/** Sync channel type: MCP, CLI, or unsupported */
+export type SyncChannel = 'mcp' | 'cli' | 'unsupported';
+
 /** Shape of the `mcp_capabilities` section in `.issuer/config.yml`. */
 export interface McpCapabilities {
-  /** Which channel to use: `mcp` or `cli`. */
-  channel: 'mcp' | 'cli';
+  /** Which channel to use: `mcp`, `cli`, or `unsupported`. */
+  channel: SyncChannel;
   /** ISO 8601 timestamp of when the probe was run. */
   probed_at: string;
   /** Actual tool names returned by the MCP server. */
@@ -117,6 +121,37 @@ export function getMissingCapabilities(capabilities: Record<McpCapability, boole
 }
 
 // ---------------------------------------------------------------------------
+// Channel determination
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine sync channel based on MCP capabilities and CLI adapter availability.
+ *
+ * Priority: MCP-first → CLI adapter → unsupported
+ *
+ * @param mcpCaps - MCP capability flags from heuristic detection.
+ * @param cliAdapterAvailable - Whether CLI adapter exists for the platform (from hasApiAdapter).
+ * @returns Sync channel: 'mcp', 'cli', or 'unsupported'.
+ */
+export function determineChannel(
+  mcpCaps: Record<McpCapability, boolean>,
+  cliAdapterAvailable: boolean,
+): SyncChannel {
+  // 1. MCP available (create + read) → use MCP
+  if (meetsMinimumRequirements(mcpCaps)) {
+    return 'mcp';
+  }
+
+  // 2. MCP unavailable → check CLI adapter
+  if (cliAdapterAvailable) {
+    return 'cli';
+  }
+
+  // 3. Neither MCP nor CLI → unsupported
+  return 'unsupported';
+}
+
+// ---------------------------------------------------------------------------
 // Capability derivation
 // ---------------------------------------------------------------------------
 
@@ -125,11 +160,15 @@ export function getMissingCapabilities(capabilities: Record<McpCapability, boole
  * Pure heuristic detection — works for any platform.
  *
  * @param probedTools - Tool names returned by the MCP server.
+ * @param cliAdapterAvailable - Whether CLI adapter exists for the platform.
  * @returns Final `McpCapabilities` with the probe results.
  */
-export function capabilitiesFromProbe(probedTools: string[]): McpCapabilities {
+export function capabilitiesFromProbe(
+  probedTools: string[],
+  cliAdapterAvailable: boolean,
+): McpCapabilities {
   const heuristicCaps = detectCapabilitiesHeuristic(probedTools);
-  const channel: 'mcp' | 'cli' = meetsMinimumRequirements(heuristicCaps) ? 'mcp' : 'cli';
+  const channel = determineChannel(heuristicCaps, cliAdapterAvailable);
 
   return {
     channel,
@@ -156,51 +195,27 @@ export function formatCapabilitySummary(caps: McpCapabilities): string {
   };
   const parts = (Object.entries(labels) as [McpCapability, string][]).map(([cap, label]) => {
     const available = caps.capabilities[cap];
-    const suffix = !available ? ' (CLI fallback)' : '';
-    return `${label} ${available ? '✓' : '✗'}${suffix}`;
+    return `${label} ${available ? '✓' : '✗'}`;
   });
   return `MCP capabilities: ${parts.join(' | ')}`;
 }
 
 /**
- * Generate a user-friendly message for insufficient capabilities.
- */
-export function formatInsufficientCapabilitiesMessage(platform: string, caps: McpCapabilities): string {
-  const missing = getMissingCapabilities(caps.capabilities);
-
-  return `⚠ Platform '${platform}' MCP capabilities insufficient:
-
-Detected capabilities: ${formatCapabilitySummary(caps)}
-Missing required capabilities: ${missing.join(', ')}
-
-issuer-sync requires at least 'create' + 'read' capabilities.
-
-Suggestions:
-1. Check your MCP server configuration, ensure it exposes tools matching:
-   - create + issue/workitem/task (e.g., create_issue, create_work_item)
-   - get/read + issue/workitem/task (e.g., get_issue, read_work_item)
-2. Or wait for API adapter support (issuer push CLI fallback)
-3. Or develop a REST adapter and contribute to issuer`;
-}
-
-/**
- * Generate a user-friendly message for unsupported platforms (no MCP, no adapter).
+ * Generate a user-friendly message for unsupported platform (no MCP, no CLI adapter).
  */
 export function formatUnsupportedPlatformMessage(platform: string): string {
-  return `⚠ Platform '${platform}' not supported:
+  return `⚠ Platform '${platform}' sync unavailable:
 
 - No MCP server detected or capabilities insufficient
-- No API adapter registered
+- No CLI adapter registered for this platform
 
 Options:
-1. Configure MCP server (recommended, zero-code integration):
+1. Install MCP server for '${platform}' (recommended)
    - MCP server must expose 'create' + 'read' capabilities
    - Tool naming convention: action + object (e.g., create_issue)
-   - See: https://agentskills.io for MCP server development guide
-   
-2. Wait for official API adapter support
-
-3. Develop REST adapter and contribute:
+2. Request CLI adapter support — open an issue at:
+   https://github.com/bigkun/issuer/issues
+3. Develop custom adapter and contribute:
    - Reference: src/adapter/github/index.ts
    - Implement Adapter interface: createIssue, updateIssue, listRemote`;
 }

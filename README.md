@@ -193,7 +193,7 @@ Create a Personal Access Token at 云效 → 个人设置 → 个人访问令牌
 
 > **Note**: On first `issuer push`, the CLI automatically fetches your user ID via GetUserByToken API and saves it to `.issuer/config.yml`. This requires the 「组织管理 - 用户」(只读) permission.
 
-**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/5). Update and comment fall back to the CLI adapter, which calls the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — closing the full 5/5 capability gap.
+**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/5). If MCP is unavailable, the CLI adapter uses the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — providing full 5/5 capability coverage.
 
 ### GitLab
 
@@ -204,7 +204,7 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 - `--owner` → GitLab group or namespace
 - `--repo` → GitLab project name or ID
 
-**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). `update` falls back to CLI.
+**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). If MCP is unavailable, the CLI adapter handles all operations.
 
 ## Supported Agents
 
@@ -246,17 +246,20 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 
 ## Sync channels
 
-`issuer-sync` picks one of:
+`issuer-sync` uses **one channel per platform** (never mixed):
 
-| Platform | MCP coverage | CLI fallback for gaps |
-|---|---|---|
-| GitHub | 5/5 (create, update, search, read, comment) | None needed |
-| GitLab | 4/5 (missing `update`) | `issuer push` |
-| 云效 | 3/5 (missing `update`, `comment`) | `issuer push` → OpenAPI (full 5/5) |
+| Platform | MCP availability | CLI adapter | Default |
+|---|---|---|---|
+| GitHub | 5/5 (create, update, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
+| GitLab | 4/5 (create, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
+| 云效 | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
 
-**MCP-first** — if a matching MCP server is wired into your agent, the skill calls those tools directly.
+**Channel selection logic**:
+1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
+2. **CLI adapter** — if MCP unavailable but platform has built-in CLI adapter, use CLI channel
+3. **Prompt user** — if neither available, instruct user to install MCP server or wait for adapter support
 
-**CLI fallback** — otherwise the skill shells out to `issuer push`, which uses the platform SDK / OpenAPI and a token resolved from (in order):
+**CLI channel** uses platform SDK / OpenAPI with token resolved from:
 1. `ISSUER_<PLATFORM>_TOKEN`
 2. `<PLATFORM>_TOKEN`
 3. `~/.issuer/credentials.yml`
@@ -265,9 +268,9 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 
 | Platform | MCP channel | CLI (API) channel | Notes |
 |---|---|---|---|
-| GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via both channels |
-| GitLab | ✓ Tests pass | ✓ Tests pass | MCP lacks `update`, CLI covers gap |
-| 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | MCP 3/5, CLI via OpenAPI → full 5/5 |
+| GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via either channel |
+| GitLab | ✓ Tests pass | ✓ Tests pass | Either channel provides full capability |
+| 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
 
 Both channels are production-ready for all supported platforms.
 

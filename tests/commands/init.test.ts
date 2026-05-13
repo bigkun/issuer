@@ -20,45 +20,59 @@ describe('runInit', () => {
     expect(existsSync(join(cwd, '.issuer', 'briefs'))).toBe(true);
   });
 
-  it('writes mcp_capabilities for github with full capabilities', async () => {
+  it('writes mcp_capabilities for github with cli channel when no MCP detected', async () => {
     await runInit({ cwd, platform: 'github', owner: 'acme', repo: 'demo', nonInteractive: true });
     const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
     const mc = raw.mcp_capabilities as Record<string, unknown>;
     expect(mc).toBeDefined();
-    expect(mc.channel).toBe('mcp');
+    // No MCP detected, but CLI adapter exists → channel is cli
+    expect(mc.channel).toBe('cli');
     const caps = mc.capabilities as Record<string, boolean>;
-    expect(caps.create).toBe(true);
-    expect(caps.update).toBe(true);
-    expect(caps.comment).toBe(true);
+    expect(caps.create).toBe(false);
+    expect(caps.read).toBe(false);
   });
 
-  it('writes mcp_capabilities for gitlab with update=false and comment=true', async () => {
+  it('writes mcp_capabilities for gitlab with cli channel when no MCP detected', async () => {
     await runInit({ cwd, platform: 'gitlab', owner: 'myorg', repo: 'myproject', nonInteractive: true });
     const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
     const mc = raw.mcp_capabilities as Record<string, unknown>;
     expect(mc).toBeDefined();
-    expect(mc.channel).toBe('mcp');
+    expect(mc.channel).toBe('cli');
     const caps = mc.capabilities as Record<string, boolean>;
-    expect(caps.create).toBe(true);
-    expect(caps.update).toBe(false);
-    expect(caps.comment).toBe(true);
-    expect(caps.search).toBe(true);
+    expect(caps.create).toBe(false);
+    expect(caps.read).toBe(false);
   });
 
-  it('writes mcp_capabilities for yunxiao with update=false and comment=false', async () => {
+  it('writes mcp_capabilities for yunxiao with cli channel when no MCP detected', async () => {
     await runInit({ cwd, platform: 'yunxiao', owner: 'org123', repo: 'proj456', nonInteractive: true });
     const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
     const mc = raw.mcp_capabilities as Record<string, unknown>;
     expect(mc).toBeDefined();
+    expect(mc.channel).toBe('cli');
+    const caps = mc.capabilities as Record<string, boolean>;
+    expect(caps.create).toBe(false);
+    expect(caps.read).toBe(false);
+  });
+
+  it('uses live probe results with mcp channel when MCP detected', async () => {
+    await runInit({
+      cwd,
+      platform: 'yunxiao',
+      owner: 'org123',
+      repo: 'proj456',
+      nonInteractive: true,
+      probedTools: ['create_work_item', 'search_workitems', 'get_work_item'],
+    });
+    const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
+    const mc = raw.mcp_capabilities as Record<string, unknown>;
+    // Has create + read → channel should be mcp
     expect(mc.channel).toBe('mcp');
     const caps = mc.capabilities as Record<string, boolean>;
     expect(caps.create).toBe(true);
-    expect(caps.update).toBe(false);
-    expect(caps.comment).toBe(false);
-    expect(caps.search).toBe(true);
+    expect(caps.read).toBe(true);
   });
 
-  it('uses live probe results when probedTools is provided', async () => {
+  it('uses cli channel when MCP insufficient but CLI adapter available', async () => {
     await runInit({
       cwd,
       platform: 'yunxiao',
@@ -69,8 +83,22 @@ describe('runInit', () => {
     });
     const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
     const mc = raw.mcp_capabilities as Record<string, unknown>;
-    // No create/update → channel should be cli
+    // No create → channel should be cli
     expect(mc.channel).toBe('cli');
+  });
+
+  it('uses unsupported channel when no MCP and no CLI adapter', async () => {
+    await runInit({
+      cwd,
+      platform: 'custom-pm',
+      owner: 'org123',
+      repo: 'proj456',
+      nonInteractive: true,
+      probedTools: [],
+    });
+    const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
+    const mc = raw.mcp_capabilities as Record<string, unknown>;
+    expect(mc.channel).toBe('unsupported');
   });
 
   it('refuses to overwrite without --force', async () => {

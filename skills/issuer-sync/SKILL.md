@@ -1,27 +1,30 @@
 ---
 name: issuer-sync
-description: Push `status: ready` task files to the configured platform. Prefers a matching MCP server (GitHub, GitLab, Jira, etc.) when available; otherwise falls back to the `issuer push` CLI.
+description: Push `status: ready` task files to the configured platform. MCP-first channel selection: use MCP when available, otherwise CLI adapter when supported.
 ---
 
 # issuer-sync
 
 **User-initiated only.** This skill must be explicitly invoked by the user (e.g. `/issuer-sync`). Never auto-trigger after task breakdown or during workflow discussions. The user must explicitly request sync before this skill runs.
 
-Atomic skill. Sync local task files to the configured platform. Two channels:
+Atomic skill. Sync local task files to the configured platform. **Single channel per platform** — never mix MCP and CLI:
 
-1. **MCP-first** — use whatever MCP server tools the agent already has access to. Works for **any platform** via heuristic capability detection. Zero extra credentials needed in `issuer`.
-2. **CLI fallback** — shell out to `issuer push`, which uses the platform's own SDK (currently Octokit for GitHub, OpenAPI for Yunxiao) and the resolved token.
+1. **MCP channel** — use when MCP server is configured and meets minimum requirements
+2. **CLI channel** — use when MCP unavailable but platform has built-in adapter
+3. **Prompt user** — when neither available, instruct to install MCP
 
 Pick one channel per invocation; never mix per-task.
 
 ## Platform support strategy
 
-| Scenario | MCP available? | API adapter? | Result |
+| Scenario | MCP available? | CLI adapter? | Channel |
 |---|---|---|---|
-| MCP with sufficient capabilities | ✓ (create + read) | — | MCP-first sync |
-| MCP with insufficient capabilities | ✓ (missing create/read) | — | Prompt user to fix MCP |
-| No MCP, has API adapter | ✗ | ✓ registered | CLI fallback |
-| No MCP, no API adapter | ✗ | ✗ | Prompt user: install MCP or wait for adapter |
+| MCP meets minimum (create + read) | ✓ | — | MCP |
+| MCP insufficient (missing create/read) | ✗ | ✓ registered | CLI |
+| MCP unavailable, CLI adapter exists | ✗ | ✓ registered | CLI |
+| Neither MCP nor CLI adapter | ✗ | ✗ | Prompt user |
+
+**Key principle**: Single channel selection. Never mix MCP + CLI per-task.
 
 **Key insight**: MCP channel is platform-agnostic via heuristic detection. Any MCP server exposing matching tools will work, regardless of platform name.
 
@@ -32,17 +35,20 @@ issuer-sync requires at least:
 - **`create`** — ability to create new issue/work item
 - **`read`** — ability to read/verify an issue/work item
 
-If these are missing, sync cannot proceed. Prompt the user:
+If MCP lacks these, check CLI adapter availability. If CLI adapter exists → use CLI. Otherwise prompt user:
 
 ```
-⚠ Platform 'myPM' MCP capabilities insufficient:
-Missing required capabilities: create, read
+⚠ Platform 'myPM' sync unavailable:
 
-Suggestions:
-1. Check MCP server configuration, ensure tools expose:
-   - create + issue/workitem/task (e.g., create_issue, create_work_item)
-   - get/read + issue/workitem/task (e.g., get_issue, read_work_item)
-2. Or wait for API adapter support (issuer push CLI fallback)
+- MCP server not configured or capabilities insufficient (missing: create, read)
+- No CLI adapter registered for this platform
+
+Options:
+1. Install MCP server for 'myPM' (recommended)
+   - MCP server must expose 'create' + 'read' capabilities
+   - Tool naming: action + object (e.g., create_issue)
+2. Wait for official CLI adapter support
+3. Develop custom adapter and contribute
 ```
 
 ## Heuristic capability detection
@@ -96,14 +102,13 @@ For platforms **not in the adapter registry**, heuristic detection still works �
 ## Channel selection
 
 1. Read `.issuer/config.yml` → get `platform` and `mcp_capabilities`.
-2. **Check minimum requirements**: if `create` + `read` are both true → MCP available.
-3. **Detect MCP tools in Agent context**: if matching tools exist → use MCP channel.
-4. If MCP minimum not met → check API adapter registry.
-   - Has adapter → CLI fallback (`issuer push`)
+2. **Check MCP availability**: if `channel: mcp` and `create` + `read` are true → use MCP.
+3. **Check CLI adapter**: if MCP unavailable, check adapter registry for platform.
+   - Has adapter → use CLI channel (`issuer push`)
    - No adapter → prompt user with options
-5. **Never block silently** — always inform user of capability gaps.
+4. **Single channel per sync** — never mix MCP and CLI.
 
-**Graceful degradation order**: MCP-first → CLI fallback → user prompt
+**Selection order**: MCP-first → CLI adapter → user prompt
 
 ## MCP channel — steps
 
@@ -118,26 +123,53 @@ For each task file with `status: ready`:
 
 ## CLI channel — steps
 
-1. Run `issuer push` in the project directory.
-2. Read stdout / exit code and report.
-3. CLI patches files itself — don't duplicate.
+1. Run `issuer push` in the project directory with agent mode flag:
+   ```bash
+   issuer push --agent-mode
+   ```
+   This ensures approval mode output (non-blocking JSON) instead of TUI readline prompts.
+
+2. **Check for duplicate approval request** — parse stdout for structured JSON:
+   ```
+   ---APPROVAL-REQUEST-BEGIN---
+   { "type": "duplicate_approval", ... }
+   ---APPROVAL-REQUEST-END---
+   ```
+   
+   If approval request found:
+   - Display duplicate details to user with clear UI
+   - Show action options as interactive buttons:
+     - **Upload** → execute `issuer push --dedup-action upload`
+     - **Skip** → execute `issuer push --dedup-action skip`
+     - **Cancel** → stop without changes
+   - Wait for user selection and execute chosen command
+
+3. If no approval request, read stdout / exit code and report normally.
+
+4. CLI patches files itself — don't duplicate.
 
 ## Output
 
 Table per task: `id | action | channel | platform_id | url | error?`
 
-Capability summary at end:
+Channel summary at end:
 
 ```
-MCP capabilities: create ✓ | update ✗ (fell back to CLI) | search ✓ | read ✓ | comment ✗
+Sync channel: MCP | Platform capabilities: create ✓ | update ✓ | search ✓ | read ✓ | comment ✓
+```
+
+OR
+
+```
+Sync channel: CLI (MCP unavailable) | Platform: yunxiao
 ```
 
 ## Guardrails
 
 - **Only sync `status: ready` tasks** — never draft or synced.
 - **Check platform match** — skip if task.platform ≠ config.platform.
-- **Never silently downgrade** — always report channel changes.
-- **Prompt when blocked** — if MCP insufficient and no adapter, give user options:
-  1. Configure MCP server with proper tools
-  2. Wait for API adapter support
+- **Single channel per sync** — never mix MCP and CLI.
+- **Prompt when blocked** — if MCP insufficient and no CLI adapter, give user options:
+  1. Install MCP server for this platform
+  2. Wait for official CLI adapter support
   3. Develop custom adapter

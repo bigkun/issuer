@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
-import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, type McpCapabilities } from '../adapter/registry.js';
+import { CLI_ADAPTER_PLATFORMS, hasApiAdapter, capabilitiesFromProbe, formatCapabilitySummary, formatUnsupportedPlatformMessage, type McpCapabilities, type SyncChannel } from '../adapter/registry.js';
 import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG, type ProjectConfig } from '../core/config.js';
 import { DEFAULT_TASKS_DIR } from '../core/task-store.js';
 import { createAdapter } from '../adapter/factory.js';
@@ -253,22 +253,36 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     breakdownTemplate = '.issuer/templates/breakdown.md';
   }
 
-  // Build mcp_capabilities from registry baseline or live probe
+  // Build mcp_capabilities from live probe or CLI adapter check
   let mcp_capabilities: McpCapabilities;
-  const entry = getRegistryEntry(platform);
+  let syncChannel: SyncChannel;
+
   if (opts.probedTools && opts.probedTools.length > 0) {
-    const { capabilitiesFromProbeWithRegistry } = await import('../adapter/registry.js');
-    mcp_capabilities = capabilitiesFromProbeWithRegistry(platform, opts.probedTools);
-  } else if (entry) {
-    mcp_capabilities = capabilitiesFromRegistry(entry);
+    // MCP detected — use heuristic + CLI adapter check
+    const cliAvailable = hasApiAdapter(platform);
+    mcp_capabilities = capabilitiesFromProbe(opts.probedTools, cliAvailable);
+    syncChannel = mcp_capabilities.channel;
   } else {
-    // Unknown platform — assume full MCP capabilities
-    mcp_capabilities = {
-      channel: 'mcp',
-      probed_at: new Date().toISOString(),
-      tools: [],
-      capabilities: { create: true, update: true, search: true, read: true, comment: true },
-    };
+    // No MCP detected — check CLI adapter
+    const cliAvailable = hasApiAdapter(platform);
+    if (cliAvailable) {
+      mcp_capabilities = {
+        channel: 'cli',
+        probed_at: new Date().toISOString(),
+        tools: [],
+        capabilities: { create: false, update: false, search: false, read: false, comment: false },
+      };
+      syncChannel = 'cli';
+    } else {
+      // No MCP, no CLI adapter → unsupported
+      mcp_capabilities = {
+        channel: 'unsupported',
+        probed_at: new Date().toISOString(),
+        tools: [],
+        capabilities: { create: false, update: false, search: false, read: false, comment: false },
+      };
+      syncChannel = 'unsupported';
+    }
   }
 
   const cfg: Record<string, unknown> = {
@@ -294,16 +308,19 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   writeFileSync(cfgPath, yamlStringify(cfg), 'utf8');
 
   // Print capability summary
-  console.log(`\nPlatform: ${platform}${entry ? ` (MCP: ${entry.mcpPackage})` : ' (generic / MCP)'}`);
+  console.log(`\nPlatform: ${platform} (sync channel: ${syncChannel})`);
   console.log(formatCapabilitySummary(mcp_capabilities));
-  if (mcp_capabilities.channel === 'mcp') {
+  if (syncChannel === 'mcp') {
     const gaps = (['create', 'update', 'search', 'read', 'comment'] as const)
       .filter((c) => !mcp_capabilities.capabilities[c]);
     if (gaps.length > 0) {
-      console.log(`\n⚠ ${gaps.join(', ')} not available via MCP — \`issuer push\` (CLI) will handle these.`);
+      console.log(`\n⚠ ${gaps.join(', ')} not available via MCP — use CLI adapter instead.`);
     }
+  } else if (syncChannel === 'cli') {
+    console.log('\n⚠ No MCP server detected — all sync operations will use CLI adapter.');
   } else {
-    console.log('\n⚠ No MCP server detected — all sync operations will use CLI.');
+    console.log('\n⚠ No MCP or CLI adapter available for this platform.');
+    console.log(formatUnsupportedPlatformMessage(platform));
   }
 
   // Determine recommended skills path based on agent

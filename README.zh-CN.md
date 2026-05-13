@@ -193,7 +193,7 @@ issuer init -y --platform yunxiao --owner <organizationId> --repo <spaceIdentifi
 
 > **注意**：首次 `issuer push` 时，CLI 会自动通过 GetUserByToken API 获取您的用户 ID 并保存到 `.issuer/config.yml`。这需要「组织管理 - 用户」(只读) 权限。
 
-**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/search/read (3/5)。更新和注释回退到 CLI 适配器，使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 填补完整的 5/5 功能差距。
+**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/search/read (3/5)。若 MCP 不可用，CLI 适配器使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 提供完整的 5/5 能力覆盖。
 
 ### GitLab
 
@@ -204,7 +204,7 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 - `--owner` → GitLab 组或命名空间
 - `--repo` → GitLab 项目名称或 ID
 
-**MCP**：GitLab 内置 MCP 服务器（GitLab 18.6+，`https://<gitlab.example.com>/api/v4/mcp`）覆盖 create/search/read/comment (4/5)。`update` 回退到 CLI。
+**MCP**：GitLab 内置 MCP 服务器（GitLab 18.6+，`https://<gitlab.example.com>/api/v4/mcp`）覆盖 create/search/read/comment (4/5)。若 MCP 不可用，CLI 适配器处理所有操作。
 
 ## 支持的 Agent
 
@@ -246,17 +246,20 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 
 ## 同步通道
 
-`issuer-sync` 选择以下之一：
+`issuer-sync` 对每个平台使用**单一通道**（绝不混合）：
 
-| 平台 | MCP 覆盖 | CLI 回退 |
-|---|---|---|
-| GitHub | 5/5（创建、更新、搜索、读取、注释） | 不需要 |
-| GitLab | 4/5（缺少 `update`） | `issuer push` |
-| 云效 | 3/5（缺少 `update`、`comment`） | `issuer push` → OpenAPI（完整 5/5） |
+| 平台 | MCP 可用性 | CLI 适配器 | 默认选择 |
+|---|---|---|---|
+| GitHub | 5/5（创建、更新、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
+| GitLab | 4/5（创建、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
+| 云效 | 3/5（创建、搜索、读取） | ✓ 完整 5/5（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
 
-**MCP 优先** — 如果匹配的 MCP 服务器已连接到您的 Agent，技能将直接调用这些工具。
+**通道选择逻辑**：
+1. **MCP 优先** — 若 MCP 已配置且满足最低要求（create + read），使用 MCP 通道
+2. **CLI 适配器** — 若 MCP 不可用但平台有内置 CLI 适配器，使用 CLI 通道
+3. **提示用户** — 若两者都不可用，引导用户安装 MCP 服务器或等待适配器支持
 
-**CLI 回退** — 否则技能调用 `issuer push`，使用平台 SDK / OpenAPI 和从以下位置解析的令牌（按顺序）：
+**CLI 通道**使用平台 SDK / OpenAPI，令牌从以下位置解析（按顺序）：
 1. `ISSUER_<PLATFORM>_TOKEN`
 2. `<PLATFORM>_TOKEN`
 3. `~/.issuer/credentials.yml`
@@ -265,11 +268,11 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 
 | 平台 | MCP 通道 | CLI (API) 通道 | 说明 |
 |---|---|---|---|
-| GitHub | ✓ 所有测试通过 | ✓ 所有测试通过 | 两个通道均完整 5/5 |
-| GitLab | ✓ 测试通过 | ✓ 测试通过 | MCP 缺少 `update`，CLI 覆盖缺口 |
-| 云效 (Yunxiao) | ✓ 测试通过 | ✓ 所有测试通过 | MCP 3/5，CLI 通过 OpenAPI → 完整 5/5 |
+| GitHub | ✓ 所有测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
+| GitLab | ✓ 测试通过 | ✓ 测试通过 | 任一通道均完整 5/5 |
+| 云效 (Yunxiao) | ✓ 测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
 
-两个通道对所有支持的平台都处于生产就绪状态。
+两个通道对各支持的平台都处于生产就绪状态。
 
 ### 添加新平台（MCP 优先，零代码集成）
 

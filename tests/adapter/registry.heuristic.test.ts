@@ -4,10 +4,12 @@ import {
   meetsMinimumRequirements,
   getMissingCapabilities,
   MINIMUM_CAPABILITIES,
+  capabilitiesFromProbe,
+  determineChannel,
 } from '../../src/adapter/mcp-detect.js';
 import {
-  capabilitiesFromProbeWithRegistry,
   hasApiAdapter,
+  CLI_ADAPTER_PLATFORMS,
 } from '../../src/adapter/registry.js';
 
 describe('detectCapabilitiesHeuristic', () => {
@@ -123,10 +125,28 @@ describe('MINIMUM_CAPABILITIES', () => {
   });
 });
 
-describe('capabilitiesFromProbeWithRegistry', () => {
-  it('derives capabilities for known platform with MCP tools', () => {
+describe('determineChannel', () => {
+  it('returns mcp when minimum requirements met', () => {
+    const caps = { create: true, update: false, search: false, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('mcp');
+    expect(determineChannel(caps, false)).toBe('mcp');
+  });
+
+  it('returns cli when MCP insufficient but CLI adapter available', () => {
+    const caps = { create: false, update: false, search: true, read: true, comment: false };
+    expect(determineChannel(caps, true)).toBe('cli');
+  });
+
+  it('returns unsupported when both MCP and CLI unavailable', () => {
+    const caps = { create: false, update: false, search: false, read: false, comment: false };
+    expect(determineChannel(caps, false)).toBe('unsupported');
+  });
+});
+
+describe('capabilitiesFromProbe', () => {
+  it('derives capabilities for MCP tools with mcp channel', () => {
     const tools = ['create_issue', 'update_issue', 'search_issues', 'get_issue', 'add_issue_comment'];
-    const caps = capabilitiesFromProbeWithRegistry('github', tools);
+    const caps = capabilitiesFromProbe(tools, true);
 
     expect(caps.channel).toBe('mcp');
     expect(caps.capabilities.create).toBe(true);
@@ -135,20 +155,37 @@ describe('capabilitiesFromProbeWithRegistry', () => {
 
   it('derives capabilities for unknown platform using heuristic', () => {
     const tools = ['custom_create_issue', 'custom_get_item'];
-    const caps = capabilitiesFromProbeWithRegistry('my-custom-pm', tools);
+    const caps = capabilitiesFromProbe(tools, false);
 
     expect(caps.capabilities.create).toBe(true); // heuristic: 'create' + 'issue'
     expect(caps.capabilities.read).toBe(true); // heuristic: 'get' + 'item'
     expect(caps.channel).toBe('mcp'); // meets minimum
   });
 
-  it('sets channel to cli when minimum requirements not met', () => {
+  it('sets channel to unsupported when minimum requirements not met and no CLI adapter', () => {
     const tools = ['search_issues', 'list_items']; // only search, no create/read
-    const caps = capabilitiesFromProbeWithRegistry('unknown-platform', tools);
+    const caps = capabilitiesFromProbe(tools, false);
 
     expect(caps.capabilities.create).toBe(false);
     expect(caps.capabilities.read).toBe(false);
-    expect(caps.channel).toBe('cli'); // doesn't meet minimum
+    expect(caps.channel).toBe('unsupported'); // doesn't meet minimum, no CLI adapter
+  });
+
+  it('sets channel to cli when minimum requirements not met but CLI adapter available', () => {
+    const tools = ['search_issues', 'list_items']; // only search, no create/read
+    const caps = capabilitiesFromProbe(tools, true);
+
+    expect(caps.capabilities.create).toBe(false);
+    expect(caps.capabilities.read).toBe(false);
+    expect(caps.channel).toBe('cli'); // doesn't meet minimum, but CLI adapter exists
+  });
+});
+
+describe('CLI_ADAPTER_PLATFORMS', () => {
+  it('contains github, gitlab, yunxiao', () => {
+    expect(CLI_ADAPTER_PLATFORMS).toContain('github');
+    expect(CLI_ADAPTER_PLATFORMS).toContain('gitlab');
+    expect(CLI_ADAPTER_PLATFORMS).toContain('yunxiao');
   });
 });
 

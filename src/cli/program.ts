@@ -84,6 +84,7 @@ export function buildProgram() {
       }
       return val;
     })
+    .option('--agent-mode', 'Run in agent mode (non-interactive approval output)')
     .action(async (opts) => {
       const cwd = process.cwd();
       const adapter = await buildAdapter(cwd);
@@ -113,51 +114,84 @@ export function buildProgram() {
         const cfg = await loadProjectConfig(cwd);
         const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
         
-        // Handle 'prompt' mode with user interaction
+        // Handle 'prompt' mode with environment detection
         if (effectiveDedup.on_match === 'prompt' && s.duplicateSkipped.length > 0) {
-          console.log(`Found ${s.duplicates.length} potential duplicate(s).`);
-          console.log('What would you like to do?');
-          console.log('  1) Upload all duplicates');
-          console.log('  2) Skip all duplicates');
-          console.log('  3) Quit without uploading');
+          // Detect if running in Agent mode via CLI flag
+          const isAgentMode = opts.agentMode === true;
           
-          const readline = await import('node:readline');
-          const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-          });
-          
-          const answer = await new Promise<string>((resolve) => {
-            rl.question('Enter your choice (1/2/3): ', (input) => {
-              rl.close();
-              resolve(input.trim());
+          if (!isAgentMode && process.stdin.isTTY) {
+            // CLI TUI mode - interactive prompt (original behavior)
+            console.log(`Found ${s.duplicates.length} potential duplicate(s).`);
+            console.log('What would you like to do?');
+            console.log('  1) Upload all duplicates');
+            console.log('  2) Skip all duplicates');
+            console.log('  3) Quit without uploading');
+            
+            const readline = await import('node:readline');
+            const rl = readline.createInterface({
+              input: process.stdin,
+              output: process.stdout,
             });
-          });
-          
-          if (answer === PROMPT_OPTION_UPLOAD) {
-            // Upload all duplicates
-            console.log('\nUploading all duplicates...');
-            for (const dup of s.duplicates) {
-              const task = dup.task;
-              const result = await adapter.createIssue(task);
-              const next = {
-                ...task,
-                platform_id: result.id,
-                platform_url: result.url,
-                status: Status.Synced,
-                updated_at: new Date().toISOString(),
-              } as TaskFile;
-              const { writeFileSync } = await import('node:fs');
-              const { serializeTaskFile } = await import('../core/task-file.js');
-              writeFileSync(task.filePath, serializeTaskFile(next), 'utf8');
-              s.created.push(next);
+            
+            const answer = await new Promise<string>((resolve) => {
+              rl.question('Enter your choice (1/2/3): ', (input) => {
+                rl.close();
+                resolve(input.trim());
+              });
+            });
+            
+            if (answer === PROMPT_OPTION_UPLOAD) {
+              // Upload all duplicates
+              console.log('\nUploading all duplicates...');
+              for (const dup of s.duplicates) {
+                const task = dup.task;
+                const result = await adapter.createIssue(task);
+                const next = {
+                  ...task,
+                  platform_id: result.id,
+                  platform_url: result.url,
+                  status: Status.Synced,
+                  updated_at: new Date().toISOString(),
+                } as TaskFile;
+                const { writeFileSync } = await import('node:fs');
+                const { serializeTaskFile } = await import('../core/task-file.js');
+                writeFileSync(task.filePath, serializeTaskFile(next), 'utf8');
+                s.created.push(next);
+              }
+              console.log(`✓ Uploaded ${s.duplicates.length} duplicate(s)\n`);
+            } else if (answer === PROMPT_OPTION_SKIP) {
+              console.log(`✓ Skipped ${s.duplicates.length} duplicate(s)\n`);
+            } else {
+              console.log('✓ Cancelled\n');
+              return;
             }
-            console.log(`✓ Uploaded ${s.duplicates.length} duplicate(s)\n`);
-          } else if (answer === PROMPT_OPTION_SKIP) {
-            console.log(`✓ Skipped ${s.duplicates.length} duplicate(s)\n`);
           } else {
-            console.log('✓ Cancelled\n');
-            return;
+            // Agent/MCP mode - approval request output (non-blocking)
+            console.log(`🔍 Found ${s.duplicates.length} potential duplicate(s) requiring approval.\n`);
+            console.log('Options:');
+            console.log(`  • Upload:   issuer push --dedup-action upload`);
+            console.log(`  • Skip:     issuer push --dedup-action skip`);
+            console.log(`  • Cancel:   Do nothing (duplicates remain in status: ready)\n`);
+            
+            // Output structured approval request for Agent UI consumption
+            console.log('---APPROVAL-REQUEST-BEGIN---');
+            console.log(JSON.stringify({
+              type: 'duplicate_approval',
+              count: s.duplicates.length,
+              duplicates: s.duplicates.map(d => ({
+                task: d.task.title,
+                matches: d.matches.map(m => ({
+                  id: m.issue.id,
+                  title: m.issue.title,
+                  score: Math.round(m.score * 100),
+                })),
+              })),
+              actions: {
+                upload: 'issuer push --dedup-action upload',
+                skip: 'issuer push --dedup-action skip',
+              },
+            }, null, 2));
+            console.log('---APPROVAL-REQUEST-END---\n');
           }
         }
       }
