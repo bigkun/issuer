@@ -24,6 +24,8 @@ export interface ProjectConfig {
   severity_field_map?: SeverityFieldMap;
   /** Yunxiao: Bug priority field mapping (auto-fetched on first Bug push) */
   priority_field_map?: SeverityFieldMap;
+  /** PingCode: project ID for API requests */
+  pingcode_project_id?: string;
   /** Custom path for task files (default: .issuer/tasks) */
   tasks_dir?: string;
   /** Custom path for refine output (default: .issuer/refine) */

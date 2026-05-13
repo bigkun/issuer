@@ -3,6 +3,7 @@ import type { ProjectConfig } from '../core/config.js';
 import { GitHubAdapter } from './github/index.js';
 import { GitLabAdapter } from './gitlab/index.js';
 import { YunxiaoAdapter } from './yunxiao/index.js';
+import { PingCodeAdapter } from './pingcode/index.js';
 
 /**
  * Create an Adapter instance from project config + token.
@@ -23,6 +24,12 @@ export function createAdapter(cfg: ProjectConfig, token: string, cwd: string): A
         assignedTo: cfg.assigned_to,
         workitemTypeMap: cfg.workitem_type_map,
         domain: cfg.yunxiao_domain,
+      });
+    case 'pingcode':
+      return new PingCodeAdapter({
+        token,
+        projectId: cfg.pingcode_project_id || cfg.repo,
+        projectRoot: cwd,
       });
     default:
       throw new Error(`Unsupported platform: ${cfg.platform}`);

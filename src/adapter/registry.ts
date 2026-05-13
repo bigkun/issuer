@@ -12,7 +12,7 @@
 // ---------------------------------------------------------------------------
 
 /** Platforms with built-in CLI adapters (REST API implementations) */
-export const CLI_ADAPTER_PLATFORMS: ReadonlyArray<string> = ['github', 'gitlab', 'yunxiao'];
+export const CLI_ADAPTER_PLATFORMS: ReadonlyArray<string> = ['github', 'gitlab', 'yunxiao', 'pingcode'];
 
 /**
  * Check if a platform has a built-in CLI adapter.
