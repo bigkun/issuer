@@ -164,7 +164,11 @@ export async function runSkillInstall(opts: SkillInstallOptions): Promise<SkillI
       console.log(`  - ${skill}`);
     });
     console.log('\n📋 Next step:');
-    console.log('  In your AI agent, invoke: /issuer <your-requirement>');
+    if (detectedAgent) {
+      console.log(`  In ${detectedAgent.name}, invoke: /issuer <your-requirement>`);
+    } else {
+      console.log('  In your AI agent, invoke: /issuer <your-requirement>');
+    }
   } else {
     console.log(`\n⚠ No skills found in: ${opts.bundledSkillsDir}`);
   }

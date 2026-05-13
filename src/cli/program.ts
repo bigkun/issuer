@@ -231,13 +231,19 @@ export function buildProgram() {
           bundledSkillsDir: resolveBundledSkillsDir(),
           projectRoot: process.cwd(),
         });
-        success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+        // 交互式安装已经在内部打印了详细信息，只在没有安装任何 skill 时显示提示
+        if (r.installed.length === 0) {
+          success('No skills were installed');
+        }
       } else {
         const r = await runSkillInstall({
           bundledSkillsDir: resolveBundledSkillsDir(),
           targetPath: opts.target,
         });
-        success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+        // 指定路径的安装已经在内部打印了详细信息
+        if (r.installed.length === 0) {
+          success('No skills were installed');
+        }
       }
     });
 
