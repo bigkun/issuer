@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-13
+
+### 🎉 Major Features
+
+#### Single-Channel Sync Architecture
+- **MCP-First Single Channel**: Enforced single channel per platform - never mix MCP and CLI
+- **Channel Selection Logic**: Implemented `determineChannel()` function with MCP-first → CLI fallback → unsupported flow
+- **SyncChannel Type**: Added new type with three values: `'mcp' | 'cli' | 'unsupported'`
+- **Registry Simplification**: Simplified adapter registry to CLI adapter whitelist only, removed MCP tool mappings
+
+#### Agent Mode Approval
+- **Non-Interactive Mode**: Added `--agent-mode` flag for Agent chat environment support
+- **Structured Approval Output**: Output structured JSON approval request for Agent UI consumption
+- **Dual-Mode Interaction**: TTY environment uses readline TUI, Agent mode uses approval JSON
+- **SKILL.md Integration**: Updated issuer-sync SKILL.md to parse and handle approval requests
+
+### 🔧 Improvements
+
+#### Code Refactoring
+- **Registry Module**: Removed MCP tool name mappings, kept only `hasApiAdapter()` and `CLI_ADAPTER_PLATFORMS`
+- **MCP Detection**: Added `determineChannel()` and updated `capabilitiesFromProbe()` signature
+- **Init Command**: Updated to use new channel selection logic
+- **Test Suite**: Refactored all tests to match new architecture (189 tests passing)
+
+#### Bug Fixes
+- **Test Parameter Fix**: Fixed missing `cliAdapterAvailable` parameter in `mcp-detect.test.ts`
+- **Duplicate Test Block**: Removed duplicate `determineChannel` describe block in tests
+
+### 📦 Technical Details
+
+#### Breaking Changes
+- **API Changes**: 
+  - `capabilitiesFromProbe()` now requires `cliAdapterAvailable: boolean` parameter
+  - `SyncChannel` type changed from `'mcp' | 'cli'` to `'mcp' | 'cli' | 'unsupported'`
+- **Registry Changes**: 
+  - Removed `ADAPTER_REGISTRY`, `getRegistryEntry()`, `capabilitiesFromRegistry()`
+  - Removed `capabilitiesFromProbeWithRegistry()` function
+  - Removed MCP tool name mappings for GitHub, GitLab, Yunxiao
+
+#### Migration Guide
+- Update calls to `capabilitiesFromProbe(tools)` → `capabilitiesFromProbe(tools, hasApiAdapter(platform))`
+- Handle new `'unsupported'` channel value in channel selection logic
+- Use `CLI_ADAPTER_PLATFORMS.includes(platform)` instead of `getRegistryEntry(platform)`
+
+### 📊 Statistics
+
+- **Total Commits**: 4 commits since 0.2.0
+- **Files Changed**: 11 files
+- **Lines Changed**: +452 / -570
+- **Test Coverage**: 189 tests passing
+
+---
+
 ## [0.2.0] - 2026-05-13
 
 ### 🎉 Major Features
