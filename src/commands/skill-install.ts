@@ -142,6 +142,8 @@ export async function runSkillInstall(opts: SkillInstallOptions): Promise<SkillI
   // 执行安装
   const installed: string[] = [];
   if (!existsSync(opts.bundledSkillsDir)) {
+    console.log(`\n⚠ Skills directory not found: ${opts.bundledSkillsDir}`);
+    console.log('  This may be a packaging issue. Please report to the issuer maintainers.');
     return { targetPath, installed };
   }
 
@@ -163,6 +165,8 @@ export async function runSkillInstall(opts: SkillInstallOptions): Promise<SkillI
     });
     console.log('\n📋 Next step:');
     console.log('  In your AI agent, invoke: /issuer <your-requirement>');
+  } else {
+    console.log(`\n⚠ No skills found in: ${opts.bundledSkillsDir}`);
   }
 
   return { targetPath, installed };

@@ -61,8 +61,9 @@ function checkSkillsInstalled(agentId: string, projectRoot: string): { installed
  * 获取 bundled skills 目录
  */
 function resolveBundledSkillsDir(): string {
+  // 编译后 dist/index.js 的路径：dist/ 和 skills/ 在同一级
   const here = fileURLToPath(new URL('.', import.meta.url));
-  return join(here, '..', '..', 'skills');
+  return join(here, '..', 'skills');
 }
 
 // Generic breakdown template for unsupported platforms
