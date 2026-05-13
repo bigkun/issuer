@@ -105,13 +105,15 @@ Agent 将：
 4. **展示批准提示** — 用户选择哪些文件设置为 `status: ready`
 
 **自定义模板**（可选）：
+
+内置平台使用 `skills/issuer-breakdown/templates/` 中的平台特定模板。对于未内置的平台或自定义工作流：
+
 ```bash
 # 创建自定义模板
-cp docs/examples/breakdown-template.md .issuer/templates/breakdown.md
+cp .issuer/templates/breakdown.md .issuer/templates/my-custom-template.md
 
 # 添加到 config.yml
-breakdown:
-  template: .issuer/templates/breakdown.md
+breakdown_template: .issuer/templates/my-custom-template.md
 ```
 
 **输出格式：**
@@ -137,6 +139,22 @@ labels: []
 - **状态更新**：将成功同步的任务标记为 `status: synced`
 
 ## 平台设置
+
+### 未内置平台（MCP 优先）
+
+**任何具有 MCP 服务器的平台都可以支持** — 无需修改代码！
+
+```bash
+issuer init -y --platform "Other (MCP)" --owner my-workspace --repo my-project
+```
+
+初始化期间：
+- 从平台列表中选择 "Other (MCP)"
+- 提供您的工作空间/项目标识符
+- 通过 `ISSUER_<PLATFORM>_TOKEN` 环境变量设置令牌
+- Issuer 自动在 `.issuer/templates/breakdown.md` 创建通用拆解模板
+
+CLI 使用 MCP 进行同步操作，使用通用模板进行任务生成。
 
 ### GitHub
 
@@ -257,34 +275,38 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 
 **任何具有 MCP 服务器的平台都可以支持** — 不需要 REST API 适配器开发。
 
-#### 工作原理
+#### 选项 1：交互式初始化（推荐）
 
-1. **启发式功能检测** — issuer 通过关键字匹配自动检测 MCP 工具：
-   - `create` + `issue/workitem/task` → 创建功能
-   - `get/read` + `issue/workitem/task` → 读取功能
-   - 相同逻辑用于 update、search、comment
+```bash
+issuer init
+# 从平台列表中选择 "Other (MCP)"
+# 提供工作空间/项目 ID
+```
 
-2. **最低要求** — MCP 服务器必须至少公开：
-   - **create** — 创建新问题/工作项
-   - **read** — 读取/验证问题/工作项
+Issuer 自动：
+- 探测 MCP 服务器功能
+- 创建通用拆解模板
+- 配置令牌解析（`ISSUER_<PLATFORM>_TOKEN`）
 
-3. **工具命名约定** — 使用 `action + object` 模式：
-   ```
-   create_issue, get_issue, update_issue, search_issues, add_comment
-   create_work_item, get_work_item, search_workitems
-   myPM_create_ticket, myPM_get_ticket
-   ```
+#### 选项 2：手动设置
 
-#### 设置步骤
-
-1. **配置 MCP 服务器** 在您的 Agent（Claude Code、Cursor、Qoder 等）中
+1. **在您的 Agent 中配置 MCP 服务器**（Claude Code、Cursor、Qoder 等）
 2. **运行 `issuer init`** — issuer 探测 MCP 工具并将功能写入 `.issuer/config.yml`
 3. **使用 `issuer-sync`** — 技能直接调用 MCP 工具
 
 如果 MCP 工具不满足最低要求，issuer 会提示您提供选项：
 - 修复 MCP 服务器配置
-- 等待 API 适配器支持
-- 开发自定义 REST 适配器
+- 使用自定义拆解模板进行任务生成
+- 开发自定义 REST 适配器（参见 [适配器开发](#适配器开发)）
+
+#### MCP 检测工作原理
+
+Issuer 使用启发式功能检测，通过关键字匹配：
+- `create` + `issue/workitem/task` → 创建功能
+- `get/read` + `issue/workitem/task` → 读取功能
+- 相同逻辑用于 update、search、comment
+
+**最低要求**：MCP 服务器必须至少公开 **create** 和 **read** 工具。
 
 ## 命令
 

@@ -105,13 +105,15 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 4. **Present approval prompt** — user selects which files to set `status: ready`
 
 **Custom templates** (optional):
+
+Built-in platforms use platform-specific templates from `skills/issuer-breakdown/templates/`. For unsupported platforms or custom workflows:
+
 ```bash
 # Create custom template
-cp docs/examples/breakdown-template.md .issuer/templates/breakdown.md
+cp .issuer/templates/breakdown.md .issuer/templates/my-custom-template.md
 
 # Add to config.yml
-breakdown:
-  template: .issuer/templates/breakdown.md
+breakdown_template: .issuer/templates/my-custom-template.md
 ```
 
 **Output format:**
@@ -137,6 +139,22 @@ Reads all `status: ready` task files and creates/updates remote work items.
 - **Status update**: Marks successfully synced tasks as `status: synced`
 
 ## Platform setup
+
+### Unsupported platforms (MCP-first)
+
+**Any platform with an MCP server can be supported** — no code changes needed!
+
+```bash
+issuer init -y --platform "Other (MCP)" --owner my-workspace --repo my-project
+```
+
+During initialization:
+- Select "Other (MCP)" from the platform list
+- Provide your workspace/project identifiers
+- Set token via `ISSUER_<PLATFORM>_TOKEN` environment variable
+- Issuer auto-creates a generic breakdown template at `.issuer/templates/breakdown.md`
+
+The CLI uses MCP for sync operations, falling back to the generic template for task generation.
 
 ### GitHub
 
@@ -257,25 +275,20 @@ Both channels are production-ready for all supported platforms.
 
 **Any platform with an MCP server can be supported** — no REST API adapter development required.
 
-#### How it works
+#### Option 1: Interactive init (Recommended)
 
-1. **Heuristic capability detection** — issuer automatically detects MCP tools by keyword matching:
-   - `create` + `issue/workitem/task` → create capability
-   - `get/read` + `issue/workitem/task` → read capability
-   - Same logic for update, search, comment
+```bash
+issuer init
+# Select "Other (MCP)" from the platform list
+# Provide workspace/project IDs
+```
 
-2. **Minimum requirements** — MCP server must expose at least:
-   - **create** — create new issue/work item
-   - **read** — read/verify an issue/work item
+Issuer automatically:
+- Probes MCP server capabilities
+- Creates generic breakdown template
+- Configures token resolution (`ISSUER_<PLATFORM>_TOKEN`)
 
-3. **Tool naming convention** — use `action + object` pattern:
-   ```
-   create_issue, get_issue, update_issue, search_issues, add_comment
-   create_work_item, get_work_item, search_workitems
-   myPM_create_ticket, myPM_get_ticket
-   ```
-
-#### Setup steps
+#### Option 2: Manual setup
 
 1. **Configure MCP server** in your agent (Claude Code, Cursor, Qoder, etc.)
 2. **Run `issuer init`** — issuer probes MCP tools and writes capabilities to `.issuer/config.yml`
@@ -283,8 +296,17 @@ Both channels are production-ready for all supported platforms.
 
 If MCP tools don't meet minimum requirements, issuer prompts you with options:
 - Fix MCP server configuration
-- Wait for API adapter support
-- Develop custom REST adapter
+- Use custom breakdown template for task generation
+- Develop custom REST adapter (see [Adapter Development](#adapter-development))
+
+#### How MCP detection works
+
+Issuer uses heuristic capability detection by keyword matching:
+- `create` + `issue/workitem/task` → create capability
+- `get/read` + `issue/workitem/task` → read capability
+- Same logic for update, search, comment
+
+**Minimum requirements**: MCP server must expose at least **create** and **read** tools.
 
 ## Commands
 
