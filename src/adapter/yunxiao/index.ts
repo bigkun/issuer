@@ -3,6 +3,16 @@ import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
 import { saveProjectConfig, loadProjectConfig, type WorkitemTypeMap, type SeverityFieldMap } from '../../core/config.js';
 import {
+  YUNXIAO_DEFAULT_DOMAIN,
+  YUNXIAO_WORKITEM_CATEGORIES,
+  YUNXIAO_DEFAULT_PAGE_SIZE,
+  YUNXIAO_AUTH_HEADER,
+  YUNXIAO_PROJEX_API_PREFIX,
+  YUNXIAO_DEVOPS_BASE_URL,
+  PRIORITY_KEYWORDS,
+  SEVERITY_KEYWORDS,
+} from '../../core/constants.js';
+import {
   taskToCreateBody,
   taskToUpdateBody,
   workitemToRemote,
@@ -41,12 +51,6 @@ export interface YunxiaoAdapterOptions {
   fetch?: typeof globalThis.fetch | ((...args: any[]) => Promise<any>);
 }
 
-// ---------------------------------------------------------------------------
-// Constants - 使用新版 API (oapi/v1/projex)
-// ---------------------------------------------------------------------------
-
-const DEFAULT_DOMAIN = 'openapi-rdc.aliyuncs.com';
-
 export class YunxiaoAdapter implements Adapter {
   readonly name = 'yunxiao';
   private readonly token: string;
@@ -59,6 +63,8 @@ export class YunxiaoAdapter implements Adapter {
   private fieldConfigCache = new Map<string, FieldConfigResponse>();
   private readonly domain: string;
   private readonly httpFetch: (...args: any[]) => Promise<any>;
+  /** Whether this is Region edition (true) or Center edition (false) */
+  private readonly isRegionEdition: boolean;
 
   constructor(opts: YunxiaoAdapterOptions) {
     this.token = opts.token;
@@ -67,13 +73,29 @@ export class YunxiaoAdapter implements Adapter {
     this.projectRoot = opts.projectRoot;
     this.assignedTo = opts.assignedTo;
     this.workitemTypeMap = opts.workitemTypeMap;
-    this.domain = opts.domain ?? DEFAULT_DOMAIN;
+    this.domain = opts.domain ?? YUNXIAO_DEFAULT_DOMAIN;
     this.httpFetch = (opts.fetch ?? globalThis.fetch) as (...args: any[]) => Promise<any>;
+    // Region edition: domain is not the default center domain
+    this.isRegionEdition = this.domain !== YUNXIAO_DEFAULT_DOMAIN;
   }
 
   // -----------------------------------------------------------------------
   // Type mapping management
   // -----------------------------------------------------------------------
+
+  /**
+   * Build API path based on edition (center vs region).
+   * Center edition: /organizations/{orgId}/...
+   * Region edition: /... (no organization prefix)
+   */
+  private apiPath(path: string): string {
+    if (this.isRegionEdition) {
+      // Region edition: remove /organizations/{orgId} prefix
+      return path.replace(/^\/organizations\/[^/]+/, '');
+    }
+    // Center edition: keep as-is
+    return path;
+  }
 
   /** Set assignedTo (used after auto-fetch). */
   setAssignedTo(userId: string): void {
@@ -90,13 +112,13 @@ export class YunxiaoAdapter implements Adapter {
    */
   async listWorkitemTypes(category?: string): Promise<YunxiaoWorkitemType[]> {
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
-    const path = `/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes${query}`;
+    const path = this.apiPath(`/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes${query}`);
     return this.request<YunxiaoWorkitemType[]>('GET', path);
   }
 
   /** List all workitem types by fetching each category separately. */
   async listAllWorkitemTypes(): Promise<YunxiaoWorkitemType[]> {
-    const categories = ['Req', 'Bug', 'Task'];
+    const categories = YUNXIAO_WORKITEM_CATEGORIES;
     const results = await Promise.all(
       categories.map(cat => this.listWorkitemTypes(cat).catch(() => [] as YunxiaoWorkitemType[]))
     );
@@ -159,7 +181,7 @@ export class YunxiaoAdapter implements Adapter {
     }
 
     console.log(`Fetching field config for workitem type ${workitemTypeId}...`);
-    const path = `/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes/${workitemTypeId}/fields`;
+    const path = this.apiPath(`/organizations/${this.organizationId}/projects/${this.spaceIdentifierId}/workitemTypes/${workitemTypeId}/fields`);
     const fields = await this.request<FieldConfigResponse>('GET', path);
     
     this.fieldConfigCache.set(workitemTypeId, fields);
@@ -240,13 +262,13 @@ export class YunxiaoAdapter implements Adapter {
     // Try to match by option name
     for (const opt of options) {
       const name = opt.name?.toLowerCase() || '';
-      if (name.includes('紧急') || name.includes('critical') || name.includes('urgent') || name.includes('p0')) {
+      if (PRIORITY_KEYWORDS.critical.some(kw => name.includes(kw))) {
         optionMap.critical = opt.id;
-      } else if (name.includes('高') || name.includes('high') || name.includes('p1')) {
+      } else if (PRIORITY_KEYWORDS.high.some(kw => name.includes(kw))) {
         optionMap.high = opt.id;
-      } else if (name.includes('中') || name.includes('medium') || name.includes('normal') || name.includes('p2')) {
+      } else if (PRIORITY_KEYWORDS.medium.some(kw => name.includes(kw))) {
         optionMap.medium = opt.id;
-      } else if (name.includes('低') || name.includes('low') || name.includes('p3')) {
+      } else if (PRIORITY_KEYWORDS.low.some(kw => name.includes(kw))) {
         optionMap.low = opt.id;
       }
     }
@@ -268,7 +290,7 @@ export class YunxiaoAdapter implements Adapter {
     try {
       const cfg = await loadProjectConfig(this.projectRoot);
       saveProjectConfig(this.projectRoot, {
-        severity_field_map: { ...cfg.severity_field_map, ...this.priorityFieldMap },
+        priority_field_map: { ...cfg.priority_field_map, ...this.priorityFieldMap },
       });
     } catch (err) {
       console.log(`  → Warning: Could not save priority field mapping: ${err}`);
@@ -317,13 +339,13 @@ export class YunxiaoAdapter implements Adapter {
     // Try to match by option name (common Chinese names)
     for (const opt of options) {
       const name = opt.name?.toLowerCase() || '';
-      if (name.includes('致命') || name.includes('critical') || name.includes('block')) {
+      if (SEVERITY_KEYWORDS.critical.some(kw => name.includes(kw))) {
         optionMap.critical = opt.id;
-      } else if (name.includes('严重') || name.includes('high') || name.includes('major')) {
+      } else if (SEVERITY_KEYWORDS.high.some(kw => name.includes(kw))) {
         optionMap.high = opt.id;
-      } else if (name.includes('一般') || name.includes('medium') || name.includes('normal')) {
+      } else if (SEVERITY_KEYWORDS.medium.some(kw => name.includes(kw))) {
         optionMap.medium = opt.id;
-      } else if (name.includes('建议') || name.includes('low') || name.includes('minor')) {
+      } else if (SEVERITY_KEYWORDS.low.some(kw => name.includes(kw))) {
         optionMap.low = opt.id;
       }
     }
@@ -404,7 +426,7 @@ export class YunxiaoAdapter implements Adapter {
     const url = `https://${this.domain}/oapi/v1/platform/user`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'x-yunxiao-token': this.token,
+      [YUNXIAO_AUTH_HEADER]: this.token,
     };
 
     const res = await this.httpFetch(url, { method: 'GET', headers });
@@ -451,7 +473,7 @@ export class YunxiaoAdapter implements Adapter {
       customFieldValues: body.customFieldValues,
     }, null, 2));
     
-    const path = `/organizations/${this.organizationId}/workitems`;
+    const path = this.apiPath(`/organizations/${this.organizationId}/workitems`);
 
     const res = await this.request<YunxiaoCreateResponse>('POST', path, body);
 
@@ -464,7 +486,7 @@ export class YunxiaoAdapter implements Adapter {
 
     return {
       id: res.id,
-      url: `https://devops.aliyun.com/organization/${this.organizationId}/workitem/${res.id}`,
+      url: `${YUNXIAO_DEVOPS_BASE_URL}/organization/${this.organizationId}/workitem/${res.id}`,
     };
   }
 
@@ -478,13 +500,13 @@ export class YunxiaoAdapter implements Adapter {
     }
 
     const updateBody = taskToUpdateBody(task);
-    const path = `/organizations/${this.organizationId}/workitems/${task.platform_id}`;
+    const path = this.apiPath(`/organizations/${this.organizationId}/workitems/${task.platform_id}`);
 
     const res = await this.request<void>('PUT', path, updateBody);
 
     return {
       id: task.platform_id,
-      url: `https://devops.aliyun.com/organization/${this.organizationId}/workitem/${task.platform_id}`,
+      url: `${YUNXIAO_DEVOPS_BASE_URL}/organization/${this.organizationId}/workitem/${task.platform_id}`,
     };
   }
 
@@ -495,7 +517,7 @@ export class YunxiaoAdapter implements Adapter {
   async listRemote(): Promise<RemoteIssue[]> {
     const items: RemoteIssue[] = [];
     let page = 1;
-    const perPage = 200;
+    const perPage = YUNXIAO_DEFAULT_PAGE_SIZE;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -507,7 +529,7 @@ export class YunxiaoAdapter implements Adapter {
         perPage,
       };
 
-      const path = `/organizations/${this.organizationId}/workitems:search`;
+      const path = this.apiPath(`/organizations/${this.organizationId}/workitems:search`);
       const res = await this.request<YunxiaoSearchResponse>('POST', path, body);
 
       if (res && res.length > 0) {
@@ -529,7 +551,7 @@ export class YunxiaoAdapter implements Adapter {
 
   async addComment(workitemIdentifier: string, content: string): Promise<void> {
     const body = { content };
-    const path = `/organizations/${this.organizationId}/workitems/${workitemIdentifier}/comments`;
+    const path = this.apiPath(`/organizations/${this.organizationId}/workitems/${workitemIdentifier}/comments`);
 
     const res = await this.request<YunxiaoCommentResponse>('POST', path, body);
 
@@ -550,11 +572,11 @@ export class YunxiaoAdapter implements Adapter {
     path: string,
     body?: unknown,
   ): Promise<T> {
-    const url = `https://${this.domain}/oapi/v1/projex${path}`;
+    const url = `https://${this.domain}${YUNXIAO_PROJEX_API_PREFIX}${path}`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'x-yunxiao-token': this.token,
+      [YUNXIAO_AUTH_HEADER]: this.token,
     };
 
     const res = await this.httpFetch(url, {

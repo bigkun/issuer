@@ -9,36 +9,18 @@ import { runStatus } from '../commands/status.js';
 import { runListRemote } from '../commands/list-remote.js';
 import { runSkillInstall } from '../commands/skill-install.js';
 import { runCacheRefresh } from '../commands/cache.js';
-import { GitHubAdapter } from '../adapter/github/index.js';
-import { GitLabAdapter } from '../adapter/gitlab/index.js';
-import { YunxiaoAdapter } from '../adapter/yunxiao/index.js';
+import { createAdapter } from '../adapter/factory.js';
 import { loadProjectConfig, resolveToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
 import { loadCache, getCachePath, getCacheAge } from '../core/cache.js';
 import { Status, TaskFile } from '../core/types.js';
+import { REMOTE_STATE_OPEN, PROMPT_OPTION_UPLOAD, PROMPT_OPTION_SKIP } from '../core/constants.js';
 import { success, table, error } from './output.js';
 import type { Adapter } from '../adapter/interface.js';
 
 async function buildAdapter(cwd: string): Promise<Adapter> {
   const cfg = await loadProjectConfig(cwd);
   const token = resolveToken(cfg.platform, { projectRoot: cwd });
-
-  switch (cfg.platform) {
-    case 'github':
-      return new GitHubAdapter({ token, owner: cfg.owner, repo: cfg.repo });
-    case 'gitlab':
-      return new GitLabAdapter({ token, owner: cfg.owner, repo: cfg.repo });
-    case 'yunxiao':
-      return new YunxiaoAdapter({
-        token,
-        organizationId: cfg.owner,
-        spaceIdentifierId: cfg.repo,
-        projectRoot: cwd,
-        assignedTo: cfg.assigned_to,
-        workitemTypeMap: cfg.workitem_type_map,
-      });
-    default:
-      throw new Error(`Unsupported platform: ${cfg.platform}`);
-  }
+  return createAdapter(cfg, token, cwd);
 }
 
 function resolveBundledSkillsDir(): string {
@@ -152,7 +134,7 @@ export function buildProgram() {
             });
           });
           
-          if (answer === '1') {
+          if (answer === PROMPT_OPTION_UPLOAD) {
             // Upload all duplicates
             console.log('\nUploading all duplicates...');
             for (const dup of s.duplicates) {
@@ -171,7 +153,7 @@ export function buildProgram() {
               s.created.push(next);
             }
             console.log(`✓ Uploaded ${s.duplicates.length} duplicate(s)\n`);
-          } else if (answer === '2') {
+          } else if (answer === PROMPT_OPTION_SKIP) {
             console.log(`✓ Skipped ${s.duplicates.length} duplicate(s)\n`);
           } else {
             console.log('✓ Cancelled\n');

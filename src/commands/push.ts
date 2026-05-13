@@ -5,6 +5,7 @@ import { Status, TaskFile } from '../core/types.js';
 import { loadProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
 import { loadCache, saveCache, needsRefresh } from '../core/cache.js';
 import { findSimilarIssues, type MatchResult } from '../core/similarity.js';
+import { REMOTE_STATE_OPEN } from '../core/constants.js';
 import type { Adapter, RemoteIssue } from '../adapter/interface.js';
 
 export interface PushOptions {
@@ -124,7 +125,7 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       cacheIssues.push({
         id: result.id,
         title: task.title,
-        state: 'open',
+        state: REMOTE_STATE_OPEN,
         url: result.url,
       });
     }

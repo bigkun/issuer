@@ -3,6 +3,7 @@ import { TaskFile } from '../../core/types.js';
 import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
 import { taskToIssueInput, issueToRemote, RawGitlabIssue } from './mapper.js';
+import { GITLAB_DEFAULT_HOST } from '../../core/constants.js';
 
 // ---------------------------------------------------------------------------
 // Options
@@ -32,7 +33,7 @@ export class GitLabAdapter implements Adapter {
 
   constructor(private readonly opts: GitLabAdapterOptions) {
     this.api = opts.client ?? new Gitlab({
-      host: opts.host ?? 'https://gitlab.com',
+      host: opts.host ?? GITLAB_DEFAULT_HOST,
       token: opts.token,
     });
     // projectId can be "namespace/project" or numeric ID
