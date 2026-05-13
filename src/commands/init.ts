@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
@@ -7,6 +8,13 @@ import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, ty
 import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG, type ProjectConfig } from '../core/config.js';
 import { DEFAULT_TASKS_DIR } from '../core/task-store.js';
 import { createAdapter } from '../adapter/factory.js';
+import { 
+  detectProjectAgents, 
+  detectGlobalAgents,
+  getAgentConfig, 
+  getAgentSkillsPath,
+  AGENT_REGISTRY 
+} from '../core/agent-registry.js';
 
 export interface InitOptions {
   cwd: string;
@@ -26,15 +34,6 @@ export interface InitResult {
   credentialsPath?: string;
   skillsPath?: string;
 }
-
-// Agent-to-skills-path mapping
-const AGENT_SKILLS_PATHS: Record<string, string> = {
-  'claude': '.claude/skills',
-  'cursor': '.claude/skills',
-  'copilot': '.github/skills',
-  'qoder': '.qoder/skills',
-  'opencode': '.qoder/skills',
-};
 
 // Platforms with built-in adapters (CLI fallback available)
 const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao'];
@@ -279,9 +278,15 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   }
 
   // Determine recommended skills path based on agent
-  const skillsPath = opts.agent
-    ? AGENT_SKILLS_PATHS[opts.agent] ?? '.claude/skills'
-    : undefined;
+  let skillsPath: string | undefined;
+  if (opts.agent) {
+    const agentConfig = getAgentConfig(opts.agent);
+    if (agentConfig) {
+      skillsPath = agentConfig.skillsDir;
+    } else {
+      skillsPath = '.claude/skills';  // 默认值
+    }
+  }
 
   // Print next steps
   console.log('\n📋 Next steps:');

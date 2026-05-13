@@ -27,7 +27,10 @@ describe('runSkillInstall', () => {
 
   it('detectTargetPath falls back to first candidate when none exist', () => {
     const fakeHome = mkdtempSync(join(tmpdir(), 'fake-home-'));
-    const p = detectTargetPath(fakeHome);
-    expect(p).toBe(join(fakeHome, '.claude/skills'));
+    const fakeProject = mkdtempSync(join(tmpdir(), 'fake-project-'));
+    const result = detectTargetPath(fakeProject, fakeHome);
+    expect(result.path).toBe(join(fakeHome, '.claude', 'skills'));
+    expect(result.agent).toBeDefined();
+    expect(result.agent?.id).toBe('claude');
   });
 });
