@@ -27,7 +27,13 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
   }
   const fm = parsed.data as Record<string, unknown>;
 
-  for (const field of REQUIRED_FIELDS) {
+  // 检查必需字段（platform_id 和 platform_url 在未推送时可以为 null/undefined）
+  const essentialFields = [
+    'id', 'type', 'title', 'status', 'platform',
+    'priority', 'labels', 'created_at', 'updated_at',
+  ] as const;
+  
+  for (const field of essentialFields) {
     if (!(field in fm)) {
       throw new TaskParseError(`missing required field: ${field}`, filePath);
     }
@@ -48,10 +54,15 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
   if (typeof fm.platform !== 'string' || !fm.platform) {
     throw new TaskParseError('platform must be a non-empty string', filePath);
   }
-  if (!isStringOrNull(fm.platform_id)) {
+  
+  // platform_id 和 platform_url 可以是 string、null 或 undefined（未推送时）
+  const platformId = fm.platform_id === undefined ? null : fm.platform_id;
+  const platformUrl = fm.platform_url === undefined ? null : fm.platform_url;
+  
+  if (!isStringOrNull(platformId)) {
     throw new TaskParseError('platform_id must be string or null', filePath);
   }
-  if (!isStringOrNull(fm.platform_url)) {
+  if (!isStringOrNull(platformUrl)) {
     throw new TaskParseError('platform_url must be string or null', filePath);
   }
   if (!PRIORITIES.includes(fm.priority as Priority)) {
@@ -82,8 +93,8 @@ export function parseTaskFile(raw: string, filePath: string): TaskFile {
     title: fm.title,
     status: fm.status as Status,
     platform: fm.platform,
-    platform_id: fm.platform_id as string | null,
-    platform_url: fm.platform_url as string | null,
+    platform_id: platformId as string | null,
+    platform_url: platformUrl as string | null,
     priority: fm.priority as Priority,
     severity: (fm.severity as Severity) || undefined,
     labels: fm.labels as string[],
