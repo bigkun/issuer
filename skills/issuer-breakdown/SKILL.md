@@ -84,6 +84,11 @@ For platforms with built-in support, the skill applies the corresponding templat
 - **OS/Browser**: <!-- e.g. macOS / Chrome 120 -->
 ```
 
+**Rules**:
+- ✅ Title MUST describe the **problem**, not the solution
+- ✅ Use noun phrases or problem statements (e.g. "Homepage data fails to load")
+- ❌ Do NOT use action verbs like "Fix", "Resolve", "Repair" in the title
+
 #### Feature / Story
 
 **Structure**:
@@ -264,6 +269,7 @@ So that [benefit]
 - ✅ Set both `priority` (urgency) and `severity` (impact) in frontmatter
 - ✅ Include environment details
 - ✅ No effort estimation needed (bugs are fixed, not estimated)
+- ✅ Title MUST describe the **problem**, not the solution (e.g. "Homepage data fails to load", NOT "Fix homepage data loading issue")
 
 ### GitHub Style
 

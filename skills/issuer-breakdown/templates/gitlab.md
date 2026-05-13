@@ -75,6 +75,9 @@ GitLab API also supports the following optional fields (not currently mapped in 
 
 ### Key Conventions
 
+- ✅ Title MUST describe the **problem**, not the solution
+- ✅ Use noun phrases or problem statements (e.g. "Homepage data fails to load")
+- ❌ Do NOT use action verbs like "Fix", "Resolve", "Repair" in the title
 - Use GitLab quick actions (e.g. `/label`) in templates for auto-labeling
 - Current vs Expected behavior clearly separated
 - Include GitLab version and deployment type (important for self-managed)

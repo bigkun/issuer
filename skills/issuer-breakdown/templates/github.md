@@ -77,12 +77,13 @@ Field conversion in adapter `taskToIssueInput()` (src/adapter/github/mapper.ts):
 
 ### Key Conventions
 
-- Title prefix: `[Bug]:` for quick scanning
-- Steps to Reproduce MUST be numbered and reproducible
-- Clearly separate Expected vs Actual behavior
-- Always include Environment section (OS/Browser/Version)
-- Use code blocks (```) for log output
-- Add `priority` and `severity` labels if the project uses them
+- ✅ Title prefix: `[Bug]:` for quick scanning
+- ✅ Title MUST describe the **problem**, not the solution (e.g. `[Bug]: Homepage data fails to load`, NOT `[Bug]: Fix homepage data loading issue`)
+- ✅ Steps to Reproduce MUST be numbered and reproducible
+- ✅ Clearly separate Expected vs Actual behavior
+- ✅ Always include Environment section (OS/Browser/Version)
+- ✅ Use code blocks (```) for log output
+- ✅ Add `priority` and `severity` labels if the project uses them
 
 ---
 

@@ -216,6 +216,20 @@ These are evaluated independently:
 - ✅ Impact scope must describe affected users and frequency
 - ✅ If workaround exists, it must be noted
 
+### Title Convention
+
+- ✅ Title MUST describe the **problem**, not the solution
+- ✅ Use noun phrases or problem statements
+- ❌ Do NOT use action verbs like "Fix", "Resolve", "Repair" in the title
+
+**Examples**:
+- ✅ `"Homepage data fails to load"` (describes the problem)
+- ❌ `"Fix homepage data loading issue"` (describes the solution)
+- ✅ `"User login page shows blank screen"`
+- ❌ `"Fix user login page blank screen issue"`
+- ✅ `"Order submission returns 500 error"`
+- ❌ `"Fix order submission 500 error"`
+
 ---
 
 ## Task
