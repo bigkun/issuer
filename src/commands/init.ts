@@ -4,8 +4,9 @@ import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
 import { getRegistryEntry, capabilitiesFromRegistry, formatCapabilitySummary, type McpCapabilities } from '../adapter/registry.js';
-import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
+import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG, type ProjectConfig } from '../core/config.js';
 import { DEFAULT_TASKS_DIR } from '../core/task-store.js';
+import { createAdapter } from '../adapter/factory.js';
 
 export interface InitOptions {
   cwd: string;
@@ -35,6 +36,55 @@ const AGENT_SKILLS_PATHS: Record<string, string> = {
   'opencode': '.qoder/skills',
 };
 
+// Platforms with built-in adapters (CLI fallback available)
+const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao'];
+
+// Generic breakdown template for unsupported platforms
+const GENERIC_BREAKDOWN_TEMPLATE = `# Generic Breakdown Template
+
+Customize this template to match your team's workflow.
+The issuer-breakdown skill will use this as a guide when generating task files.
+
+## Bug
+
+### Structure
+- Description
+- Reproduction Steps (numbered)
+- Expected Behavior
+- Actual Behavior
+- Environment (version, OS, browser)
+
+### Rules
+- Reproduction steps MUST be numbered and reproducible
+- Clearly separate Expected vs Actual behavior
+- Include environment details
+
+## Feature / Story
+
+### Structure
+- User Story (As a / I want / So that)
+- Problem Statement
+- Acceptance Criteria (checkboxes, min 3)
+
+### Rules
+- Start with User Story format
+- Acceptance criteria MUST use checkbox syntax: - [ ] criterion
+- Minimum 3 acceptance criteria
+
+## Task
+
+### Structure
+- Objective
+- Implementation Steps (numbered)
+- Technical Constraints
+- Testing Checklist (checkboxes)
+
+### Rules
+- Focus on what needs to be done
+- Implementation steps must be numbered and actionable
+- Include testing checklist
+`;
+
 export async function runInit(opts: InitOptions): Promise<InitResult> {
   const issuerDir = join(opts.cwd, '.issuer');
   const cfgPath = join(issuerDir, 'config.yml');
@@ -46,6 +96,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   let owner = opts.owner;
   let repo = opts.repo;
   let token = opts.token;
+  let yunxiaoDomain: string | undefined;
 
   if (!opts.nonInteractive) {
     if (!platform) {
@@ -55,26 +106,55 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           { name: 'GitHub Issues', value: 'github' },
           { name: 'GitLab Issues', value: 'gitlab' },
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
+          { name: 'Other (MCP)', value: '__other__' },
         ],
       });
+      if (platform === '__other__') {
+        platform = await input({ message: 'Platform name (e.g. jira, linear, asana)', required: true });
+      }
     }
     if (platform === 'github') {
       if (!owner) owner = await input({ message: 'GitHub owner (user or org)' });
       if (!repo) repo = await input({ message: 'GitHub repo name' });
     }
     if (platform === 'yunxiao') {
-      if (!owner) owner = await input({ message: '云效组织 ID (organizationId)' });
-      if (!repo) repo = await input({ message: '云效项目 ID (spaceIdentifierId)' });
+      // Organization ID determines edition: empty → Region, non-empty → Center
+      if (!owner) owner = await input({
+        message: 'Organization ID (leave empty for Region edition)',
+        required: false,
+      });
+
+      if (!owner || owner === '') {
+        // Region edition: no organizationId, need service endpoint
+        owner = 'default';
+        console.log('  → Region edition detected');
+
+        yunxiaoDomain = await input({
+          message: 'Region service endpoint (e.g. devops.cn-hangzhou.aliyuncs.com)',
+          required: true,
+        });
+      }
+      // Center edition: owner already set, domain stays default
+
+      if (!repo) repo = await input({ message: 'Project ID (spaceIdentifierId)' });
     }
     if (platform === 'gitlab') {
       if (!owner) owner = await input({ message: 'GitLab group or namespace' });
       if (!repo) repo = await input({ message: 'GitLab project name or ID' });
+    }
+    // Unsupported platforms: ask for owner/repo generically
+    if (!BUILT_IN_PLATFORMS.includes(platform)) {
+      if (!owner) owner = await input({ message: `${platform} owner / workspace / organization` });
+      if (!repo) repo = await input({ message: `${platform} project / repo / space ID` });
     }
   }
 
   if (!platform || !owner || !repo) {
     throw new ConfigError('platform, owner and repo are required');
   }
+
+  // --- Determine if this is a built-in platform ---
+  const isBuiltIn = BUILT_IN_PLATFORMS.includes(platform);
 
   // --- Credential flow ---
   let credentialsPath: string | undefined;
@@ -99,12 +179,28 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     writeCredentialsFile(credPath, platform, token);
     credentialsPath = credPath;
     console.log(`Credentials written to ${credPath}`);
-    // Validate the token
-    const result = await validateToken(platform, token, { owner, repo });
-    if (result.valid) {
-      console.log(`✓ ${platform} token is valid`);
+    // Validate token only for built-in platforms (have adapters)
+    if (isBuiltIn) {
+      try {
+        const tempCfg: ProjectConfig = {
+          platform,
+          owner,
+          repo,
+          default_labels: [],
+          yunxiao_domain: yunxiaoDomain,
+        };
+        const adapter = createAdapter(tempCfg, token, opts.cwd);
+        const result = await validateToken(adapter);
+        if (result.valid) {
+          console.log(`✓ ${platform} token is valid`);
+        } else {
+          console.log(`⚠ Token validation failed: ${result.error}`);
+        }
+      } catch (e) {
+        console.log(`⚠ Token validation failed: ${(e as Error).message}`);
+      }
     } else {
-      console.log(`⚠ Token validation failed: ${result.error}`);
+      console.log(`⚠ Token saved. Validation skipped — ${platform} uses MCP for sync.`);
     }
   } else {
     console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
@@ -116,6 +212,19 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   mkdirSync(join(issuerDir, 'tasks'), { recursive: true });
   mkdirSync(join(issuerDir, 'briefs'), { recursive: true });
 
+  // --- Template setup for unsupported platforms ---
+  let breakdownTemplate: string | undefined;
+  if (!isBuiltIn) {
+    const templatesDir = join(issuerDir, 'templates');
+    mkdirSync(templatesDir, { recursive: true });
+    const templatePath = join(templatesDir, 'breakdown.md');
+    if (!existsSync(templatePath)) {
+      writeFileSync(templatePath, GENERIC_BREAKDOWN_TEMPLATE, 'utf8');
+      console.log(`\nCreated generic breakdown template: ${templatePath}`);
+    }
+    breakdownTemplate = '.issuer/templates/breakdown.md';
+  }
+
   // Build mcp_capabilities from registry baseline or live probe
   let mcp_capabilities: McpCapabilities;
   const entry = getRegistryEntry(platform);
@@ -125,7 +234,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   } else if (entry) {
     mcp_capabilities = capabilitiesFromRegistry(entry);
   } else {
-    // Unknown platform — assume full capabilities, user will be warned
+    // Unknown platform — assume full MCP capabilities
     mcp_capabilities = {
       channel: 'mcp',
       probed_at: new Date().toISOString(),
@@ -134,7 +243,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     };
   }
 
-  const cfg = {
+  const cfg: Record<string, unknown> = {
     platform,
     owner,
     repo,
@@ -143,10 +252,21 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     dedup: DEFAULT_DEDUP_CONFIG,
     tasks_dir: DEFAULT_TASKS_DIR,
   };
+  
+  // Save yunxiao_domain (service endpoint) if not default center endpoint
+  if (yunxiaoDomain && yunxiaoDomain !== 'openapi-rdc.aliyuncs.com') {
+    cfg.yunxiao_domain = yunxiaoDomain;
+  }
+
+  // Save breakdown_template for unsupported platforms
+  if (breakdownTemplate) {
+    cfg.breakdown_template = breakdownTemplate;
+  }
+  
   writeFileSync(cfgPath, yamlStringify(cfg), 'utf8');
 
   // Print capability summary
-  console.log(`\nPlatform: ${platform}${entry ? ` (MCP: ${entry.mcpPackage})` : ''}`);
+  console.log(`\nPlatform: ${platform}${entry ? ` (MCP: ${entry.mcpPackage})` : ' (generic / MCP)'}`);
   console.log(formatCapabilitySummary(mcp_capabilities));
   if (mcp_capabilities.channel === 'mcp') {
     const gaps = (['create', 'update', 'search', 'read', 'comment'] as const)

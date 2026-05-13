@@ -2,6 +2,8 @@ import { join } from 'node:path';
 import { input } from '@inquirer/prompts';
 import { ConfigError } from '../core/errors.js';
 import { loadProjectConfig, resolveToken, validateToken, writeCredentialsFile, findTokenSource } from '../core/config.js';
+import { createAdapter } from '../adapter/factory.js';
+import type { Adapter } from '../adapter/interface.js';
 
 export interface AuthOptions {
   cwd: string;
@@ -11,8 +13,8 @@ export interface AuthOptions {
   platform?: string;
   /** Whether to skip prompts (non-interactive). */
   nonInteractive?: boolean;
-  /** Custom fetch implementation (for testing). */
-  fetch?: typeof globalThis.fetch;
+  /** Pre-built adapter for testing (bypasses createAdapter). */
+  adapter?: Adapter;
 }
 
 export interface AuthResult {
@@ -24,14 +26,11 @@ export interface AuthResult {
 
 export async function runAuth(opts: AuthOptions): Promise<AuthResult> {
   // Load project config to determine platform
+  let cfg: import('../core/config.js').ProjectConfig | undefined;
   let platform = opts.platform;
-  let owner: string | undefined;
-  let repo: string | undefined;
   try {
-    const cfg = await loadProjectConfig(opts.cwd);
+    cfg = await loadProjectConfig(opts.cwd);
     if (!platform) platform = cfg.platform;
-    owner = cfg.owner;
-    repo = cfg.repo;
   } catch {
     if (!platform) {
       throw new ConfigError('No platform configured. Run `issuer init` first or specify --platform.');
@@ -58,8 +57,16 @@ export async function runAuth(opts: AuthOptions): Promise<AuthResult> {
     };
   }
 
-  // Validate
-  const result = await validateToken(platform, token, { owner, repo, fetch: opts.fetch });
+  // Validate via adapter.listRemote()
+  if (!cfg) {
+    return {
+      platform,
+      valid: false,
+      error: 'Cannot validate token without project config. Run `issuer init` first.',
+    };
+  }
+  const adapter = opts.adapter ?? createAdapter(cfg, token, opts.cwd);
+  const result = await validateToken(adapter);
   if (result.valid) {
     // Write to project credentials file
     const credPath = join(opts.cwd, '.issuer', 'credentials.yml');
