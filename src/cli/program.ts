@@ -7,7 +7,7 @@ import { runAuth } from '../commands/auth.js';
 import { runPush } from '../commands/push.js';
 import { runStatus } from '../commands/status.js';
 import { runListRemote } from '../commands/list-remote.js';
-import { runSkillInstall } from '../commands/skill-install.js';
+import { runSkillInstall, runSkillInstallInteractive } from '../commands/skill-install.js';
 import { runCacheRefresh } from '../commands/cache.js';
 import { createAdapter } from '../adapter/factory.js';
 import { loadProjectConfig, resolveToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
@@ -225,11 +225,20 @@ export function buildProgram() {
     .description('Copy bundled skills into your agent skills directory')
     .option('--target <path>', 'override the install target directory')
     .action(async (opts) => {
-      const r = await runSkillInstall({
-        bundledSkillsDir: resolveBundledSkillsDir(),
-        targetPath: opts.target,
-      });
-      success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+      // 如果没有指定 target，使用交互式选择 Agent
+      if (!opts.target) {
+        const r = await runSkillInstallInteractive({
+          bundledSkillsDir: resolveBundledSkillsDir(),
+          projectRoot: process.cwd(),
+        });
+        success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+      } else {
+        const r = await runSkillInstall({
+          bundledSkillsDir: resolveBundledSkillsDir(),
+          targetPath: opts.target,
+        });
+        success(`Installed ${r.installed.length} skill(s) into ${r.targetPath}`);
+      }
     });
 
   const cache = program.command('cache').description('Manage local issue cache');

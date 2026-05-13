@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
@@ -37,6 +38,32 @@ export interface InitResult {
 
 // Platforms with built-in adapters (CLI fallback available)
 const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao'];
+
+/**
+ * 检查指定 Agent 目录是否已安装 issuer skills
+ */
+function checkSkillsInstalled(agentId: string, projectRoot: string): { installed: boolean; skillsDir: string } {
+  const agentConfig = getAgentConfig(agentId);
+  if (!agentConfig) {
+    return { installed: false, skillsDir: '.claude/skills' };
+  }
+  
+  const skillsPath = getAgentSkillsPath(agentConfig, projectRoot);
+  const issuerSkillPath = join(skillsPath, 'issuer');
+  
+  return {
+    installed: existsSync(issuerSkillPath),
+    skillsDir: agentConfig.skillsDir,
+  };
+}
+
+/**
+ * 获取 bundled skills 目录
+ */
+function resolveBundledSkillsDir(): string {
+  const here = fileURLToPath(new URL('.', import.meta.url));
+  return join(here, '..', '..', 'skills');
+}
 
 // Generic breakdown template for unsupported platforms
 const GENERIC_BREAKDOWN_TEMPLATE = `# Generic Breakdown Template
@@ -279,26 +306,77 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
 
   // Determine recommended skills path based on agent
   let skillsPath: string | undefined;
+  let detectedAgent: string | undefined;
+  
   if (opts.agent) {
     const agentConfig = getAgentConfig(opts.agent);
     if (agentConfig) {
       skillsPath = agentConfig.skillsDir;
+      detectedAgent = opts.agent;
     } else {
-      skillsPath = '.claude/skills';  // 默认值
+      skillsPath = '.claude/skills';
+      detectedAgent = 'claude';
+    }
+  } else if (!opts.nonInteractive) {
+    // 非交互模式：自动检测 Agent
+    const projectAgents = detectProjectAgents(opts.cwd);
+    const globalAgents = detectGlobalAgents();
+    const allAgents = [...projectAgents, ...globalAgents];
+    const uniqueAgents = Array.from(
+      new Map(allAgents.map(a => [a.id, a])).values()
+    );
+    
+    if (uniqueAgents.length > 0) {
+      detectedAgent = uniqueAgents[0].id;
+      skillsPath = uniqueAgents[0].skillsDir;
+    }
+  }
+
+  // 检查 skill 是否已安装，如果未安装则询问
+  let skillsInstalled = false;
+  if (detectedAgent && !opts.nonInteractive) {
+    const checkResult = checkSkillsInstalled(detectedAgent, opts.cwd);
+    skillsInstalled = checkResult.installed;
+    
+    if (!skillsInstalled) {
+      console.log(`\n📦 Issuer skills not installed for ${detectedAgent}`);
+      const installSkills = await confirm({
+        message: 'Install issuer skills now?',
+        default: true,
+      });
+      
+      if (installSkills) {
+        const { runSkillInstallInteractive } = await import('./skill-install.js');
+        
+        try {
+          await runSkillInstallInteractive({
+            bundledSkillsDir: resolveBundledSkillsDir(),
+            projectRoot: opts.cwd,
+          });
+          skillsInstalled = true;
+        } catch (e) {
+          console.log(`⚠ Skill installation failed: ${(e as Error).message}`);
+          console.log('  You can install manually: issuer skill install');
+        }
+      }
     }
   }
 
   // Print next steps
   console.log('\n📋 Next steps:');
-  if (skillsPath) {
-    console.log(`1. Install skills for ${opts.agent}:`);
-    const fullPath = join(homedir(), skillsPath);
-    console.log(`   issuer skill install --target "${fullPath}"`);
+  if (!skillsInstalled) {
+    if (skillsPath) {
+      console.log(`1. Install skills for ${detectedAgent}:`);
+      const fullPath = join(homedir(), skillsPath);
+      console.log(`   issuer skill install --target "${fullPath}"`);
+    } else {
+      console.log('1. Install skills (auto-detect):');
+      console.log('   issuer skill install');
+    }
+    console.log('2. In your agent, invoke: /issuer <your-requirement>');
   } else {
-    console.log('1. Install skills (auto-detect):');
-    console.log('   issuer skill install');
+    console.log('1. In your agent, invoke: /issuer <your-requirement>');
   }
-  console.log('2. In your agent, invoke: /issuer <your-requirement>');
 
   return { configPath: cfgPath, credentialsPath, skillsPath };
 }
