@@ -40,11 +40,134 @@ Also confirm the current working directory contains `.issuer/config.yml` (from `
 
 This skill **automatically** applies platform-specific best practices based on your `.issuer/config.yml` `platform` field. **Zero configuration required** — it just works!
 
+### Built-in platform templates
+
+Detailed templates with API field mappings are available in the `templates/` directory:
+
+| Platform   | Template File                    |
+|------------|----------------------------------|
+| GitHub     | `templates/github.md`            |
+| GitLab     | `templates/gitlab.md`            |
+| Yunxiao    | `templates/yunxiao.md`           |
+
+For platforms with built-in support, the skill applies the corresponding template automatically. For all other platforms, the **Generic style** (below) is used.
+
+### Generic Style (default for unsupported platforms)
+
+**Characteristics**: Universal, works with any platform via MCP-first approach
+
+#### Bug
+
+**Structure**:
+```markdown
+## Description
+
+<!-- A clear description of the bug. -->
+
+## Reproduction Steps
+
+1. [Step 1]
+2. [Step 2]
+3. [Step 3 — error occurs]
+
+## Expected Behavior
+
+<!-- What should happen. -->
+
+## Actual Behavior
+
+<!-- What actually happened. Include error messages, stack traces, or screenshots. -->
+
+## Environment
+
+- **Version**: <!-- e.g. v2.1.0 -->
+- **OS/Browser**: <!-- e.g. macOS / Chrome 120 -->
+```
+
+#### Feature / Story
+
+**Structure**:
+```markdown
+## User Story
+
+As a [role]
+I want [feature/capability]
+So that [benefit/value]
+
+## Problem Statement
+
+<!-- Describe the problem this feature solves. -->
+
+## Acceptance Criteria
+
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
+```
+
+#### Task
+
+**Structure**:
+```markdown
+## Objective
+
+<!-- What needs to be done and why. -->
+
+## Implementation Steps
+
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+## Testing Checklist
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests verified
+- [ ] Manual testing performed
+```
+
+### Custom templates (optional)
+
+For project-specific requirements, create `.issuer/templates/breakdown.md`:
+
+```markdown
+# [Project Name] Breakdown Rules
+
+## Task Granularity
+- Max 2 days per task
+- Split if larger
+
+## Required Sections
+- User story (mandatory)
+- Acceptance criteria (min 3)
+- Technical notes (optional)
+
+## Labeling Rules
+- Must include: `frontend` or `backend`
+- Must include module: `auth`, `payment`, etc.
+```
+
+The skill will **merge** your template rules with platform defaults.
+
+To use custom template, add to `.issuer/config.yml`:
+
+```yaml
+breakdown_template: .issuer/templates/breakdown.md
+```
+
+**Most projects don't need this.** Platform defaults work great out of the box.
+
 ### Yunxiao (Alibaba Cloud DevOps) Style
 
 **Characteristics**: Formal, structured, enterprise-ready
 
-**Task body structure**:
+> Full template with API field mappings: `templates/yunxiao.md`
+
+#### Requirement (Req) — User story + GWT acceptance criteria
+
+> Full template: `templates/yunxiao.md` → Requirement section
+
+**Structure**:
 ```markdown
 ## User Story
 As a [role]
@@ -69,15 +192,84 @@ So that [benefit]
 ```
 
 **Rules**:
-- ✅ Always use Given-When-Then format for acceptance criteria
+- ✅ Always use Given-When-Then format
 - ✅ Include effort estimation (hours)
-- ✅ Formal tone, complete sentences
 - ✅ Minimum 3 acceptance scenarios
-- ✅ Use the same language as the input text
+- ✅ Formal tone, complete sentences
+
+#### Task — Technical implementation steps
+
+> Full template: `templates/yunxiao.md` → Task section
+
+**Structure**:
+```markdown
+## Objective
+[What needs to be implemented]
+
+## Implementation Steps
+1. [Step 1: e.g. Create database schema]
+2. [Step 2: e.g. Implement API endpoint]
+3. [Step 3: e.g. Add unit tests]
+
+## Technical Constraints
+- [Constraint 1: e.g. Must use existing auth service]
+- [Constraint 2: e.g. Backward compatible with v1 API]
+
+## Testing Checklist
+- [ ] Unit tests for new logic
+- [ ] Integration test with dependent services
+- [ ] Manual test for edge cases
+```
+
+**Rules**:
+- ✅ Clear step-by-step breakdown
+- ✅ List technical constraints and dependencies
+- ✅ Include testing checklist
+- ✅ Technical precision over business narrative
+
+#### Bug — Reproduction steps + severity
+
+> Full template: `templates/yunxiao.md` → Bug section
+
+**Structure**:
+```markdown
+## Environment
+- Version: [app version]
+- OS/Browser: [environment details]
+- Related module: [module name]
+
+## Reproduction Steps
+1. [Step 1]
+2. [Step 2]
+3. [Step 3 — error occurs]
+
+## Expected Behavior
+[What should happen]
+
+## Actual Behavior
+[What actually happens — include error messages, screenshots if available]
+
+## Impact Scope
+- [Who/what is affected]
+- [How frequently it occurs]
+- [Workaround if available]
+
+## Root Cause (if known)
+[Analysis of likely cause]
+```
+
+**Rules**:
+- ✅ Reproduction steps MUST be numbered and reproducible
+- ✅ Clearly distinguish Expected vs Actual
+- ✅ Set both `priority` (urgency) and `severity` (impact) in frontmatter
+- ✅ Include environment details
+- ✅ No effort estimation needed (bugs are fixed, not estimated)
 
 ### GitHub Style
 
 **Characteristics**: Casual, developer-friendly, concise
+
+> Full template with API field mappings: `templates/github.md`
 
 **Task body structure**:
 ```markdown
@@ -103,6 +295,8 @@ So that [benefit]
 ### GitLab Style
 
 **Characteristics**: Technical, precise, test-focused
+
+> Full template with API field mappings: `templates/gitlab.md`
 
 **Task body structure**:
 ```markdown
@@ -142,37 +336,17 @@ platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
 
 **No extra configuration needed!**
 
-### Custom templates (optional)
+### Unsupported platforms
 
-For project-specific requirements, create `.issuer/templates/breakdown.md`:
+For platforms not in the built-in list (GitHub, GitLab, Yunxiao), the Generic style is used automatically.
+These platforms can still work via **MCP-first** approach:
 
-```markdown
-# [Project Name] Breakdown Rules
+1. During `issuer init`, select "Other (MCP)" as the platform
+2. The skill uses the Generic template structure for task generation
+3. Sync is handled by the MCP server detected at init time
+4. If no MCP server is available, the user can manually push via `issuer push` with a custom adapter
 
-## Task Granularity
-- Max 2 days per task
-- Split if larger
-
-## Required Sections
-- User story (mandatory)
-- Acceptance criteria (min 3)
-- Technical notes (optional)
-
-## Labeling Rules
-- Must include: `frontend` or `backend`
-- Must include module: `auth`, `payment`, etc.
-```
-
-The skill will **merge** your template rules with platform defaults.
-
-To use custom template, add to `.issuer/config.yml`:
-
-```yaml
-breakdown:
-  template: .issuer/templates/breakdown.md
-```
-
-**Most projects don't need this.** Platform defaults work great out of the box.
+The Generic style ensures consistent task files regardless of platform, while MCP-first ensures sync works even without a built-in adapter.
 
 ### Brief quality evaluation (optional, only when using a refined brief)
 
@@ -213,8 +387,10 @@ created_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 ---
 <Markdown body: copy of the relevant section of the brief. Structure per type:
-- **story**: User story → Problem → Goal → Acceptance criteria (checkboxes)
-- **bug/task/epic**: Problem → Goal → Acceptance criteria (checkboxes)
+- **story/req**: User story → Acceptance criteria (Given-When-Then or checkboxes) → Effort estimation
+- **task**: Objective → Implementation steps → Technical constraints → Testing checklist
+- **bug**: Environment → Reproduction steps → Expected vs Actual → Impact scope
+- **epic**: Overview → Sub-stories/tasks list → Timeline (only when explicitly requested)
 - **Acceptance criteria** MUST use checkbox syntax: `- [ ] criterion` so they render as interactive task lists on GitHub/GitLab.
 >
 ```
@@ -308,7 +484,7 @@ After writing the task files, update the index:
 
 ## Guardrails
 
-- **Match the user's interaction language in every output: the chat response, the file `title` and body, and the generated file name (`<slug>`).** Only translate when the user explicitly asks.
+- **Match the user's interaction language in every output: the chat response, the file `title`, the body (including section headings like "User Story", "Reproduction Steps", etc.), and the generated file name (`<slug>`).** The templates in `templates/` are written in English as a reference specification, but the actual generated content MUST follow the user's language. For example, if the user interacts in Chinese, section headings should be "用户故事", "复现步骤", etc. Only use English when the user explicitly asks or interacts in English.
 - **Support both raw text and refined briefs.** No need to refine first unless user explicitly requests it.
 - **Index upkeep is append-only.** Never remove or rewrite existing topics, briefs, or task lines in `.issuer/index.md`.
 - **Never overwrite an existing file.** If a slug collides with an existing file, use `-2`, `-3`, … or stop and ask.
