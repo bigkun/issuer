@@ -35,13 +35,13 @@ export function buildProgram() {
   program
     .command('init')
     .description('Initialise .issuer/ in the current project')
-    .option('--platform <platform>', 'platform id (github, gitlab, yunxiao)')
+    .option('--platform <platform>', 'platform id (github, gitlab, yunxiao, or any MCP platform)')
     .option('--owner <owner>', 'platform owner / org')
     .option('--repo <repo>', 'platform repo name')
     .option('--token <token>', 'platform authentication token')
-    .option('--agent <agent>', 'target agent (claude, cursor, copilot, qoder, opencode)')
+    .option('--agent <agent>', 'target AI agent (claude, cursor, copilot, qoder, codex, windsurf, etc.)')
     .option('--force', 'overwrite existing config')
-    .option('-y, --yes', 'non-interactive')
+    .option('-y, --yes', 'non-interactive mode')
     .action(async (opts) => {
       const r = await runInit({
         cwd: process.cwd(),
@@ -222,7 +222,7 @@ export function buildProgram() {
   const skill = program.command('skill').description('Manage bundled skills');
   skill
     .command('install')
-    .description('Copy bundled skills into your agent skills directory')
+    .description('Copy bundled skills into your AI agent skills directory (interactive agent selection)')
     .option('--target <path>', 'override the install target directory')
     .action(async (opts) => {
       // 如果没有指定 target，使用交互式选择 Agent
