@@ -254,14 +254,18 @@ export function getSupportedAgentIds(): string[] {
  * 
  * @param agent Agent 配置
  * @param projectRoot 项目根目录（用于相对路径）
+ * @param preferGlobal 优先使用全局路径（用户主目录），默认 false
  * @returns Skills 完整路径
  */
-export function getAgentSkillsPath(agent: AgentConfig, projectRoot?: string): string {
+export function getAgentSkillsPath(agent: AgentConfig, projectRoot?: string, preferGlobal: boolean = false): string {
   if (agent.skillsDir.startsWith('.')) {
     // 相对路径
-    return projectRoot 
-      ? join(projectRoot, agent.skillsDir)
-      : join(homedir(), agent.skillsDir);
+    // 如果 preferGlobal 为 true，或者没有提供 projectRoot，使用用户主目录
+    if (preferGlobal || !projectRoot) {
+      return join(homedir(), agent.skillsDir);
+    }
+    // 否则使用项目目录
+    return join(projectRoot, agent.skillsDir);
   }
   // 绝对路径
   return agent.skillsDir;

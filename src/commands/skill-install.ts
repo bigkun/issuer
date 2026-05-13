@@ -198,10 +198,11 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
     console.log('\nPlease install an AI agent first, or specify target path:');
     console.log('  issuer skill install --target ~/.claude/skills');
     
-    // 使用默认路径
+    // 使用默认路径（Claude Code）
     const defaultAgent = getAgentConfig('claude');
     if (defaultAgent) {
-      opts.targetPath = getAgentSkillsPath(defaultAgent, projectRoot);
+      // 优先使用全局路径
+      opts.targetPath = getAgentSkillsPath(defaultAgent, projectRoot, true);
     }
     return runSkillInstall(opts);
   }
@@ -210,7 +211,8 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
   if (uniqueAgents.length === 1) {
     const agent = uniqueAgents[0];
     console.log(`✓ Detected ${agent.name}`);
-    opts.targetPath = getAgentSkillsPath(agent, projectRoot);
+    // 优先使用全局路径（用户主目录）
+    opts.targetPath = getAgentSkillsPath(agent, projectRoot, true);
     return runSkillInstall(opts);
   }
 
@@ -220,25 +222,26 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
     name: `${agent.name} (${agent.skillsDir})`,
     value: agent,
   }));
-
-  // 添加"全部安装"选项
+  
+  // 添加“全部安装”选项
   choices.push({
     name: 'All detected agents',
     value: 'all' as ChoiceValue,
   });
-
+  
   const selected = await select<ChoiceValue>({
     message: 'Which AI agent to install skills for?',
     choices,
   });
-
+  
   if (selected === 'all') {
     // 安装到所有检测到的 Agent
     const allInstalled: string[] = [];
     let lastTarget = '';
-    
+      
     for (const agent of uniqueAgents) {
-      const agentPath = getAgentSkillsPath(agent, projectRoot);
+      // 优先使用全局路径（用户主目录）
+      const agentPath = getAgentSkillsPath(agent, projectRoot, true);
       const result = await runSkillInstall({
         ...opts,
         targetPath: agentPath,
@@ -246,14 +249,14 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
       allInstalled.push(...result.installed);
       lastTarget = result.targetPath;
     }
-    
+      
     return {
       targetPath: lastTarget,
       installed: allInstalled,
     };
   } else {
-    // 安装到选中的 Agent
-    opts.targetPath = getAgentSkillsPath(selected, projectRoot);
+    // 安装到选中的 Agent，优先使用全局路径
+    opts.targetPath = getAgentSkillsPath(selected, projectRoot, true);
     return runSkillInstall(opts);
   }
 }
