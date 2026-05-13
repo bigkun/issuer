@@ -244,29 +244,38 @@ describe('PingCodeAdapter', () => {
   }
 
   it('creates an issue', async () => {
+    const mockProjectList = {
+      list: [
+        { id: 'project-123', identifier: 'SCR', name: 'Test Project', url: 'https://open.pingcode.com/v1/project/projects/project-123' }
+      ]
+    };
+    
     const mockResponse = {
       id: 'wi-new-123',
-      url: 'https://open.pingcode.com/workitems/wi-new-123',
+      url: 'https://open.pingcode.com/v1/workitems/workitems/wi-new-123',
     };
 
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
-      fetch: mockFetch([{ ok: true, json: mockResponse }]),
+      fetch: mockFetch([
+        { ok: true, json: mockProjectList },  // Project lookup
+        { ok: true, json: mockResponse }       // Create issue
+      ]),
     });
 
     const task = makeTask();
     const result = await adapter.createIssue(task);
 
     expect(result.id).toBe('wi-new-123');
-    expect(result.url).toBe('https://open.pingcode.com/workitems/wi-new-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-new-123');
   });
 
   it('updates an issue', async () => {
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
       fetch: mockFetch([{ ok: true, json: {} }]),
     });
@@ -275,13 +284,13 @@ describe('PingCodeAdapter', () => {
     const result = await adapter.updateIssue(task);
 
     expect(result.id).toBe('wi-existing-123');
-    expect(result.url).toBe('https://open.pingcode.com/workitems/wi-existing-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-existing-123');
   });
 
   it('throws error if update without platform_id', async () => {
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
       fetch: mockFetch([]),
     });
@@ -302,7 +311,7 @@ describe('PingCodeAdapter', () => {
 
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
       fetch: mockFetch([{ ok: true, json: mockIssue }]),
     });
@@ -319,7 +328,7 @@ describe('PingCodeAdapter', () => {
   it('returns null for non-existent issue', async () => {
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
       fetch: mockFetch([{ ok: false, json: {}, status: 404 }]),
     });
@@ -330,6 +339,12 @@ describe('PingCodeAdapter', () => {
   });
 
   it('lists remote issues', async () => {
+    const mockProjectList = {
+      list: [
+        { id: 'project-123', identifier: 'SCR', name: 'Test Project', url: 'https://open.pingcode.com/v1/project/projects/project-123' }
+      ]
+    };
+    
     const mockList = {
       list: [
         { id: 'wi-1', name: 'Issue 1', workitem_type: 'story' },
@@ -340,9 +355,12 @@ describe('PingCodeAdapter', () => {
 
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
-      fetch: mockFetch([{ ok: true, json: mockList }]),
+      fetch: mockFetch([
+        { ok: true, json: mockProjectList },  // Project lookup
+        { ok: true, json: mockList }           // List issues
+      ]),
     });
 
     const issues = await adapter.listRemote();
@@ -353,6 +371,12 @@ describe('PingCodeAdapter', () => {
   });
 
   it('lists remote issues with filters', async () => {
+    const mockProjectList = {
+      list: [
+        { id: 'project-123', identifier: 'SCR', name: 'Test Project', url: 'https://open.pingcode.com/v1/project/projects/project-123' }
+      ]
+    };
+    
     const mockList = {
       list: [
         { id: 'wi-1', name: 'Search result', workitem_type: 'story' },
@@ -362,9 +386,12 @@ describe('PingCodeAdapter', () => {
 
     const adapter = new PingCodeAdapter({
       token: 'test-token',
-      projectId: 'project-123',
+      projectIdentifier: 'SCR',
       projectRoot: '/tmp',
-      fetch: mockFetch([{ ok: true, json: mockList }]),
+      fetch: mockFetch([
+        { ok: true, json: mockProjectList },  // Project lookup
+        { ok: true, json: mockList }           // List issues
+      ]),
     });
 
     const issues = await adapter.listRemote({

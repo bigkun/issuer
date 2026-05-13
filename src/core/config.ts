@@ -246,6 +246,7 @@ const PLATFORM_TOKEN_KEYS: Record<string, {
   github:  { envPrimary: 'ISSUER_GITHUB_TOKEN',  envFallback: 'GITHUB_TOKEN',  credentialsKey: 'github_token' },
   gitlab:  { envPrimary: 'ISSUER_GITLAB_TOKEN',  envFallback: 'GITLAB_TOKEN',  credentialsKey: 'gitlab_token' },
   yunxiao: { envPrimary: 'ISSUER_YUNXIAO_TOKEN', envFallback: 'YUNXIAO_TOKEN', credentialsKey: 'yunxiao_token' },
+  pingcode: { envPrimary: 'ISSUER_PINGCODE_TOKEN', envFallback: 'PINGCODE_TOKEN', credentialsKey: 'pingcode_token' },
 };
 
 function readTokenFromCredentialsFile(filePath: string, key: string): string | null {
