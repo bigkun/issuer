@@ -200,7 +200,8 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
       console.log(`  - ${agent.name} (${agent.id}): ${agent.skillsDir}`);
     });
     console.log('\nPlease install an AI agent first, or specify target path:');
-    console.log('  issuer skill install --target ~/.claude/skills');
+    const homeDir = homedir();
+    console.log(`  issuer skill install --target "${join(homeDir, '.claude', 'skills')}"`);
     
     // 使用默认路径（Claude Code）
     const defaultAgent = getAgentConfig('claude');

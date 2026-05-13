@@ -72,7 +72,7 @@ export async function runAuth(opts: AuthOptions): Promise<AuthResult> {
     const credPath = join(opts.cwd, '.issuer', 'credentials.yml');
     writeCredentialsFile(credPath, platform, token);
     console.log(`✓ ${platform} token is valid`);
-    console.log(`Credentials saved to ${credPath}`);
+    console.log(`  → Saved to ${credPath}`);
     return {
       platform,
       valid: true,

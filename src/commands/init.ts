@@ -232,9 +232,9 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     }
   } else {
     console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
-    console.log(`  - Environment variable`);
-    console.log(`  - .issuer/credentials.yml`);
-    console.log(`  - issuer auth`);
+    console.log(`  1. Environment variable: ${platform.toUpperCase()}_TOKEN`);
+    console.log(`  2. Project config: .issuer/credentials.yml`);
+    console.log(`  3. CLI command: issuer auth --token <your-token>`);
   }
 
   mkdirSync(join(issuerDir, 'tasks'), { recursive: true });
@@ -369,15 +369,22 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   if (!skillsInstalled) {
     if (skillsPath) {
       console.log(`1. Install skills for ${detectedAgent}:`);
-      const fullPath = join(homedir(), skillsPath);
-      console.log(`   issuer skill install --target "${fullPath}"`);
+      console.log(`   issuer skill install`);
     } else {
       console.log('1. Install skills (auto-detect):');
       console.log('   issuer skill install');
     }
-    console.log('2. In your agent, invoke: /issuer <your-requirement>');
+    if (detectedAgent) {
+      console.log(`2. In ${detectedAgent}, invoke: /issuer <your-requirement>`);
+    } else {
+      console.log('2. In your agent, invoke: /issuer <your-requirement>');
+    }
   } else {
-    console.log('1. In your agent, invoke: /issuer <your-requirement>');
+    if (detectedAgent) {
+      console.log(`1. In ${detectedAgent}, invoke: /issuer <your-requirement>`);
+    } else {
+      console.log('1. In your agent, invoke: /issuer <your-requirement>');
+    }
   }
 
   return { configPath: cfgPath, credentialsPath, skillsPath };
