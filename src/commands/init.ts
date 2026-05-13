@@ -48,7 +48,8 @@ function checkSkillsInstalled(agentId: string, projectRoot: string): { installed
     return { installed: false, skillsDir: '.claude/skills' };
   }
   
-  const skillsPath = getAgentSkillsPath(agentConfig, projectRoot);
+  // 优先检查全局路径（用户主目录），与安装逻辑保持一致
+  const skillsPath = getAgentSkillsPath(agentConfig, projectRoot, true);
   const issuerSkillPath = join(skillsPath, 'issuer');
   
   return {
