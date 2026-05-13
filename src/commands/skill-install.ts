@@ -27,6 +27,20 @@ export interface SkillInstallResult {
 }
 
 /**
+ * 展开路径中的 ~ 为用户主目录
+ */
+function expandHome(p: string): string {
+  if (p === '~') {
+    return homedir();
+  }
+  // 支持 ~/path (Unix) 和 ~\path (Windows) 格式
+  if (p.startsWith('~/') || p.startsWith('~\\')) {
+    return join(homedir(), p.slice(2));
+  }
+  return p;
+}
+
+/**
  * 自动检测并选择目标路径
  */
 export function detectTargetPath(
@@ -117,6 +131,9 @@ export async function runSkillInstall(opts: SkillInstallOptions): Promise<SkillI
     );
     targetPath = detection.path;
     detectedAgent = detection.agent;
+  } else {
+    // 展开用户提供的路径中的 ~
+    targetPath = expandHome(targetPath);
   }
 
   // 确保目录存在

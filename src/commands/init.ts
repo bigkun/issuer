@@ -292,7 +292,8 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   console.log('\n📋 Next steps:');
   if (skillsPath) {
     console.log(`1. Install skills for ${opts.agent}:`);
-    console.log(`   issuer skill install --target ~/${skillsPath}`);
+    const fullPath = join(homedir(), skillsPath);
+    console.log(`   issuer skill install --target "${fullPath}"`);
   } else {
     console.log('1. Install skills (auto-detect):');
     console.log('   issuer skill install');
