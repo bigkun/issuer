@@ -350,8 +350,9 @@ export class PingCodeAdapter implements Adapter {
       },
     );
 
-    const id = String(data.id || '');
-    const url = String(data.url || `${this.apiRoot}/v1/project/work_items/${id}`);
+    // PingCode returns: short_id = platform_id, html_url = platform_url
+    const id = String(data.short_id || data.id || '');
+    const url = String(data.html_url || data.url || `${this.apiRoot}/v1/project/work_items/${id}`);
 
     return { id, url };
   }

@@ -186,7 +186,7 @@ export function normalizePingCodeIssue(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
-    id: String(data.id || data.identifier || ''),
+    id: String(data.short_id || data.id || data.identifier || ''),
     title: String(data.title || data.name || ''),
     description: String(data.description || ''),
     category: pingCodeTypeToCategory(String(data.type_id || data.workitem_type || data.type || 'story')),
@@ -195,7 +195,7 @@ export function normalizePingCodeIssue(
     assignee: data.assignee_id ? String(data.assignee_id) : (data.assignee ? String(data.assignee) : undefined),
     labels: [],  // PingCode does not have a direct labels/tags field
     parentId: data.parent_id ? String(data.parent_id) : (data.parent ? String(data.parent) : undefined),
-    platformUrl: data.url ? String(data.url) : undefined,
+    platformUrl: data.html_url ? String(data.html_url) : (data.url ? String(data.url) : undefined),
     createdAt: data.created_at ? String(data.created_at) : undefined,
     updatedAt: data.updated_at ? String(data.updated_at) : undefined,
   };
