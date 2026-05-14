@@ -134,6 +134,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           { name: 'GitHub Issues', value: 'github' },
           { name: 'GitLab Issues', value: 'gitlab' },
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
+          { name: 'PingCode', value: 'pingcode' },
           { name: 'Other (MCP)', value: '__other__' },
         ],
       });
