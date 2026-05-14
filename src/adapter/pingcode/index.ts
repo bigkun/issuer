@@ -203,12 +203,15 @@ export class PingCodeAdapter implements Adapter {
       return this.workItemTypesCache.get(pingCodeType)!;
     }
 
-    // 5. Fallback: try common aliases
+    // 5. Fallback: try common aliases and Chinese names
+    // Different PingCode project types have different type IDs:
+    // - scrum/kanban/hybrid: story, task, bug, epic, feature
+    // - waterfall: 需求 (UUID), 任务 (task), 缺陷 (bug), 阶段 (UUID), 里程碑 (UUID)
     const aliases: Record<string, string[]> = {
-      story: ['user_story', 'req', 'requirement'],
-      bug: ['defect'],
-      task: ['todo'],
-      epic: ['feature'],
+      story: ['user_story', 'req', 'requirement', '\u9700\u6C42'],  // 需求 = waterfall equivalent of story
+      bug: ['defect', '\u7F3A\u9677'],                              // 缺陷
+      task: ['todo', '\u4EFB\u52A1'],                              // 任务
+      epic: ['feature', '\u53F2\u8BD7'],                           // 史诗
     };
 
     const aliasList = aliases[pingCodeType] || [];
@@ -226,12 +229,21 @@ export class PingCodeAdapter implements Adapter {
 
   /**
    * Load work item type mapping from config.yml
+   * Config stores id → name, but we need bidirectional lookup (id → id, name → id)
    */
   private async loadWorkItemTypesFromConfig(): Promise<Map<string, string> | null> {
     try {
       const config = await loadProjectConfig(this.projectRoot);
       if (config.pingcode_workitem_types && Object.keys(config.pingcode_workitem_types).length > 0) {
-        this.workItemTypesCache = new Map(Object.entries(config.pingcode_workitem_types));
+        this.workItemTypesCache = new Map();
+        for (const [id, name] of Object.entries(config.pingcode_workitem_types)) {
+          // id → id (self-mapping, used as type_id in API calls)
+          this.workItemTypesCache.set(id, id);
+          // name → id (e.g. "需求" → "6a02bbcc22c14c324d4a1199")
+          if (name && name !== id) {
+            this.workItemTypesCache.set(name, id);
+          }
+        }
         return this.workItemTypesCache;
       }
     } catch {
