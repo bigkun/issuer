@@ -279,7 +279,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   if (opts.probedTools && opts.probedTools.length > 0) {
     // MCP detected — use heuristic + CLI adapter check
     const cliAvailable = hasApiAdapter(platform);
-    mcp_capabilities = capabilitiesFromProbe(opts.probedTools, cliAvailable);
+    mcp_capabilities = capabilitiesFromProbe(opts.probedTools, cliAvailable, platform);
     syncChannel = mcp_capabilities.channel;
   } else {
     // No MCP detected — check CLI adapter

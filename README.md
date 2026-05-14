@@ -259,7 +259,7 @@ PingCode supports two types of access tokens. Both require creating an applicati
 - The adapter automatically resolves it to a project ID on first use
 - The resolved ID is saved to `.issuer/config.yml` for faster subsequent operations
 
-**MCP**: PingCode MCP support is coming soon. Currently uses CLI adapter with REST API.
+**MCP**: PingCode MCP Server support is available. If MCP is not configured or lacks `create` + `read` capabilities, issuer automatically falls back to CLI adapter with REST API.
 
 ## Supported Agents
 

@@ -259,7 +259,7 @@ PingCode 支持两种访问令牌。两种都需要先创建应用：
 - 适配器首次使用时自动解析为项目 ID
 - 解析后的 ID 保存到 `.issuer/config.yml`，后续操作更快
 
-**MCP**：PingCode MCP 支持即将推出。目前使用 CLI 适配器 + REST API。
+**MCP**：支持 PingCode MCP Server。如果未配置 MCP 或缺少 `create` + `read` 能力，issuer 会自动回退到 CLI 适配器 + REST API。
 
 ## 支持的 Agent
 

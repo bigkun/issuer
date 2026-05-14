@@ -61,14 +61,50 @@ const CAPABILITY_KEYWORDS: Record<McpCapability, { actions: string[]; objects: s
   },
 };
 
+/** Platform-specific tool name patterns for better detection. */
+const PLATFORM_TOOL_PATTERNS: Record<string, Record<McpCapability, string[]>> = {
+  pingcode: {
+    create: ['create_work_item', 'add_workitem', 'new_work_item'],
+    update: ['update_work_item', 'edit_workitem'],
+    search: ['search_work_items', 'list_workitems'],
+    read: ['get_work_item', 'fetch_workitem'],
+    comment: ['add_comment', 'create_comment'],
+  },
+  yunxiao: {
+    create: ['create_work_item'],
+    update: ['update_work_item'],
+    search: ['search_workitems'],
+    read: ['get_work_item'],
+    comment: ['add_comment'],
+  },
+  github: {
+    create: ['create_issue'],
+    update: ['update_issue'],
+    search: ['search_issues'],
+    read: ['get_issue'],
+    comment: ['add_issue_comment'],
+  },
+  gitlab: {
+    create: ['create_issue'],
+    update: ['update_issue'],
+    search: ['search_issues'],
+    read: ['get_issue'],
+    comment: ['add_comment'],
+  },
+};
+
 /**
  * Heuristic capability detection from tool names.
- * Works for any MCP server, regardless of platform.
+ * Supports both platform-specific patterns and generic keyword matching.
  *
  * @param toolNames - List of tool names from MCP server.
+ * @param platform - Optional platform name for platform-specific patterns.
  * @returns Detected capabilities (true if matching tool found).
  */
-export function detectCapabilitiesHeuristic(toolNames: string[]): Record<McpCapability, boolean> {
+export function detectCapabilitiesHeuristic(
+  toolNames: string[],
+  platform?: string,
+): Record<McpCapability, boolean> {
   const capabilities: Record<McpCapability, boolean> = {
     create: false,
     update: false,
@@ -77,6 +113,23 @@ export function detectCapabilitiesHeuristic(toolNames: string[]): Record<McpCapa
     comment: false,
   };
 
+  // First check platform-specific patterns if available
+  if (platform && PLATFORM_TOOL_PATTERNS[platform]) {
+    const patterns = PLATFORM_TOOL_PATTERNS[platform];
+    for (const cap of Object.keys(patterns) as McpCapability[]) {
+      if (patterns[cap]) {
+        capabilities[cap] = toolNames.some(t =>
+          patterns[cap]!.some(pattern => t === pattern || t.toLowerCase().includes(pattern.toLowerCase())),
+        );
+      }
+    }
+    // If any capabilities detected via platform patterns, skip generic matching
+    if (Object.values(capabilities).some(v => v)) {
+      return capabilities;
+    }
+  }
+
+  // Fallback to generic keyword matching
   for (const tool of toolNames) {
     const lower = tool.toLowerCase();
 
@@ -161,13 +214,15 @@ export function determineChannel(
  *
  * @param probedTools - Tool names returned by the MCP server.
  * @param cliAdapterAvailable - Whether CLI adapter exists for the platform.
+ * @param platform - Optional platform name for platform-specific patterns.
  * @returns Final `McpCapabilities` with the probe results.
  */
 export function capabilitiesFromProbe(
   probedTools: string[],
   cliAdapterAvailable: boolean,
+  platform?: string,
 ): McpCapabilities {
-  const heuristicCaps = detectCapabilitiesHeuristic(probedTools);
+  const heuristicCaps = detectCapabilitiesHeuristic(probedTools, platform);
   const channel = determineChannel(heuristicCaps, cliAdapterAvailable);
 
   return {
