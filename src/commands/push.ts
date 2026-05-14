@@ -63,9 +63,13 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       cache.owner === cfg.owner && 
       cache.repo === cfg.repo;
     
-    if (!cacheValid || needsRefresh(opts.cwd, dedup.ttl_hours)) {
+    // Force refresh if cache is empty (likely first time or data loss)
+    const forceRefresh = cacheValid && (!cache?.issues || cache.issues.length === 0);
+    
+    if (!cacheValid || needsRefresh(opts.cwd, dedup.ttl_hours) || forceRefresh) {
       console.log('Refreshing issue cache from platform...');
       cacheIssues = await opts.adapter.listRemote();
+      console.log(`Fetched ${cacheIssues.length} remote issues`);
       saveCache(opts.cwd, {
         platform: cfg.platform,
         owner: cfg.owner,
