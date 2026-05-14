@@ -61,7 +61,6 @@ Tool names vary by MCP server. Issuer uses **keyword matching** to detect capabi
 | `update` | update, edit, modify, patch, change, set | issue, workitem, work_item, item, ticket, task |
 | `search` | search, list, find, query, filter | issue, workitem, work_item, item, ticket, task, issues |
 | `read` | read, get, fetch, retrieve, show, view | issue, workitem, work_item, item, ticket, task |
-| `comment` | comment, reply, respond, note | issue, workitem, work_item, item, ticket, task |
 
 **Example**: Tool `myPM_create_ticket` → matches 'create' action + 'ticket' object → `create: true`
 
@@ -94,7 +93,6 @@ mcp_capabilities:
     update: false        # heuristic: no matching tool
     search: true
     read: true
-    comment: false
 ```
 
 For platforms **not in the adapter registry**, heuristic detection still works — issuer doesn't need prior knowledge of the platform.
@@ -155,7 +153,7 @@ Table per task: `id | action | channel | platform_id | url | error?`
 Channel summary at end:
 
 ```
-Sync channel: MCP | Platform capabilities: create ✓ | update ✓ | search ✓ | read ✓ | comment ✓
+Sync channel: MCP | Platform capabilities: create ✓ | update ✓ | search ✓ | read ✓
 ```
 
 OR
