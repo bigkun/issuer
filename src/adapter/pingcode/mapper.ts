@@ -149,9 +149,21 @@ function markdownToHtml(markdown: string): string {
   // Blockquotes: > text
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
 
-  // Line breaks: keep \n as-is (PingCode uses \n for line breaks)
-  // Only remove multiple consecutive newlines (empty lines) between block elements
-  html = html.replace(/\n{2,}/g, '\n');
+  // Wrap plain text lines in <p> tags and remove all newlines
+  // Split by newlines, wrap non-empty non-tag lines in <p>
+  const lines = html.split('\n');
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+    // Skip empty lines
+    if (!trimmed) return '';
+    // Skip lines that already start with HTML tags
+    if (trimmed.startsWith('<')) return trimmed;
+    // Wrap plain text in <p> tags
+    return `<p>${trimmed}</p>`;
+  });
+  
+  // Join without newlines and remove empty strings
+  html = processedLines.filter(l => l).join('');
 
   return html;
 }
