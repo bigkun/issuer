@@ -91,18 +91,31 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       if (matches.length > 0) {
         duplicates.push({ task, matches });
         
+        // Log duplicate detection scores
+        console.log(`\n⚠️  Duplicate detected for: "${task.title}"`);
+        console.log(`   Found ${matches.length} similar issue(s):`);
+        for (const match of matches.slice(0, 3)) {  // Show top 3 matches
+          console.log(`   - "${match.issue.title}" (score: ${(match.score * 100).toFixed(1)}%, id: ${match.issue.id})`);
+        }
+        if (matches.length > 3) {
+          console.log(`   ... and ${matches.length - 3} more`);
+        }
+        
         // Handle based on on_match strategy
         if (dedup.on_match === 'skip') {
           // Auto-skip duplicates
+          console.log(`   → Auto-skipped (on_match: skip)`);
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;
         } else if (dedup.on_match === 'upload') {
           // Auto-upload duplicates (force upload)
+          console.log(`   → Force uploading (on_match: upload)`);
           duplicateUploaded.push(task);
           // Fall through to upload logic below
         } else {
           // on_match: 'prompt' - skip upload temporarily, let CLI handle user interaction
+          console.log(`   → Skipped for user review (on_match: prompt)`);
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;
