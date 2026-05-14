@@ -97,6 +97,7 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 | 云效 (Yunxiao) | Formal, structured | Given-When-Then format | ✅ Required |
 | GitHub | Casual, developer-friendly | Markdown checklist | ❌ Optional |
 | GitLab | Technical, precise | Checklist + technical notes | ❌ Optional |
+| PingCode | Structured, HTML-formatted | HTML checkbox list | ❌ Optional |
 
 **Key steps:**
 1. **Parse input** — identify work items (bug/story/task/epic)
@@ -217,19 +218,24 @@ issuer init -y --platform pingcode --repo SCR
 **Get your token**:
 
 PingCode supports two types of access tokens. Both require creating an application first:
+> **Admin Console** → **Applications** → **Credential Management**
 
 1. **Create an application** (required for both token types):
    - Go to: `https://<your-org>.pingcode.com/admin/application/custom`
    - Create a new application
-   - Select Auth method: **Authorization Code**
+   - Select Auth method:
+     - Enterprise Token: **Client Credentials**
+     - User Token: **Authorization Code**
    - Set permissions:
      - Project Management: **Read-only**
      - Work Items: **Read & Write**
+     - Project Configuration Center: **Read-only**
    - Note your `client_id` and `client_secret`
+   > **Authorization Code** requires configuring a **Callback URL**, which can be `http://localhost`, to obtain the **code**.
 
 2. **Obtain access token**:
    
-   **Enterprise Token** (recommended for automation):
+   **Enterprise Token**:
    ```
    GET https://open.pingcode.com/v1/auth/token
      ?grant_type=client_credentials
@@ -237,9 +243,14 @@ PingCode supports two types of access tokens. Both require creating an applicati
      &client_secret=YOUR_CLIENT_SECRET
    ```
    
-   **User Token** (for user-specific operations):
+   **User Token**:
    - Use OAuth 2.0 Authorization Code flow
-   - See: https://open.pingcode.com/#api-鉴权
+   - See: https://open.pingcode.com/#api-authentication
+   - Visit in browser: https://open.pingcode.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID
+   - Click **Authorize** and wait for redirect, get the **code** from `redirect_uri`
+   ```
+   https://open.pingcode.com/v1/auth/token?grant_type=authorization_code&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&code=YOUR_CODE
+   ```
 
 3. **Use the token**:
    ```bash
@@ -307,7 +318,8 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 |---|---|---|---|
 | GitHub | 5/5 (create, update, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
 | GitLab | 4/5 (create, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
-| 云效 | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
+| 云效 (Yunxiao) | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
+| PingCode | ✓ Full 5/5 | ✓ Full 5/5 (via REST API) | MCP when available, CLI otherwise |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
@@ -326,6 +338,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via either channel |
 | GitLab | ✓ Tests pass | ✓ Tests pass | Either channel provides full capability |
 | 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
+| PingCode | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
 
 Both channels are production-ready for all supported platforms.
 

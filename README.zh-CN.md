@@ -217,19 +217,22 @@ issuer init -y --platform pingcode --repo SCR
 **获取令牌**：
 
 PingCode 支持两种访问令牌。两种都需要先创建应用：
+> 【管理后台】-【应用】-【凭据管理】
 
 1. **创建应用**（两种令牌都需要）：
    - 访问：`https://<你的组织>.pingcode.com/admin/application/custom`
    - 创建新应用
-   - 鉴权方式选择：**Authorization Code**
+   - 鉴权方式选择：企业令牌：**Client Credentials**；用户令牌：**Authorization Code**
    - 设置权限：
      - 项目管理：**只读**
      - 工作项：**读写**
+     - 项目配置中心：**只读**
    - 记录你的 `client_id` 和 `client_secret`
+   > **Authorization Code** 需要配置**回调地址**， 可以是 `http://localhost`，用于获取**code**.
 
 2. **获取访问令牌**：
    
-   **企业令牌**（推荐用于自动化）：
+   **企业令牌**：
    ```
    GET https://open.pingcode.com/v1/auth/token
      ?grant_type=client_credentials
@@ -237,9 +240,14 @@ PingCode 支持两种访问令牌。两种都需要先创建应用：
      &client_secret=YOUR_CLIENT_SECRET
    ```
    
-   **用户令牌**（用于用户特定操作）：
+   **用户令牌**：
    - 使用 OAuth 2.0 Authorization Code 流程
    - 详见：https://open.pingcode.com/#api-鉴权
+   - 浏览器访问: https://open.pingcode.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID
+   - 点击【授权】等待跳转，获得`redirect_uri`中的**code**
+   ```
+   https://open.pingcode.com/v1/auth/token?grant_type=authorization_code&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&code=YOUR_CODE
+   ```
 
 3. **使用令牌**：
    ```bash
