@@ -435,28 +435,74 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
        - `low` - Cosmetic issue, minor inconvenience
      - Example: A typo on the homepage has `priority: low` but `severity: low`. A database corruption bug has `priority: critical` and `severity: critical`.
 4. Compute slug (see Slug rules), build frontmatter, write the file.
-5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using the platform's native approval UI or this **exact template** (translate only the natural-language parts to match the user's interaction language):
+5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt:
 
-   **Preferred: Use Agent's native approval UI** (if available):
-   - Display task list with checkboxes or selection UI
-   - Allow user to select which tasks to promote to `ready`
-   - Present "Confirm" / "Edit" / "Skip" actions
-   - On "Confirm" → patch selected files' `status:` from `draft` to `ready`
-   - On "Edit" → open selected task file(s) for modification
-   - On "Skip" → no tasks promoted, stop here
-
-   **Fallback: Text-based prompt**:
+   **Step 1: Output approval request in Agent UI format**
+   
+   Output the following JSON block wrapped in `<approval_request>` tags. This enables AI assistants to render native approval UI components:
+   
+   ```json
+   <approval_request>
+   {
+     "type": "task_approval",
+     "action": "set_ready",
+     "message": "Select tasks to set as ready and push to <platform>",
+     "tasks": [
+       {
+         "number": 1,
+         "file": "<filename>",
+         "type": "<type>",
+         "title": "<title>",
+         "priority": "<priority>"
+       }
+     ]
+   }
+   </approval_request>
+   ```
+   
+   **Step 2: AI assistant renders native approval UI**
+   
+   The AI assistant should:
+   - Parse the `<approval_request>` JSON
+   - Render as checkboxes or multi-select UI with task details
+   - Provide "Confirm", "Edit", or "Skip" actions
+   - On user selection, return response in this format:
+   ```json
+   <approval_response>
+   {
+     "type": "task_selection",
+     "selected": [1, 2, 3]  // array of selected task numbers, or "all" or "none"
+   }
+   </approval_response>
+   ```
+   
+   **Step 3: Apply user selection**
+   
+   Based on the `<approval_response>`:
+   - For each selected task number: patch the file's `status:` from `draft` to `ready`
+   - For "all": patch all tasks to `ready`
+   - For "none" or "Skip": no tasks promoted, stop here
+   - For "Edit": open the selected task file(s) for modification
+   
+   **Fallback: Text-based interaction** (if Agent UI not available)
+   
+   If the environment doesn't support Agent UI (e.g., plain terminal), use this text prompt:
+   
    ```
    Select tasks to set as ready and push to <platform>:
 
-   #  File                        Title
-   1  2026-05-07-login-error.md   Fix login validation error
-   2  2026-05-07-add-oauth.md     Add OAuth2 support
+   ┌─────┬────────────────────────────────────────┬───────┬──────────────┬────────┐
+   │  #  │                  File                  │ Type  │    Title     │Priority│
+   ├─────┼────────────────────────────────────────┼───────┼──────────────┼────────┤
+   │ 1   │ 2026-05-14-user-login-feature.md       │ story │ User login   │ high   │
+   ├─────┼────────────────────────────────────────┼───────┼──────────────┼────────┤
+   │ 2   │ 2026-05-14-wechat-login-integration.md │ task  │ WeChat login │ high   │
+   └─────┴────────────────────────────────────────┴───────┴──────────────┴────────┘
 
-   Enter task numbers or filenames (e.g. 1,2 or all)
-   Enter none to skip — no tasks will be promoted.
+   Enter task numbers (e.g. 1,2,3 or all) to select tasks for push.
+   Enter none to skip — all tasks remain in draft status.
    ```
-
+   
    Replace `<platform>` with the value read from `.issuer/config.yml`. The agent then patches the frontmatter `status:` field of each chosen file from `draft` to `ready`. Files not selected stay `draft`.
 6. Update `.issuer/index.md` per the **Index upkeep** section below.
 
