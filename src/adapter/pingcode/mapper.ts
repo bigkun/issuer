@@ -140,8 +140,11 @@ function markdownToHtml(markdown: string): string {
   html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
-  // Ordered lists: 1. item
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  // Ordered lists: 1. item, 2. item, etc.
+  html = html.replace(/^\d+\. (.+)$/gm, '<oli>$1</oli>');
+  html = html.replace(/(<oli>.*<\/oli>\n?)+/g, '<ol>$&</ol>');
+  // Replace temporary <oli> with <li>
+  html = html.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>');
 
   // Horizontal rule: --- or ***
   html = html.replace(/^(---|\*\*\*)$/gm, '<hr>');
