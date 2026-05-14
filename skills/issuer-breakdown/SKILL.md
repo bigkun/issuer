@@ -342,6 +342,80 @@ platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
 
 **No extra configuration needed!**
 
+### Language preservation rules
+
+**CRITICAL**: ALL task file content MUST match the user's input language. Never auto-translate.
+
+#### Section headers
+
+- If user writes in **Chinese** → use Chinese section headers:
+  - `## 用户故事` (not `## User Story`)
+  - `## 验收标准` (not `## Acceptance Criteria`)
+  - `## 技术说明` (not `## Technical Notes`)
+  - `## 问题描述` (not `## Description`)
+  - `## 复现步骤` (not `## Reproduction Steps`)
+  - `## 预期行为` (not `## Expected Behavior`)
+  - `## 实际行为` (not `## Actual Behavior`)
+
+- If user writes in **English** → use English section headers:
+  - `## User Story`
+  - `## Acceptance Criteria`
+  - `## Technical Notes`
+  - `## Description`
+  - `## Reproduction Steps`
+  - `## Expected Behavior`
+  - `## Actual Behavior`
+
+- For **other languages** (Japanese, Korean, French, etc.) → use that language's natural section headers
+
+#### Content rules
+
+- **NEVER translate** user's requirement text, acceptance criteria, or technical notes
+- **NEVER auto-convert** between languages
+- Preserve the exact language from user's input throughout the entire task file
+- The `title` field already uses user's language (this is correct)
+- Only the section headers and content body need language preservation
+
+#### Examples
+
+**Chinese input** (正确示例):
+```markdown
+---
+title: 用户通过手机号登录家庭图书馆
+---
+
+## 用户故事
+
+作为一个家庭成员
+我想要通过手机号登录家庭图书馆小程序
+以便于访问和管理我的家庭图书收藏
+
+## 验收标准
+
+- [ ] 用户可以通过微信授权快速获取手机号并完成登录
+- [ ] 未注册用户首次登录时自动创建账户
+- [ ] 已注册用户登录后自动识别并关联已有账户
+```
+
+**English input** (correct example):
+```markdown
+---
+title: User login via phone number
+---
+
+## User Story
+
+As a family member
+I want to login via phone number
+So that I can access my family library
+
+## Acceptance Criteria
+
+- [ ] User can login via WeChat phone authorization
+- [ ] New users auto-create account on first login
+- [ ] Existing users auto-link to their account
+```
+
 ### Unsupported platforms
 
 For platforms not in the built-in list (GitHub, GitLab, Yunxiao, PingCode), the Generic style is used automatically.
