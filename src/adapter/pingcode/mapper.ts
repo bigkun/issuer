@@ -8,15 +8,17 @@
 import { Priority, WorkType } from '../../core/types';
 
 /**
- * PingCode work item type codes (public cloud)
- * @see https://pingcode.com/open-docs#tag/%E5%B7%A5%E4%BD%9C%E9%A1%B9%E7%B1%BB%E5%9E%8B
+ * PingCode work item type IDs (public cloud)
+ * These match the `id` field returned by GET /v1/project/work_item/types
+ * @see https://open.pingcode.com/#api-获取工作项类型列表
  */
 export const PINGCODE_WORKITEM_TYPES = {
   epic: 'epic',
   feature: 'feature',
-  story: 'user_story',
+  story: 'story',       // NOT 'user_story' - PingCode uses 'story' as the type_id
   task: 'task',
   bug: 'bug',
+  issue: 'issue',      // 事务 (kanban/hybrid)
 } as const;
 
 /**
@@ -44,13 +46,17 @@ export function pingCodeTypeToCategory(typeCode: string): WorkType {
   switch (typeCode) {
     case 'epic':
       return WorkType.Epic;
-    case 'user_story':
     case 'story':
+    case 'user_story':
       return WorkType.Story;
     case 'task':
       return WorkType.Task;
     case 'bug':
       return WorkType.Bug;
+    case 'feature':
+      return WorkType.Story;  // Map feature to story
+    case 'issue':
+      return WorkType.Task;   // Map issue (事务) to task
     default:
       return WorkType.Story;
   }
@@ -103,13 +109,23 @@ export function pingCodeToPriority(priorityCode: string): Priority | undefined {
 
 /**
  * Build PingCode create work item payload
+ *
+ * PingCode API field names (from official docs):
+ * - project_id: required, project ID
+ * - type_id: required, work item type identifier (e.g. "bug", "task", "user_story")
+ * - title: required, work item title
+ * - priority_id: optional, priority ID (needs lookup)
+ * - assignee_id: optional, assignee user ID
+ * - parent_id: optional, parent work item ID
+ * - description: optional, work item description
  */
 export function buildCreatePayload(issue: any): Record<string, unknown> {
   const payload: Record<string, unknown> = {
-    name: issue.title,
-    workitem_type: categoryToPingCodeType(issue.category),
-    priority: priorityToPingCode(issue.priority),
+    title: issue.title,
   };
+
+  // Note: project_id and type_id are set by the adapter at runtime
+  // (type_id requires lookup from project's work item type list)
 
   // Optional fields
   if (issue.body) {
@@ -117,48 +133,42 @@ export function buildCreatePayload(issue: any): Record<string, unknown> {
   }
 
   if (issue.assignee) {
-    payload.assignee = issue.assignee;
-  }
-
-  if (issue.labels && issue.labels.length > 0) {
-    payload.tags = issue.labels;
+    payload.assignee_id = issue.assignee;
   }
 
   if (issue.parentId) {
-    payload.parent = issue.parentId;
+    payload.parent_id = issue.parentId;
   }
+
+  // Note: PingCode does not have a 'tags' or 'labels' field.
+  // Labels are handled via properties or not supported directly.
+  // Skip issue.labels for now.
 
   return payload;
 }
 
 /**
  * Build PingCode update work item payload
+ *
+ * Uses same field names as create API.
  */
 export function buildUpdatePayload(updates: Record<string, unknown>): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
   if (updates.title !== undefined) {
-    payload.name = updates.title;
+    payload.title = updates.title;
   }
 
   if (updates.description !== undefined) {
     payload.description = updates.description;
   }
 
-  if (updates.priority !== undefined) {
-    payload.priority = priorityToPingCode(updates.priority as Priority);
-  }
-
   if (updates.assignee !== undefined) {
-    payload.assignee = updates.assignee;
+    payload.assignee_id = updates.assignee;
   }
 
   if (updates.status !== undefined) {
-    payload.status = updates.status;
-  }
-
-  if (updates.labels !== undefined) {
-    payload.tags = updates.labels;
+    payload.state_id = updates.status;
   }
 
   return payload;
@@ -166,20 +176,25 @@ export function buildUpdatePayload(updates: Record<string, unknown>): Record<str
 
 /**
  * Normalize PingCode API response to Issuer issue format
+ *
+ * PingCode response fields:
+ * - id, title, type_id, priority_id, state_id
+ * - assignee_id, parent_id, description
+ * - created_at, updated_at
  */
 export function normalizePingCodeIssue(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
     id: String(data.id || data.identifier || ''),
-    title: String(data.name || data.title || ''),
+    title: String(data.title || data.name || ''),
     description: String(data.description || ''),
-    category: pingCodeTypeToCategory(String(data.workitem_type || data.type || 'story')),
-    status: data.status ? String(data.status) : undefined,
-    priority: pingCodeToPriority(String(data.priority || '')),
-    assignee: data.assignee ? String(data.assignee) : undefined,
-    labels: Array.isArray(data.tags) ? data.tags : [],
-    parentId: data.parent ? String(data.parent) : undefined,
+    category: pingCodeTypeToCategory(String(data.type_id || data.workitem_type || data.type || 'story')),
+    status: data.state_id ? String(data.state_id) : (data.status ? String(data.status) : undefined),
+    priority: data.priority_id ? String(data.priority_id) : undefined,
+    assignee: data.assignee_id ? String(data.assignee_id) : (data.assignee ? String(data.assignee) : undefined),
+    labels: [],  // PingCode does not have a direct labels/tags field
+    parentId: data.parent_id ? String(data.parent_id) : (data.parent ? String(data.parent) : undefined),
     platformUrl: data.url ? String(data.url) : undefined,
     createdAt: data.created_at ? String(data.created_at) : undefined,
     updatedAt: data.updated_at ? String(data.updated_at) : undefined,

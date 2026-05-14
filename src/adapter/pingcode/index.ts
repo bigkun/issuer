@@ -56,6 +56,7 @@ interface ProjectInfo {
 
 interface PingCodeListResponse<T = unknown> {
   list: T[];
+  values?: T[];
   total?: number;
 }
 
@@ -87,6 +88,8 @@ export class PingCodeAdapter implements Adapter {
   
   /** Resolved project ID (from identifier) */
   private projectId: string | null = null;
+  /** Cached work item type mapping: name/id → type_id */
+  private workItemTypesCache: Map<string, string> | null = null;
 
   constructor(opts: PingCodeAdapterOptions) {
     this.token = opts.token;
@@ -168,6 +171,114 @@ export class PingCodeAdapter implements Adapter {
   }
 
   // -----------------------------------------------------------------------
+  // Work item type resolution (config-cached, like Yunxiao)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Ensure type_id is resolved for the given Issuer work type.
+   * Priority: in-memory cache > config.yml > API fetch
+   * On first API fetch, saves to config.yml for subsequent runs.
+   */
+  private async ensureTypeId(typeName: string): Promise<string> {
+    const pingCodeType = categoryToPingCodeType(typeName as any);
+
+    // 1. Check in-memory cache
+    if (this.workItemTypesCache?.has(pingCodeType)) {
+      return this.workItemTypesCache.get(pingCodeType)!;
+    }
+
+    // 2. Try loading from config.yml
+    if (!this.workItemTypesCache) {
+      const loaded = await this.loadWorkItemTypesFromConfig();
+      if (loaded && loaded.has(pingCodeType)) {
+        return loaded.get(pingCodeType)!;
+      }
+    }
+
+    // 3. Fetch from API and save to config
+    await this.fetchAndCacheWorkItemTypes();
+
+    // 4. Try again after fetch
+    if (this.workItemTypesCache?.has(pingCodeType)) {
+      return this.workItemTypesCache.get(pingCodeType)!;
+    }
+
+    // 5. Fallback: try common aliases
+    const aliases: Record<string, string[]> = {
+      story: ['user_story', 'req', 'requirement'],
+      bug: ['defect'],
+      task: ['todo'],
+      epic: ['feature'],
+    };
+
+    const aliasList = aliases[pingCodeType] || [];
+    for (const alias of [...aliasList, typeName]) {
+      if (this.workItemTypesCache?.has(alias)) {
+        return this.workItemTypesCache.get(alias)!;
+      }
+    }
+
+    throw new AdapterError(
+      this.name,
+      `Could not resolve type_id for '${typeName}' (mapped to '${pingCodeType}'). Available types: ${[...this.workItemTypesCache?.entries() || []].map(([k, v]) => `${k}=${v}`).join(', ')}`,
+    );
+  }
+
+  /**
+   * Load work item type mapping from config.yml
+   */
+  private async loadWorkItemTypesFromConfig(): Promise<Map<string, string> | null> {
+    try {
+      const config = await loadProjectConfig(this.projectRoot);
+      if (config.pingcode_workitem_types && Object.keys(config.pingcode_workitem_types).length > 0) {
+        this.workItemTypesCache = new Map(Object.entries(config.pingcode_workitem_types));
+        return this.workItemTypesCache;
+      }
+    } catch {
+      // Config not found, will fetch from API
+    }
+    return null;
+  }
+
+  /**
+   * Fetch work item types from API, cache in memory and save to config.yml
+   */
+  private async fetchAndCacheWorkItemTypes(): Promise<void> {
+    const projectId = await this.getProjectId();
+    const res = await this.request<PingCodeListResponse<PingCodeWorkItemType>>(
+      `/v1/project/work_item/types?project_id=${projectId}`,
+    );
+
+    this.workItemTypesCache = new Map();
+    const items = res.values || res.list || [];
+    const configMap: Record<string, string> = {};
+
+    for (const item of items) {
+      if (item.id) {
+        // id → id (PingCode type_id is the id itself)
+        this.workItemTypesCache.set(item.id, item.id);
+        configMap[item.id] = item.name || item.id;
+      }
+      if (item.name) {
+        // name → id (e.g. "用户故事" → "story")
+        this.workItemTypesCache.set(item.name, item.id);
+      }
+      if (item.identifier) {
+        this.workItemTypesCache.set(item.identifier, item.id);
+      }
+    }
+
+    // Save to config.yml for future runs
+    try {
+      saveProjectConfig(this.projectRoot, {
+        pingcode_workitem_types: configMap,
+      });
+    } catch (err: any) {
+      console.warn(` Warning: Could not save work item types to config: ${err.message}`);
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // HTTP helpers
   // -----------------------------------------------------------------------
 
@@ -191,9 +302,10 @@ export class PingCodeAdapter implements Adapter {
     });
 
     if (!res.ok) {
+      const errorBody = await res.text().catch(() => '');
       throw new AdapterError(
         this.name,
-        `API request failed: ${res.status} ${res.statusText}`,
+        `API request failed: ${res.status} ${res.statusText} - ${errorBody}`,
         { url, status: res.status },
       );
     }
@@ -207,10 +319,19 @@ export class PingCodeAdapter implements Adapter {
 
   async createIssue(task: TaskFile): Promise<{ id: string; url: string }> {
     const projectId = await this.getProjectId();
+    const typeId = await this.ensureTypeId(task.type || 'story');
     const payload = buildCreatePayload(task);
 
+    // PingCode requires project_id and type_id in the request body
+    payload.project_id = projectId;
+    payload.type_id = typeId;
+
+    // Debug: log request details
+    console.error(`[PingCode] POST /v1/project/work_items`);
+    console.error(`[PingCode] Payload: ${JSON.stringify(payload, null, 2)}`);
+
     const data = await this.request<Record<string, unknown>>(
-      `/v1/project/work_items?project_id=${projectId}`,
+      `/v1/project/work_items`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -325,7 +446,7 @@ export class PingCodeAdapter implements Adapter {
   async listWorkitemTypes(): Promise<{ id: string; name: string; category: string }[]> {
     const projectId = await this.getProjectId();
     const res = await this.request<PingCodeListResponse<PingCodeWorkItemType>>(
-      `/v1/project/work_item_types?project_id=${projectId}`,
+      `/v1/project/work_item/types?project_id=${projectId}`,
     );
 
     return (res.list || []).map((item) => ({

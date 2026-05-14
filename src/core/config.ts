@@ -26,6 +26,10 @@ export interface ProjectConfig {
   priority_field_map?: SeverityFieldMap;
   /** PingCode: project ID for API requests */
   pingcode_project_id?: string;
+  /** PingCode: work item type mapping (auto-fetched via ListWorkItemTypes, id→name) */
+  pingcode_workitem_types?: Record<string, string>;
+  /** PingCode: priority mapping (auto-fetched on first push, id→name) */
+  pingcode_priority_map?: Record<string, string>;
   /** Custom path for task files (default: .issuer/tasks) */
   tasks_dir?: string;
   /** Custom path for refine output (default: .issuer/refine) */
