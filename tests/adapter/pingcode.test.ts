@@ -134,8 +134,8 @@ describe('pingcode/mapper', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      // Markdown should be converted to HTML
-      expect(payload.description).toBe('<h2>Description</h2><br>This is a test.');
+      // Markdown should be converted to HTML, no <br> between tags
+      expect(payload.description).toBe('<h2>Description</h2>This is a test.');
     });
 
     it('does not include tags (PingCode has no tags field)', () => {
