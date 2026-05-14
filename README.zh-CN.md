@@ -193,7 +193,7 @@ issuer init -y --platform yunxiao --owner <organizationId> --repo <spaceIdentifi
 
 > **注意**：首次 `issuer push` 时，CLI 会自动通过 GetUserByToken API 获取您的用户 ID 并保存到 `.issuer/config.yml`。这需要「组织管理 - 用户」(只读) 权限。
 
-**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/search/read (3/5)。若 MCP 不可用，CLI 适配器使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 提供完整的 5/5 能力覆盖。
+**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/search/read (3/4)。若 MCP 不可用，CLI 适配器使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 提供完整的 4/4 能力覆盖。
 
 ### GitLab
 
@@ -204,7 +204,7 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 - `--owner` → GitLab 组或命名空间
 - `--repo` → GitLab 项目名称或 ID
 
-**MCP**：GitLab 内置 MCP 服务器（GitLab 18.6+，`https://<gitlab.example.com>/api/v4/mcp`）覆盖 create/search/read/comment (4/5)。若 MCP 不可用，CLI 适配器处理所有操作。
+**MCP**：GitLab 内置 MCP 服务器（GitLab 18.6+，`https://<gitlab.example.com>/api/v4/mcp`）覆盖 create/update/search/read (4/4)。若 MCP 不可用，CLI 适配器处理所有操作。
 
 ### PingCode
 
@@ -267,7 +267,7 @@ PingCode 支持两种访问令牌。两种都需要先创建应用：
 - 适配器首次使用时自动解析为项目 ID
 - 解析后的 ID 保存到 `.issuer/config.yml`，后续操作更快
 
-**MCP**：PingCode MCP Server 尚未推出。CLI 适配器使用 PingCode REST API，提供完整的功能覆盖（创建、更新、搜索、读取、注释）。
+**MCP**：PingCode MCP Server 尚未推出。CLI 适配器使用 PingCode REST API，提供完整的功能覆盖（创建、更新、搜索、读取）。
 
 ## 支持的 Agent
 
@@ -313,10 +313,10 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 
 | 平台 | MCP 可用性 | CLI 适配器 | 默认选择 |
 |---|---|---|---|
-| GitHub | 5/5（创建、更新、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
-| GitLab | 4/5（创建、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
-| 云效 | 3/5（创建、搜索、读取） | ✓ 完整 5/5（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
-| PingCode | —（MCP 开发中） | ✓ 完整 5/5（通过 REST API） | CLI 适配器 |
+| GitHub | 4/4（创建、更新、搜索、读取） | ✓ 完整 4/4 | MCP 可用时用 MCP，否则用 CLI |
+| GitLab | 4/4（创建、更新、搜索、读取） | ✓ 完整 4/4 | MCP 可用时用 MCP，否则用 CLI |
+| 云效 | 3/4（创建、搜索、读取） | ✓ 完整 4/4（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
+| PingCode | —（MCP 开发中） | ✓ 完整 4/4（通过 REST API） | CLI 适配器 |
 
 **通道选择逻辑**：
 1. **MCP 优先** — 若 MCP 已配置且满足最低要求（create + read），使用 MCP 通道

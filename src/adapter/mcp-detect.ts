@@ -15,8 +15,8 @@
 // Types
 // ---------------------------------------------------------------------------
 
-/** The five capability groups that issuer-sync depends on. */
-export type McpCapability = 'create' | 'update' | 'search' | 'read' | 'comment';
+/** The four capability groups that issuer-sync depends on. */
+export type McpCapability = 'create' | 'update' | 'search' | 'read';
 
 /** Sync channel type: MCP, CLI, or unsupported */
 export type SyncChannel = 'mcp' | 'cli' | 'unsupported';
@@ -55,10 +55,6 @@ const CAPABILITY_KEYWORDS: Record<McpCapability, { actions: string[]; objects: s
     actions: ['read', 'get', 'fetch', 'retrieve', 'show', 'view'],
     objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
   },
-  comment: {
-    actions: ['comment', 'reply', 'respond', 'add_comment', 'create_comment', 'note'],
-    objects: ['issue', 'workitem', 'work_item', 'item', 'ticket', 'task'],
-  },
 };
 
 /** Platform-specific tool name patterns for better detection. */
@@ -68,28 +64,24 @@ const PLATFORM_TOOL_PATTERNS: Record<string, Record<McpCapability, string[]>> = 
     update: ['update_work_item', 'edit_workitem'],
     search: ['search_work_items', 'list_workitems'],
     read: ['get_work_item', 'fetch_workitem'],
-    comment: ['add_comment', 'create_comment'],
   },
   yunxiao: {
     create: ['create_work_item'],
     update: ['update_work_item'],
     search: ['search_workitems'],
     read: ['get_work_item'],
-    comment: ['add_comment'],
   },
   github: {
     create: ['create_issue'],
     update: ['update_issue'],
     search: ['search_issues'],
     read: ['get_issue'],
-    comment: ['add_issue_comment'],
   },
   gitlab: {
     create: ['create_issue'],
     update: ['update_issue'],
     search: ['search_issues'],
     read: ['get_issue'],
-    comment: ['add_comment'],
   },
 };
 
@@ -110,7 +102,6 @@ export function detectCapabilitiesHeuristic(
     update: false,
     search: false,
     read: false,
-    comment: false,
   };
 
   // First check platform-specific patterns if available
@@ -246,7 +237,6 @@ export function formatCapabilitySummary(caps: McpCapabilities): string {
     update: 'update',
     search: 'search',
     read: 'read',
-    comment: 'comment',
   };
   const parts = (Object.entries(labels) as [McpCapability, string][]).map(([cap, label]) => {
     const available = caps.capabilities[cap];

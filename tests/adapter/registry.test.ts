@@ -60,12 +60,13 @@ describe('formatCapabilitySummary', () => {
       channel: 'mcp',
       probed_at: '2026-05-07T00:00:00Z',
       tools: ['create_issue'],
-      capabilities: { create: true, update: true, search: true, read: true, comment: true },
+      capabilities: { create: true, update: true, search: true, read: true },
     };
     const summary = formatCapabilitySummary(caps);
     expect(summary).toContain('create ✓');
     expect(summary).toContain('update ✓');
-    expect(summary).toContain('comment ✓');
+    expect(summary).toContain('search ✓');
+    expect(summary).toContain('read ✓');
   });
 
   it('formats partial capabilities', () => {
@@ -73,11 +74,12 @@ describe('formatCapabilitySummary', () => {
       channel: 'cli',
       probed_at: '2026-05-07T00:00:00Z',
       tools: ['create_work_item'],
-      capabilities: { create: true, update: false, search: true, read: true, comment: false },
+      capabilities: { create: true, update: false, search: true, read: true },
     };
     const summary = formatCapabilitySummary(caps);
     expect(summary).toContain('create ✓');
     expect(summary).toContain('update ✗');
-    expect(summary).toContain('comment ✗');
+    expect(summary).toContain('search ✓');
+    expect(summary).toContain('read ✓');
   });
 });

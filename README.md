@@ -194,7 +194,7 @@ Create a Personal Access Token at 云效 → 个人设置 → 个人访问令牌
 
 > **Note**: On first `issuer push`, the CLI automatically fetches your user ID via GetUserByToken API and saves it to `.issuer/config.yml`. This requires the 「组织管理 - 用户」(只读) permission.
 
-**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/5). If MCP is unavailable, the CLI adapter uses the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — providing full 5/5 capability coverage.
+**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/4). If MCP is unavailable, the CLI adapter uses the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — providing full 4/4 capability coverage.
 
 ### GitLab
 
@@ -205,7 +205,7 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 - `--owner` → GitLab group or namespace
 - `--repo` → GitLab project name or ID
 
-**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). If MCP is unavailable, the CLI adapter handles all operations.
+**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/update/search/read (4/4). If MCP is unavailable, the CLI adapter handles all operations.
 
 ### PingCode
 
@@ -270,7 +270,7 @@ PingCode supports two types of access tokens. Both require creating an applicati
 - The adapter automatically resolves it to a project ID on first use
 - The resolved ID is saved to `.issuer/config.yml` for faster subsequent operations
 
-**MCP**: PingCode MCP Server is not yet available. The CLI adapter uses PingCode REST API with full capability coverage (create, update, search, read, comment).
+**MCP**: PingCode MCP Server is not yet available. The CLI adapter uses PingCode REST API with full capability coverage (create, update, search, read).
 
 ## Supported Agents
 
@@ -316,10 +316,10 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 
 | Platform | MCP availability | CLI adapter | Default |
 |---|---|---|---|
-| GitHub | 5/5 (create, update, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
-| GitLab | 4/5 (create, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
-| 云效 (Yunxiao) | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
-| PingCode | — (MCP coming soon) | ✓ Full 5/5 (via REST API) | CLI adapter |
+| GitHub | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
+| GitLab | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
+| 云效 (Yunxiao) | 3/4 (create, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
+| PingCode | — (MCP coming soon) | ✓ Full 4/4 (via REST API) | CLI adapter |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
