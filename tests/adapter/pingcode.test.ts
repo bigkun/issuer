@@ -28,7 +28,8 @@ function makeTask(overrides: Partial<TaskFile> = {}): TaskFile {
     labels: ['feature'],
     created_at: '2026-05-06T10:00:00Z',
     updated_at: '2026-05-06T10:00:00Z',
-    body: '## Description\nThis is a test.',
+    body: `## Description
+This is a test.`,  // Use template literal with actual newline
     filePath: '/tmp/task-1.md',
     ...overrides,
   };
@@ -44,8 +45,8 @@ describe('pingcode/mapper', () => {
       expect(categoryToPingCodeType(WorkType.Epic)).toBe('epic');
     });
 
-    it('maps WorkType.Story to user_story', () => {
-      expect(categoryToPingCodeType(WorkType.Story)).toBe('user_story');
+    it('maps WorkType.Story to story', () => {
+      expect(categoryToPingCodeType(WorkType.Story)).toBe('story');
     });
 
     it('maps WorkType.Task to task', () => {
@@ -126,30 +127,30 @@ describe('pingcode/mapper', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      expect(payload.name).toBe('Test story');
-      expect(payload.workitem_type).toBe('user_story');
-      expect(payload.priority).toBe('high');
+      expect(payload.title).toBe('Test story');
+      // type_id is set by adapter at runtime via resolveTypeId()
     });
 
-    it('includes description if present', () => {
+    it('converts Markdown description to HTML', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      expect(payload.description).toBe('## Description\nThis is a test.');
+      // Markdown should be converted to HTML, plain text wrapped in <p>, no newlines
+      expect(payload.description).toBe('<h2>Description</h2><p>This is a test.</p>');
     });
 
-    it('includes labels if present', () => {
+    it('does not include tags (PingCode has no tags field)', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      expect(payload.tags).toEqual(['feature']);
+      expect(payload.tags).toBeUndefined();
     });
 
     it('includes parentId if present', () => {
       const task = makeTask({ platform_id: 'parent-123' });
       const payload = buildCreatePayload({ ...task, parentId: 'parent-123' });
 
-      expect(payload.parent).toBe('parent-123');
+      expect(payload.parent_id).toBe('parent-123');
     });
   });
 
@@ -157,7 +158,7 @@ describe('pingcode/mapper', () => {
     it('builds update payload with title', () => {
       const payload = buildUpdatePayload({ title: 'Updated title' });
 
-      expect(payload.name).toBe('Updated title');
+      expect(payload.title).toBe('Updated title');
     });
 
     it('builds update payload with description', () => {
@@ -166,16 +167,16 @@ describe('pingcode/mapper', () => {
       expect(payload.description).toBe('Updated desc');
     });
 
-    it('builds update payload with priority', () => {
-      const payload = buildUpdatePayload({ priority: Priority.Low });
+    it('builds update payload with assignee_id', () => {
+      const payload = buildUpdatePayload({ assignee: 'user-123' });
 
-      expect(payload.priority).toBe('low');
+      expect(payload.assignee_id).toBe('user-123');
     });
 
-    it('builds update payload with labels', () => {
-      const payload = buildUpdatePayload({ labels: ['bug', 'urgent'] });
+    it('builds update payload with state_id for status', () => {
+      const payload = buildUpdatePayload({ status: 'done' });
 
-      expect(payload.tags).toEqual(['bug', 'urgent']);
+      expect(payload.state_id).toBe('done');
     });
   });
 
@@ -183,12 +184,12 @@ describe('pingcode/mapper', () => {
     it('normalizes API response to Issuer format', () => {
       const data = {
         id: 'wi-123',
-        name: 'Test work item',
+        title: 'Test work item',
         description: 'Some description',
-        workitem_type: 'user_story',
-        status: 'in_progress',
-        priority: 'high',
-        tags: ['feature', 'api'],
+        type_id: 'user_story',
+        state_id: 'in_progress',
+        priority_id: 'priority-high',
+        assignee_id: 'user-1',
         url: 'https://pingcode.com/workitems/wi-123',
         created_at: '2026-05-06T10:00:00Z',
         updated_at: '2026-05-06T11:00:00Z',
@@ -201,15 +202,15 @@ describe('pingcode/mapper', () => {
       expect(normalized.description).toBe('Some description');
       expect(normalized.category).toBe(WorkType.Story);
       expect(normalized.status).toBe('in_progress');
-      expect(normalized.priority).toBe(Priority.High);
-      expect(normalized.labels).toEqual(['feature', 'api']);
+      expect(normalized.priority).toBe('priority-high');
+      expect(normalized.labels).toEqual([]);  // PingCode has no tags field
       expect(normalized.platformUrl).toBe('https://pingcode.com/workitems/wi-123');
     });
 
     it('handles missing optional fields', () => {
       const data = {
         id: 'wi-456',
-        name: 'Minimal item',
+        title: 'Minimal item',
       };
 
       const normalized = normalizePingCodeIssue(data);
@@ -250,9 +251,19 @@ describe('PingCodeAdapter', () => {
       ]
     };
     
+    const mockWorkItemTypes = {
+      values: [
+        { id: 'epic', name: '史诗', group: 'requirement' },
+        { id: 'feature', name: '特性', group: 'requirement' },
+        { id: 'story', name: '用户故事', group: 'requirement' },
+        { id: 'task', name: '任务', group: 'task' },
+        { id: 'bug', name: '缺陷', group: 'bug' },
+      ]
+    };
+
     const mockResponse = {
       id: 'wi-new-123',
-      url: 'https://open.pingcode.com/v1/workitems/workitems/wi-new-123',
+      url: 'https://open.pingcode.com/v1/project/work_items/wi-new-123',
     };
 
     const adapter = new PingCodeAdapter({
@@ -260,8 +271,9 @@ describe('PingCodeAdapter', () => {
       projectIdentifier: 'SCR',
       projectRoot: '/tmp',
       fetch: mockFetch([
-        { ok: true, json: mockProjectList },  // Project lookup
-        { ok: true, json: mockResponse }       // Create issue
+        { ok: true, json: mockProjectList },   // Project lookup
+        { ok: true, json: mockWorkItemTypes }, // Work item types lookup
+        { ok: true, json: mockResponse }        // Create issue
       ]),
     });
 
@@ -269,7 +281,7 @@ describe('PingCodeAdapter', () => {
     const result = await adapter.createIssue(task);
 
     expect(result.id).toBe('wi-new-123');
-    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-new-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/project/work_items/wi-new-123');
   });
 
   it('updates an issue', async () => {
@@ -284,7 +296,7 @@ describe('PingCodeAdapter', () => {
     const result = await adapter.updateIssue(task);
 
     expect(result.id).toBe('wi-existing-123');
-    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-existing-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/project/work_items/wi-existing-123');
   });
 
   it('throws error if update without platform_id', async () => {
@@ -303,10 +315,10 @@ describe('PingCodeAdapter', () => {
   it('gets an issue', async () => {
     const mockIssue = {
       id: 'wi-789',
-      name: 'Get test',
-      workitem_type: 'task',
-      status: 'done',
-      priority: 'medium',
+      title: 'Get test',
+      type_id: 'task',
+      state_id: 'done',
+      priority_id: 'priority-medium',
     };
 
     const adapter = new PingCodeAdapter({
@@ -347,8 +359,8 @@ describe('PingCodeAdapter', () => {
     
     const mockList = {
       list: [
-        { id: 'wi-1', name: 'Issue 1', workitem_type: 'story' },
-        { id: 'wi-2', name: 'Issue 2', workitem_type: 'bug' },
+        { id: 'wi-1', title: 'Issue 1', type_id: 'story' },
+        { id: 'wi-2', title: 'Issue 2', type_id: 'bug' },
       ],
       total: 2,
     };

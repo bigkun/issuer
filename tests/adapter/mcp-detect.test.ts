@@ -19,7 +19,6 @@ describe('detectCapabilitiesHeuristic', () => {
     expect(caps.update).toBe(true);
     expect(caps.search).toBe(true);
     expect(caps.read).toBe(true);
-    expect(caps.comment).toBe(true);
   });
 
   it('detects capabilities from Yunxiao MCP tools', () => {
@@ -30,7 +29,6 @@ describe('detectCapabilitiesHeuristic', () => {
     expect(caps.search).toBe(true);
     expect(caps.read).toBe(true);
     expect(caps.update).toBe(false);
-    expect(caps.comment).toBe(false);
   });
 
   it('detects capabilities from custom MCP with non-standard names', () => {
@@ -40,7 +38,6 @@ describe('detectCapabilitiesHeuristic', () => {
     expect(caps.create).toBe(true);
     expect(caps.search).toBe(true);
     expect(caps.read).toBe(true);
-    expect(caps.comment).toBe(true);
   });
 
   it('returns all false for unrelated tools', () => {

@@ -1,13 +1,13 @@
 # @issuer/cli
 
-> Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao.
+> Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao, PingCode.
 
 **English** | [中文](README.zh-CN.md)
 
 `issuer` is two thin layers stitched together:
 
 - **Skills** — Markdown contracts that constrain what your coding agent's AI does when it converts raw requirement text into structured PM work items. No AI lives inside `issuer` itself; the agent you already use provides it.
-- **CLI** — A small Node.js binary that owns the network edge: it pushes ready task files to GitHub / GitLab / 云效. The CLI never calls an LLM.
+- **CLI** — A small Node.js binary that owns the network edge: it pushes ready task files to GitHub / GitLab / 云效 / PingCode. The CLI never calls an LLM.
 
 ## Install
 
@@ -97,6 +97,7 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 | 云效 (Yunxiao) | Formal, structured | Given-When-Then format | ✅ Required |
 | GitHub | Casual, developer-friendly | Markdown checklist | ❌ Optional |
 | GitLab | Technical, precise | Checklist + technical notes | ❌ Optional |
+| PingCode | Structured, HTML-formatted | HTML checkbox list | ❌ Optional |
 
 **Key steps:**
 1. **Parse input** — identify work items (bug/story/task/epic)
@@ -193,7 +194,7 @@ Create a Personal Access Token at 云效 → 个人设置 → 个人访问令牌
 
 > **Note**: On first `issuer push`, the CLI automatically fetches your user ID via GetUserByToken API and saves it to `.issuer/config.yml`. This requires the 「组织管理 - 用户」(只读) permission.
 
-**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/5). If MCP is unavailable, the CLI adapter uses the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — providing full 5/5 capability coverage.
+**MCP**: 云效 MCP (`alibabacloud-devops-mcp-server`) currently covers create/search/read (3/4). If MCP is unavailable, the CLI adapter uses the 云效 OpenAPI at `openapi-rdc.aliyuncs.com` with `Bearer <PAT>` auth — providing full 4/4 capability coverage.
 
 ### GitLab
 
@@ -204,7 +205,7 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 - `--owner` → GitLab group or namespace
 - `--repo` → GitLab project name or ID
 
-**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). If MCP is unavailable, the CLI adapter handles all operations.
+**MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/update/search/read (4/4). If MCP is unavailable, the CLI adapter handles all operations.
 
 ### PingCode
 
@@ -217,19 +218,24 @@ issuer init -y --platform pingcode --repo SCR
 **Get your token**:
 
 PingCode supports two types of access tokens. Both require creating an application first:
+> **Admin Console** → **Applications** → **Credential Management**
 
 1. **Create an application** (required for both token types):
    - Go to: `https://<your-org>.pingcode.com/admin/application/custom`
    - Create a new application
-   - Select Auth method: **Authorization Code**
+   - Select Auth method:
+     - Enterprise Token: **Client Credentials**
+     - User Token: **Authorization Code**
    - Set permissions:
      - Project Management: **Read-only**
      - Work Items: **Read & Write**
+     - Project Configuration Center: **Read-only**
    - Note your `client_id` and `client_secret`
+   > **Authorization Code** requires configuring a **Callback URL**, which can be `http://localhost`, to obtain the **code**.
 
 2. **Obtain access token**:
    
-   **Enterprise Token** (recommended for automation):
+   **Enterprise Token**:
    ```
    GET https://open.pingcode.com/v1/auth/token
      ?grant_type=client_credentials
@@ -237,9 +243,14 @@ PingCode supports two types of access tokens. Both require creating an applicati
      &client_secret=YOUR_CLIENT_SECRET
    ```
    
-   **User Token** (for user-specific operations):
+   **User Token**:
    - Use OAuth 2.0 Authorization Code flow
-   - See: https://open.pingcode.com/#api-鉴权
+   - See: https://open.pingcode.com/#api-authentication
+   - Visit in browser: https://open.pingcode.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID
+   - Click **Authorize** and wait for redirect, get the **code** from `redirect_uri`
+   ```
+   https://open.pingcode.com/v1/auth/token?grant_type=authorization_code&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&code=YOUR_CODE
+   ```
 
 3. **Use the token**:
    ```bash
@@ -259,7 +270,7 @@ PingCode supports two types of access tokens. Both require creating an applicati
 - The adapter automatically resolves it to a project ID on first use
 - The resolved ID is saved to `.issuer/config.yml` for faster subsequent operations
 
-**MCP**: PingCode MCP support is coming soon. Currently uses CLI adapter with REST API.
+**MCP**: PingCode MCP Server is not yet available. The CLI adapter uses PingCode REST API with full capability coverage (create, update, search, read).
 
 ## Supported Agents
 
@@ -305,9 +316,10 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 
 | Platform | MCP availability | CLI adapter | Default |
 |---|---|---|---|
-| GitHub | 5/5 (create, update, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
-| GitLab | 4/5 (create, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
-| 云效 | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
+| GitHub | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
+| GitLab | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
+| 云效 (Yunxiao) | 4/4 (create, update, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
+| PingCode | — (MCP coming soon) | ✓ Full 4/4 (via REST API) | CLI adapter |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
@@ -326,6 +338,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via either channel |
 | GitLab | ✓ Tests pass | ✓ Tests pass | Either channel provides full capability |
 | 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
+| PingCode | — (coming soon) | ✓ All tests pass | CLI adapter provides full capability |
 
 Both channels are production-ready for all supported platforms.
 
@@ -393,7 +406,7 @@ Each task file is YAML frontmatter + Markdown body. See [docs/plans/2026-05-06-i
 
 ## Status
 
-MVP. GitHub, GitLab, 云效 (Yunxiao).
+MVP. GitHub, GitLab, 云效 (Yunxiao), PingCode.
 
 ## License
 

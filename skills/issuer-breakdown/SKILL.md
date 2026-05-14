@@ -342,9 +342,83 @@ platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
 
 **No extra configuration needed!**
 
+### Language preservation rules
+
+**CRITICAL**: ALL task file content MUST match the user's input language. Never auto-translate.
+
+#### Section headers
+
+- If user writes in **Chinese** → use Chinese section headers:
+  - `## 用户故事` (not `## User Story`)
+  - `## 验收标准` (not `## Acceptance Criteria`)
+  - `## 技术说明` (not `## Technical Notes`)
+  - `## 问题描述` (not `## Description`)
+  - `## 复现步骤` (not `## Reproduction Steps`)
+  - `## 预期行为` (not `## Expected Behavior`)
+  - `## 实际行为` (not `## Actual Behavior`)
+
+- If user writes in **English** → use English section headers:
+  - `## User Story`
+  - `## Acceptance Criteria`
+  - `## Technical Notes`
+  - `## Description`
+  - `## Reproduction Steps`
+  - `## Expected Behavior`
+  - `## Actual Behavior`
+
+- For **other languages** (Japanese, Korean, French, etc.) → use that language's natural section headers
+
+#### Content rules
+
+- **NEVER translate** user's requirement text, acceptance criteria, or technical notes
+- **NEVER auto-convert** between languages
+- Preserve the exact language from user's input throughout the entire task file
+- The `title` field already uses user's language (this is correct)
+- Only the section headers and content body need language preservation
+
+#### Examples
+
+**Chinese input** (正确示例):
+```markdown
+---
+title: 用户通过手机号登录家庭图书馆
+---
+
+## 用户故事
+
+作为一个家庭成员
+我想要通过手机号登录家庭图书馆小程序
+以便于访问和管理我的家庭图书收藏
+
+## 验收标准
+
+- [ ] 用户可以通过微信授权快速获取手机号并完成登录
+- [ ] 未注册用户首次登录时自动创建账户
+- [ ] 已注册用户登录后自动识别并关联已有账户
+```
+
+**English input** (correct example):
+```markdown
+---
+title: User login via phone number
+---
+
+## User Story
+
+As a family member
+I want to login via phone number
+So that I can access my family library
+
+## Acceptance Criteria
+
+- [ ] User can login via WeChat phone authorization
+- [ ] New users auto-create account on first login
+- [ ] Existing users auto-link to their account
+```
+
 ### Unsupported platforms
 
-For platforms not in the built-in list (GitHub, GitLab, Yunxiao), the Generic style is used automatically.
+For platforms not in the built-in list (GitHub, GitLab, Yunxiao, PingCode), the Generic style is used automatically.
 These platforms can still work via **MCP-first** approach:
 
 1. During `issuer init`, select "Other (MCP)" as the platform
@@ -435,28 +509,74 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
        - `low` - Cosmetic issue, minor inconvenience
      - Example: A typo on the homepage has `priority: low` but `severity: low`. A database corruption bug has `priority: critical` and `severity: critical`.
 4. Compute slug (see Slug rules), build frontmatter, write the file.
-5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt using the platform's native approval UI or this **exact template** (translate only the natural-language parts to match the user's interaction language):
+5. Print a numbered table of created files (in the user's interaction language), then present the approval prompt:
 
-   **Preferred: Use Agent's native approval UI** (if available):
-   - Display task list with checkboxes or selection UI
-   - Allow user to select which tasks to promote to `ready`
-   - Present "Confirm" / "Edit" / "Skip" actions
-   - On "Confirm" → patch selected files' `status:` from `draft` to `ready`
-   - On "Edit" → open selected task file(s) for modification
-   - On "Skip" → no tasks promoted, stop here
-
-   **Fallback: Text-based prompt**:
+   **Step 1: Output approval request in Agent UI format**
+   
+   Output the following JSON block wrapped in `<approval_request>` tags. This enables AI assistants to render native approval UI components:
+   
+   ```json
+   <approval_request>
+   {
+     "type": "task_approval",
+     "action": "set_ready",
+     "message": "Select tasks to set as ready and push to <platform>",
+     "tasks": [
+       {
+         "number": 1,
+         "file": "<filename>",
+         "type": "<type>",
+         "title": "<title>",
+         "priority": "<priority>"
+       }
+     ]
+   }
+   </approval_request>
+   ```
+   
+   **Step 2: AI assistant renders native approval UI**
+   
+   The AI assistant should:
+   - Parse the `<approval_request>` JSON
+   - Render as checkboxes or multi-select UI with task details
+   - Provide "Confirm", "Edit", or "Skip" actions
+   - On user selection, return response in this format:
+   ```json
+   <approval_response>
+   {
+     "type": "task_selection",
+     "selected": [1, 2, 3]  // array of selected task numbers, or "all" or "none"
+   }
+   </approval_response>
+   ```
+   
+   **Step 3: Apply user selection**
+   
+   Based on the `<approval_response>`:
+   - For each selected task number: patch the file's `status:` from `draft` to `ready`
+   - For "all": patch all tasks to `ready`
+   - For "none" or "Skip": no tasks promoted, stop here
+   - For "Edit": open the selected task file(s) for modification
+   
+   **Fallback: Text-based interaction** (if Agent UI not available)
+   
+   If the environment doesn't support Agent UI (e.g., plain terminal), use this text prompt:
+   
    ```
    Select tasks to set as ready and push to <platform>:
 
-   #  File                        Title
-   1  2026-05-07-login-error.md   Fix login validation error
-   2  2026-05-07-add-oauth.md     Add OAuth2 support
+   ┌─────┬────────────────────────────────────────┬───────┬──────────────┬────────┐
+   │  #  │                  File                  │ Type  │    Title     │Priority│
+   ├─────┼────────────────────────────────────────┼───────┼──────────────┼────────┤
+   │ 1   │ 2026-05-14-user-login-feature.md       │ story │ User login   │ high   │
+   ├─────┼────────────────────────────────────────┼───────┼──────────────┼────────┤
+   │ 2   │ 2026-05-14-wechat-login-integration.md │ task  │ WeChat login │ high   │
+   └─────┴────────────────────────────────────────┴───────┴──────────────┴────────┘
 
-   Enter task numbers or filenames (e.g. 1,2 or all)
-   Enter none to skip — no tasks will be promoted.
+   Enter task numbers (e.g. 1,2,3 or all) to select tasks for push.
+   Enter none to skip — all tasks remain in draft status.
    ```
-
+   
    Replace `<platform>` with the value read from `.issuer/config.yml`. The agent then patches the frontmatter `status:` field of each chosen file from `draft` to `ready`. Files not selected stay `draft`.
 6. Update `.issuer/index.md` per the **Index upkeep** section below.
 

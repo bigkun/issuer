@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { TaskStore } from '../core/task-store.js';
 import { serializeTaskFile } from '../core/task-file.js';
 import { Status, TaskFile } from '../core/types.js';
-import { loadProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
+import { loadProjectConfig, saveProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
 import { loadCache, saveCache, needsRefresh } from '../core/cache.js';
 import { findSimilarIssues, type MatchResult } from '../core/similarity.js';
 import { REMOTE_STATE_OPEN } from '../core/constants.js';
@@ -36,6 +36,11 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   // Use CLI-provided dedupConfig if available, otherwise use config file defaults
   const dedup = opts.dedupConfig ?? cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
 
+  // PingCode: Check project type on first push
+  if (cfg.platform === 'pingcode' && !cfg.pingcode_project_type) {
+    await ensurePingCodeProjectType(opts.cwd, opts.adapter, cfg);
+  }
+
   const store = new TaskStore(opts.cwd, {
     tasksDir: cfg.tasks_dir,
   });
@@ -58,9 +63,13 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       cache.owner === cfg.owner && 
       cache.repo === cfg.repo;
     
-    if (!cacheValid || needsRefresh(opts.cwd, dedup.ttl_hours)) {
+    // Force refresh if cache is empty (likely first time or data loss)
+    const forceRefresh = cacheValid && (!cache?.issues || cache.issues.length === 0);
+    
+    if (!cacheValid || needsRefresh(opts.cwd, dedup.ttl_hours) || forceRefresh) {
       console.log('Refreshing issue cache from platform...');
       cacheIssues = await opts.adapter.listRemote();
+      console.log(`Fetched ${cacheIssues.length} remote issues`);
       saveCache(opts.cwd, {
         platform: cfg.platform,
         owner: cfg.owner,
@@ -86,18 +95,31 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
       if (matches.length > 0) {
         duplicates.push({ task, matches });
         
+        // Log duplicate detection scores
+        console.log(`\n⚠️  Duplicate detected for: "${task.title}"`);
+        console.log(`   Found ${matches.length} similar issue(s):`);
+        for (const match of matches.slice(0, 3)) {  // Show top 3 matches
+          console.log(`   - "${match.issue.title}" (score: ${(match.score * 100).toFixed(1)}%, id: ${match.issue.id})`);
+        }
+        if (matches.length > 3) {
+          console.log(`   ... and ${matches.length - 3} more`);
+        }
+        
         // Handle based on on_match strategy
         if (dedup.on_match === 'skip') {
           // Auto-skip duplicates
+          console.log(`   → Auto-skipped (on_match: skip)`);
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;
         } else if (dedup.on_match === 'upload') {
           // Auto-upload duplicates (force upload)
+          console.log(`   → Force uploading (on_match: upload)`);
           duplicateUploaded.push(task);
           // Fall through to upload logic below
         } else {
           // on_match: 'prompt' - skip upload temporarily, let CLI handle user interaction
+          console.log(`   → Skipped for user review (on_match: prompt)`);
           skipped.push(task);
           duplicateSkipped.push(task);
           continue;
@@ -141,4 +163,40 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   }
 
   return { created, updated, skipped, duplicates, duplicateUploaded, duplicateSkipped };
+}
+
+/**
+ * Ensure PingCode project type is detected and cached on first push.
+ * Checks task types against available work item types and warns on mismatch.
+ */
+async function ensurePingCodeProjectType(
+  cwd: string,
+  adapter: Adapter,
+  cfg: any,
+): Promise<void> {
+  // Only for PingCode adapter
+  if (adapter.name !== 'pingcode') return;
+
+  // Try to get project type from adapter
+  const adapterAny = adapter as any;
+  if (typeof adapterAny.getProjectType !== 'function') return;
+
+  try {
+    const projectType = await adapterAny.getProjectType();
+    if (!projectType) return;
+
+    // Save to config
+    saveProjectConfig(cwd, {
+      pingcode_project_type: projectType,
+    });
+
+    console.log(`\n Detected PingCode project type: ${projectType}`);
+
+    // If waterfall, warn about type mapping
+    if (projectType === 'waterfall') {
+      console.log(' Note: In waterfall projects, "story" type maps to "需求" (requirement).');
+    }
+  } catch {
+    // Ignore errors, will be resolved during type_id lookup
+  }
 }

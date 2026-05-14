@@ -26,6 +26,12 @@ export interface ProjectConfig {
   priority_field_map?: SeverityFieldMap;
   /** PingCode: project ID for API requests */
   pingcode_project_id?: string;
+  /** PingCode: project type (scrum/kanban/waterfall/hybrid, auto-detected on first push) */
+  pingcode_project_type?: string;
+  /** PingCode: work item type mapping (auto-fetched via ListWorkItemTypes, id→name) */
+  pingcode_workitem_types?: Record<string, string>;
+  /** PingCode: priority mapping (auto-fetched on first push, id→name) */
+  pingcode_priority_map?: Record<string, string>;
   /** Custom path for task files (default: .issuer/tasks) */
   tasks_dir?: string;
   /** Custom path for refine output (default: .issuer/refine) */
@@ -170,9 +176,15 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     throw new ConfigError(`${cfgPath} must contain a mapping`);
   }
   const data = raw as Record<string, unknown>;
-  for (const f of ['platform', 'owner', 'repo'] as const) {
+  for (const f of ['platform', 'repo'] as const) {
     if (typeof data[f] !== 'string' || !data[f]) {
       throw new ConfigError(`${cfgPath}: '${f}' must be a non-empty string`);
+    }
+  }
+  // owner is required for most platforms, but PingCode allows empty owner
+  if (data.platform !== 'pingcode') {
+    if (typeof data.owner !== 'string' || !data.owner) {
+      throw new ConfigError(`${cfgPath}: 'owner' must be a non-empty string`);
     }
   }
   const labels = data.default_labels;

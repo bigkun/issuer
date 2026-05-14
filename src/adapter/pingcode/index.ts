@@ -48,6 +48,7 @@ interface ProjectInfo {
   identifier: string;
   name: string;
   url: string;
+  project_type?: string;  // scrum/kanban/waterfall/hybrid
 }
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,7 @@ interface ProjectInfo {
 
 interface PingCodeListResponse<T = unknown> {
   list: T[];
+  values?: T[];
   total?: number;
 }
 
@@ -87,6 +89,10 @@ export class PingCodeAdapter implements Adapter {
   
   /** Resolved project ID (from identifier) */
   private projectId: string | null = null;
+  /** Project type: scrum/kanban/waterfall/hybrid */
+  private projectType: string | null = null;
+  /** Cached work item type mapping: name/id → type_id */
+  private workItemTypesCache: Map<string, string> | null = null;
 
   constructor(opts: PingCodeAdapterOptions) {
     this.token = opts.token;
@@ -109,6 +115,7 @@ export class PingCodeAdapter implements Adapter {
       const config = await loadProjectConfig(this.projectRoot);
       if (config.pingcode_project_id) {
         this.projectId = config.pingcode_project_id;
+        this.projectType = config.pingcode_project_type || null;
         return this.projectId;
       }
     } catch {
@@ -117,6 +124,15 @@ export class PingCodeAdapter implements Adapter {
 
     // 3. Resolve via API and save to config
     return this.resolveAndCacheProjectId();
+  }
+
+  /**
+   * Get project type (scrum/kanban/waterfall/hybrid)
+   * Lazy-loaded: triggers getProjectId() if not yet resolved
+   */
+  async getProjectType(): Promise<string | null> {
+    await this.getProjectId();  // Ensure project is resolved
+    return this.projectType;
   }
 
   /**
@@ -139,31 +155,161 @@ export class PingCodeAdapter implements Adapter {
       );
     }
 
-    const data = await res.json() as { list: ProjectInfo[] };
+    const data = await res.json() as { values?: ProjectInfo[]; list?: ProjectInfo[] };
     
-    if (!data.list || data.list.length === 0) {
+    // PingCode API returns 'values' field, not 'list'
+    const projects = data.values || data.list || [];
+    
+    if (projects.length === 0) {
       throw new AdapterError(
         this.name,
         `Project with identifier '${this.projectIdentifier}' not found`,
       );
     }
 
-    const projectId = data.list[0].id;
+    const projectId = projects[0].id;
+    const projectType = projects[0].project_type || null;
+    
     this.projectId = projectId;
+    this.projectType = projectType;
 
     // Save to config.yml for future use
     try {
       saveProjectConfig(this.projectRoot, {
         pingcode_project_id: projectId,
+        ...(projectType && { pingcode_project_type: projectType }),
       });
-      console.log(`✓ Resolved project identifier '${this.projectIdentifier}' → ID: ${projectId}`);
-      console.log(`  → Saved to .issuer/config.yml\n`);
     } catch (err: any) {
       // Don't fail if config save fails, just warn
-      console.warn(`⚠ Warning: Could not save project ID to config: ${err.message}`);
+      console.warn(` Warning: Could not save project config: ${err.message}`);
     }
 
     return projectId;
+  }
+
+  // -----------------------------------------------------------------------
+  // Work item type resolution (config-cached, like Yunxiao)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Ensure type_id is resolved for the given Issuer work type.
+   * Priority: in-memory cache > config.yml > API fetch
+   * On first API fetch, saves to config.yml for subsequent runs.
+   */
+  private async ensureTypeId(typeName: string): Promise<string> {
+    const pingCodeType = categoryToPingCodeType(typeName as any);
+
+    // 1. Check in-memory cache
+    if (this.workItemTypesCache?.has(pingCodeType)) {
+      return this.workItemTypesCache.get(pingCodeType)!;
+    }
+
+    // 2. Try loading from config.yml
+    if (!this.workItemTypesCache) {
+      const loaded = await this.loadWorkItemTypesFromConfig();
+      if (loaded && loaded.has(pingCodeType)) {
+        return loaded.get(pingCodeType)!;
+      }
+    }
+
+    // 3. Fetch from API and save to config
+    await this.fetchAndCacheWorkItemTypes();
+
+    // 4. Try again after fetch
+    if (this.workItemTypesCache?.has(pingCodeType)) {
+      return this.workItemTypesCache.get(pingCodeType)!;
+    }
+
+    // 5. Fallback: try common aliases and Chinese names
+    // Different PingCode project types have different type IDs:
+    // - scrum/kanban/hybrid: story, task, bug, epic, feature
+    // - waterfall: 需求 (UUID), 任务 (task), 缺陷 (bug), 阶段 (UUID), 里程碑 (UUID)
+    // Use project type to prioritize the right alias
+    const isWaterfall = this.projectType === 'waterfall';
+    
+    const aliases: Record<string, string[]> = {
+      story: isWaterfall
+        ? ['\u9700\u6C42', 'user_story', 'req', 'requirement']  // Waterfall: try 需求 first
+        : ['user_story', 'req', 'requirement', '\u9700\u6C42'],  // Scrum/Kanban: try story first
+      bug: ['defect', '\u7F3A\u9677'],
+      task: ['todo', '\u4EFB\u52A1'],
+      epic: ['feature', '\u53F2\u8BD7'],
+    };
+
+    const aliasList = aliases[pingCodeType] || [];
+    for (const alias of [...aliasList, typeName]) {
+      if (this.workItemTypesCache?.has(alias)) {
+        return this.workItemTypesCache.get(alias)!;
+      }
+    }
+
+    throw new AdapterError(
+      this.name,
+      `Could not resolve type_id for '${typeName}' (mapped to '${pingCodeType}'). Available types: ${[...this.workItemTypesCache?.entries() || []].map(([k, v]) => `${k}=${v}`).join(', ')}`,
+    );
+  }
+
+  /**
+   * Load work item type mapping from config.yml
+   * Config stores id → name, but we need bidirectional lookup (id → id, name → id)
+   */
+  private async loadWorkItemTypesFromConfig(): Promise<Map<string, string> | null> {
+    try {
+      const config = await loadProjectConfig(this.projectRoot);
+      if (config.pingcode_workitem_types && Object.keys(config.pingcode_workitem_types).length > 0) {
+        this.workItemTypesCache = new Map();
+        for (const [id, name] of Object.entries(config.pingcode_workitem_types)) {
+          // id → id (self-mapping, used as type_id in API calls)
+          this.workItemTypesCache.set(id, id);
+          // name → id (e.g. "需求" → "6a02bbcc22c14c324d4a1199")
+          if (name && name !== id) {
+            this.workItemTypesCache.set(name, id);
+          }
+        }
+        return this.workItemTypesCache;
+      }
+    } catch {
+      // Config not found, will fetch from API
+    }
+    return null;
+  }
+
+  /**
+   * Fetch work item types from API, cache in memory and save to config.yml
+   */
+  private async fetchAndCacheWorkItemTypes(): Promise<void> {
+    const projectId = await this.getProjectId();
+    const res = await this.request<PingCodeListResponse<PingCodeWorkItemType>>(
+      `/v1/project/work_item/types?project_id=${projectId}`,
+    );
+
+    this.workItemTypesCache = new Map();
+    const items = res.values || res.list || [];
+    const configMap: Record<string, string> = {};
+
+    for (const item of items) {
+      if (item.id) {
+        // id → id (PingCode type_id is the id itself)
+        this.workItemTypesCache.set(item.id, item.id);
+        configMap[item.id] = item.name || item.id;
+      }
+      if (item.name) {
+        // name → id (e.g. "用户故事" → "story")
+        this.workItemTypesCache.set(item.name, item.id);
+      }
+      if (item.identifier) {
+        this.workItemTypesCache.set(item.identifier, item.id);
+      }
+    }
+
+    // Save to config.yml for future runs
+    try {
+      saveProjectConfig(this.projectRoot, {
+        pingcode_workitem_types: configMap,
+      });
+    } catch (err: any) {
+      console.warn(` Warning: Could not save work item types to config: ${err.message}`);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -190,11 +336,11 @@ export class PingCodeAdapter implements Adapter {
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
+      const errorBody = await res.text().catch(() => '');
       throw new AdapterError(
         this.name,
-        `API request failed: ${res.status} ${res.statusText}`,
-        { url, status: res.status, body },
+        `API request failed: ${res.status} ${res.statusText} - ${errorBody}`,
+        { url, status: res.status },
       );
     }
 
@@ -207,18 +353,24 @@ export class PingCodeAdapter implements Adapter {
 
   async createIssue(task: TaskFile): Promise<{ id: string; url: string }> {
     const projectId = await this.getProjectId();
+    const typeId = await this.ensureTypeId(task.type || 'story');
     const payload = buildCreatePayload(task);
 
+    // PingCode requires project_id and type_id in the request body
+    payload.project_id = projectId;
+    payload.type_id = typeId;
+
     const data = await this.request<Record<string, unknown>>(
-      `/v1/workitems/workitems?project_id=${projectId}`,
+      `/v1/project/work_items`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
       },
     );
 
-    const id = String(data.id || '');
-    const url = String(data.url || `${this.apiRoot}/v1/workitems/workitems/${id}`);
+    // PingCode returns: short_id = platform_id, html_url = platform_url
+    const id = String(data.short_id || data.id || '');
+    const url = String(data.html_url || data.url || `${this.apiRoot}/v1/project/work_items/${id}`);
 
     return { id, url };
   }
@@ -239,20 +391,20 @@ export class PingCodeAdapter implements Adapter {
     });
 
     await this.request<void>(
-      `/v1/workitems/workitems/${task.platform_id}`,
+      `/v1/project/work_items/${task.platform_id}`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
       },
     );
 
-    return { id: task.platform_id, url: `${this.apiRoot}/v1/workitems/workitems/${task.platform_id}` };
+    return { id: task.platform_id, url: `${this.apiRoot}/v1/project/work_items/${task.platform_id}` };
   }
 
   async getIssue(issueId: string): Promise<RemoteIssue | null> {
     try {
       const data = await this.request<Record<string, unknown>>(
-        `/v1/workitems/workitems/${issueId}`,
+        `/v1/project/work_items/${issueId}`,
       );
 
       if (!data || !data.id) return null;
@@ -263,7 +415,7 @@ export class PingCodeAdapter implements Adapter {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     } catch (err: any) {
@@ -307,16 +459,16 @@ export class PingCodeAdapter implements Adapter {
     params.set('per_page', String(pageSize));
 
     const res = await this.request<PingCodeListResponse<Record<string, unknown>>>(
-      `/v1/workitems/workitems?${params.toString()}`,
+      `/v1/project/work_items?${params.toString()}`,
     );
 
-    return (res.list || []).map((item) => {
+    return (res.values || res.list || []).map((item) => {
       const normalized = normalizePingCodeIssue(item);
       return {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     });
@@ -325,7 +477,7 @@ export class PingCodeAdapter implements Adapter {
   async listWorkitemTypes(): Promise<{ id: string; name: string; category: string }[]> {
     const projectId = await this.getProjectId();
     const res = await this.request<PingCodeListResponse<PingCodeWorkItemType>>(
-      `/v1/workitems/workitem_types?project_id=${projectId}`,
+      `/v1/project/work_item/types?project_id=${projectId}`,
     );
 
     return (res.list || []).map((item) => ({
@@ -352,19 +504,9 @@ export class PingCodeAdapter implements Adapter {
     return this.listRemote({ title });
   }
 
-  async addComment(issueId: string, comment: string): Promise<void> {
-    await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/comments`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ content: comment }),
-      },
-    );
-  }
-
   async setParent(issueId: string, parentId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/parent`,
+      `/v1/project/work_items/${issueId}/parent`,
       {
         method: 'PUT',
         body: JSON.stringify({ parent_id: parentId }),
@@ -374,7 +516,7 @@ export class PingCodeAdapter implements Adapter {
 
   async removeParent(issueId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/parent`,
+      `/v1/project/work_items/${issueId}/parent`,
       {
         method: 'DELETE',
       },
@@ -383,7 +525,7 @@ export class PingCodeAdapter implements Adapter {
 
   async addLink(issueId: string, targetId: string, linkType: string = 'relates'): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/links`,
+      `/v1/project/work_items/${issueId}/links`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -396,7 +538,7 @@ export class PingCodeAdapter implements Adapter {
 
   async removeLink(issueId: string, targetId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/links/${targetId}`,
+      `/v1/project/work_items/${issueId}/links/${targetId}`,
       {
         method: 'DELETE',
       },
@@ -421,7 +563,7 @@ export class PingCodeAdapter implements Adapter {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     });

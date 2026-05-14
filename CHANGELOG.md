@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🎉 Major Features
 
 #### MCP-First Architecture & Multi-Platform Support
-- **Generic Platform Support**: Added support for any MCP-compatible platform beyond built-in GitHub, GitLab, Yunxiao
+- **Generic Platform Support**: Added support for any MCP-compatible platform beyond built-in GitHub, GitLab, Yunxiao, PingCode
 - **MCP-First Architecture**: Updated all CLI descriptions to emphasize infinite extensibility via MCP
 - **Adapter Factory Functions**: Added factory functions for cleaner adapter instantiation
 - **Platform Style Integration**: Platform-specific breakdown styles now embedded in SKILL.md for zero-configuration breakdown

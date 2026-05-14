@@ -8,10 +8,11 @@ import {
 } from '../../src/adapter/registry.js';
 
 describe('CLI_ADAPTER_PLATFORMS', () => {
-  it('contains github, gitlab and yunxiao', () => {
+  it('contains github, gitlab, yunxiao and pingcode', () => {
     expect(CLI_ADAPTER_PLATFORMS).toContain('github');
     expect(CLI_ADAPTER_PLATFORMS).toContain('gitlab');
     expect(CLI_ADAPTER_PLATFORMS).toContain('yunxiao');
+    expect(CLI_ADAPTER_PLATFORMS).toContain('pingcode');
   });
 });
 
@@ -59,12 +60,13 @@ describe('formatCapabilitySummary', () => {
       channel: 'mcp',
       probed_at: '2026-05-07T00:00:00Z',
       tools: ['create_issue'],
-      capabilities: { create: true, update: true, search: true, read: true, comment: true },
+      capabilities: { create: true, update: true, search: true, read: true },
     };
     const summary = formatCapabilitySummary(caps);
     expect(summary).toContain('create ✓');
     expect(summary).toContain('update ✓');
-    expect(summary).toContain('comment ✓');
+    expect(summary).toContain('search ✓');
+    expect(summary).toContain('read ✓');
   });
 
   it('formats partial capabilities', () => {
@@ -72,11 +74,12 @@ describe('formatCapabilitySummary', () => {
       channel: 'cli',
       probed_at: '2026-05-07T00:00:00Z',
       tools: ['create_work_item'],
-      capabilities: { create: true, update: false, search: true, read: true, comment: false },
+      capabilities: { create: true, update: false, search: true, read: true },
     };
     const summary = formatCapabilitySummary(caps);
     expect(summary).toContain('create ✓');
     expect(summary).toContain('update ✗');
-    expect(summary).toContain('comment ✗');
+    expect(summary).toContain('search ✓');
+    expect(summary).toContain('read ✓');
   });
 });

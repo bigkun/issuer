@@ -4,7 +4,6 @@ import { ConfigError } from '../core/errors.js';
 import { loadProjectConfig, resolveToken, validateToken, writeCredentialsFile, findTokenSource } from '../core/config.js';
 import { createAdapter } from '../adapter/factory.js';
 import type { Adapter } from '../adapter/interface.js';
-import { fetchPingCodeToken } from '../adapter/pingcode/token-helper.js';
 
 export interface AuthOptions {
   cwd: string;
@@ -45,29 +44,6 @@ export async function runAuth(opts: AuthOptions): Promise<AuthResult> {
     if (existing) {
       console.log(`Found ${platform} credentials from ${existing.source}`);
       token = existing.token;
-    }
-  }
-  
-  // For PingCode, if no token exists, prompt for client_id and client_secret to fetch token
-  if (!token && platform === 'pingcode' && !opts.nonInteractive) {
-    console.log('\nPingCode requires an access token. You can obtain it using your application credentials.');
-    const clientId = await input({ message: 'Enter PingCode Client ID' });
-    const clientSecret = await input({ 
-      message: 'Enter PingCode Client Secret',
-      transformer: (val) => '*'.repeat(val.length), // Hide input
-    });
-    
-    console.log('\nFetching access token from PingCode...');
-    try {
-      const tokenResponse = await fetchPingCodeToken({ clientId, clientSecret });
-      token = tokenResponse.access_token;
-      console.log('✓ Successfully obtained access token\n');
-    } catch (err: any) {
-      return {
-        platform,
-        valid: false,
-        error: `Failed to fetch token: ${err.message}`,
-      };
     }
   }
   

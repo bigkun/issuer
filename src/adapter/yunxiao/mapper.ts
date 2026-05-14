@@ -77,18 +77,6 @@ export function taskToUpdateBody(task: TaskFile): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
-// CreateWorkitemComment request body - 新版 API 格式
-// ---------------------------------------------------------------------------
-
-/** Build a comment body (新版 API). */
-export function taskToCommentBody(
-  workitemIdentifier: string,
-  content: string,
-): { content: string } {
-  return { content };
-}
-
-// ---------------------------------------------------------------------------
 // API response shapes - 新版 API 格式
 // ---------------------------------------------------------------------------
 
@@ -120,13 +108,6 @@ export interface YunxiaoCreateResponse {
 
 /** 新版 SearchWorkitems 返回数组 */
 export type YunxiaoSearchResponse = YunxiaoWorkitem[];
-
-/** 新版 CreateWorkitemComment 返回 { id } */
-export interface YunxiaoCommentResponse {
-  id?: string;
-  errorMsg?: string;
-  errorCode?: string;
-}
 
 /** GetUserByToken 返回用户信息 */
 export interface YunxiaoUserResponse {
