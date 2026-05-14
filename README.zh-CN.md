@@ -1,13 +1,13 @@
 # @issuer/cli
 
-> 技能驱动的项目管理网关。拆解需求 → 通过 MCP 同步到任意平台。内置支持：GitHub、GitLab、云效。
+> 技能驱动的项目管理网关。拆解需求 → 通过 MCP 同步到任意平台。内置支持：GitHub、GitLab、云效、PingCode。
 
 [English](README.md) | **中文**
 
 `issuer` 由两个精简层组成：
 
 - **技能 (Skills)** — Markdown 契约，约束编码 Agent 的 AI 如何将原始需求文本转换为结构化的 PM 工作项。`issuer` 本身不包含任何 AI；您已使用的 Agent 提供 AI 能力。
-- **CLI** — 一个小型 Node.js 二进制文件，负责网络交互：将准备好的任务文件推送到 GitHub / GitLab / 云效。CLI 从不调用 LLM。
+- **CLI** — 一个小型 Node.js 二进制文件，负责网络交互：将准备好的任务文件推送到 GitHub / GitLab / 云效 / PingCode。CLI 从不调用 LLM。
 
 ## 安装
 
@@ -393,7 +393,7 @@ Issuer 使用启发式功能检测，通过关键字匹配：
 
 ## 状态
 
-MVP。支持 GitHub、GitLab、云效 (Yunxiao)。
+MVP。支持 GitHub、GitLab、云效 (Yunxiao)、PingCode。
 
 ## 许可证
 

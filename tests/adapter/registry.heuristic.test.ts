@@ -182,10 +182,11 @@ describe('capabilitiesFromProbe', () => {
 });
 
 describe('CLI_ADAPTER_PLATFORMS', () => {
-  it('contains github, gitlab, yunxiao', () => {
+  it('contains github, gitlab, yunxiao and pingcode', () => {
     expect(CLI_ADAPTER_PLATFORMS).toContain('github');
     expect(CLI_ADAPTER_PLATFORMS).toContain('gitlab');
     expect(CLI_ADAPTER_PLATFORMS).toContain('yunxiao');
+    expect(CLI_ADAPTER_PLATFORMS).toContain('pingcode');
   });
 });
 

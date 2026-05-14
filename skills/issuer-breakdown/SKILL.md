@@ -344,7 +344,7 @@ platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
 
 ### Unsupported platforms
 
-For platforms not in the built-in list (GitHub, GitLab, Yunxiao), the Generic style is used automatically.
+For platforms not in the built-in list (GitHub, GitLab, Yunxiao, PingCode), the Generic style is used automatically.
 These platforms can still work via **MCP-first** approach:
 
 1. During `issuer init`, select "Other (MCP)" as the platform

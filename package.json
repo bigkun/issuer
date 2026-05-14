@@ -1,7 +1,7 @@
 {
   "name": "@issuer/cli",
   "version": "0.2.2",
-  "description": "Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao.",
+  "description": "Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao, PingCode.",
   "type": "module",
   "bin": {
     "issuer": "dist/index.js"

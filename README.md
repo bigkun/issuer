@@ -1,13 +1,13 @@
 # @issuer/cli
 
-> Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao.
+> Skill-driven PM gateway. Breakdown requirements → sync to any platform via MCP. Built-in: GitHub, GitLab, Yunxiao, PingCode.
 
 **English** | [中文](README.zh-CN.md)
 
 `issuer` is two thin layers stitched together:
 
 - **Skills** — Markdown contracts that constrain what your coding agent's AI does when it converts raw requirement text into structured PM work items. No AI lives inside `issuer` itself; the agent you already use provides it.
-- **CLI** — A small Node.js binary that owns the network edge: it pushes ready task files to GitHub / GitLab / 云效. The CLI never calls an LLM.
+- **CLI** — A small Node.js binary that owns the network edge: it pushes ready task files to GitHub / GitLab / 云效 / PingCode. The CLI never calls an LLM.
 
 ## Install
 
@@ -393,7 +393,7 @@ Each task file is YAML frontmatter + Markdown body. See [docs/plans/2026-05-06-i
 
 ## Status
 
-MVP. GitHub, GitLab, 云效 (Yunxiao).
+MVP. GitHub, GitLab, 云效 (Yunxiao), PingCode.
 
 ## License
 

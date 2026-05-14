@@ -14,12 +14,12 @@ Best practice templates for each platform's work items, serving as reference for
 
 issuer uses a unified `type` field; each platform adapter handles the mapping:
 
-| issuer `type` | GitHub label     | GitLab label         | Yunxiao category |
-|---------------|------------------|----------------------|------------------|
-| `bug`         | `type:bug`       | `type::bug`          | `Bug`            |
-| `story`       | `type:feature`   | `type::feature`      | `Req`            |
-| `task`        | `type:chore`     | `type::maintenance`  | `Task`           |
-| `epic`        | `type:epic`      | `type::epic`         | Theme (custom)   |
+| issuer `type` | GitHub label     | GitLab label         | Yunxiao category | PingCode type  |
+|---------------|------------------|----------------------|------------------|----------------|
+| `bug`         | `type:bug`       | `type::bug`          | `Bug`            | `bug`          |
+| `story`       | `type:feature`   | `type::feature`      | `Req`            | `story`/`需求` |
+| `task`        | `type:chore`     | `type::maintenance`  | `Task`           | `task`         |
+| `epic`        | `type:epic`      | `type::epic`         | Theme (custom)   | `epic`/`阶段`  |
 
 ## Template Design Principles
 

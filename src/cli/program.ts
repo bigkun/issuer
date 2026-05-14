@@ -35,7 +35,7 @@ export function buildProgram() {
   program
     .command('init')
     .description('Initialise .issuer/ in the current project')
-    .option('--platform <platform>', 'platform id (github, gitlab, yunxiao, or any MCP platform)')
+    .option('--platform <platform>', 'platform id (github, gitlab, yunxiao, pingcode, or any MCP platform)')
     .option('--owner <owner>', 'platform owner / org')
     .option('--repo <repo>', 'platform repo name')
     .option('--token <token>', 'platform authentication token')

@@ -2,7 +2,7 @@
 
 ## 文档用途
 
-本文档对 GitHub、GitLab、云效（Yunxiao）、Jira 四大项目管理平台的核心概念进行系统性对比，为 Issuer 各平台适配器的设计与实现提供统一参考。
+本文档对 GitHub、GitLab、云效（Yunxiao）、PingCode 四大项目管理平台的核心概念进行系统性对比，为 Issuer 各平台适配器的设计与实现提供统一参考。
 
 ---
 
@@ -10,15 +10,15 @@
 
 ### 1.1 各平台工作项类型一览
 
-| 概念 | GitHub | GitLab | 云效 (Yunxiao) | Jira |
-|------|--------|--------|---------------|------|
-| 最高层级目标 | —（无内置） | Epic（可嵌套7层） | 主题 (Theme) | Initiative（Premium）|
-| 大型业务目标 | Issue (label:epic) | Epic | 业务需求 | Epic |
-| 用户需求 | Issue (label:feature) | Issue | 产品需求 | Story |
+| 概念 | GitHub | GitLab | 云效 (Yunxiao) | PingCode |
+|------|--------|--------|---------------|----------|
+| 最高层级目标 | —（无内置） | Epic（可嵌套7层） | 主题 (Theme) | Epic/阶段 |
+| 大型业务目标 | Issue (label:epic) | Epic | 业务需求 | Epic/Feature |
+| 用户需求 | Issue (label:feature) | Issue | 产品需求 | Story/需求 |
 | 具体任务 | Issue (label:task) | Task | 任务 | Task |
 | 子任务 | Sub-issue | Task（Issue子项） | 子任务 | Sub-task |
 | 缺陷 | Issue (label:bug) | Issue (label:bug) | 缺陷 | Bug |
-| 测试用例 | —（无内置） | Test Case | 测试用例 (Testhub) | —（需插件） |
+| 测试用例 | —（无内置） | Test Case | 测试用例 (Testhub) | 测试用例（需插件） |
 | OKR | —（无内置） | Objective / Key Result | — | — |
 
 ### 1.2 层级结构对比
@@ -47,24 +47,24 @@ Epic (最多嵌套7层)
               └── 缺陷
 ```
 
-**Jira：**
+**PingCode：**
 ```
-Initiative (Premium/Enterprise)
-  └── Epic
-        ├── Story
-        │     └── Sub-task
-        ├── Task
-        │     └── Sub-task
-        └── Bug
-              └── Sub-task
+Epic (史诗/阶段)
+  └── Feature (特性)
+        └── Story (用户故事/需求)
+              ├── Task (任务)
+              │     └── Sub-task (子任务)
+              └── Bug (缺陷)
 ```
+
+> **Note**: PingCode supports multiple project types (Scrum/Kanban/Waterfall/Hybrid). Waterfall projects use Chinese type names (需求, 阶段, 里程碑).
 
 ### 1.3 Issuer 统一模型映射总览
 
-| Issuer 类型 | GitHub 映射 | GitLab 映射 | 云效映射 | Jira 映射 |
-|-------------|------------|------------|---------|----------|
-| **Epic** | Issue (type:Epic 或 label:epic) | Epic | 主题 或 业务需求 | Epic |
-| **Story** | Issue (type:Feature 或 label:feature) | Issue | 产品需求 | Story |
+| Issuer 类型 | GitHub 映射 | GitLab 映射 | 云效映射 | PingCode 映射 |
+|-------------|------------|------------|---------|---------------|
+| **Epic** | Issue (type:Epic 或 label:epic) | Epic | 主题 或 业务需求 | Epic/阶段 |
+| **Story** | Issue (type:Feature 或 label:feature) | Issue | 产品需求 | Story/需求 |
 | **Task** | Issue (type:Task 或 label:task) | Task | 任务 | Task |
 | **Bug** | Issue (type:Bug 或 label:bug) | Issue (label:bug) | 缺陷 | Bug |
 | **Sub-task** | Sub-issue | Task (子项) | 子任务 | Sub-task |
