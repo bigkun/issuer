@@ -290,7 +290,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         channel: 'cli',
         probed_at: new Date().toISOString(),
         tools: [],
-        capabilities: { create: false, update: false, search: false, read: false, comment: false },
+        capabilities: { create: false, update: false, search: false, read: false },
       };
       syncChannel = 'cli';
     } else {
@@ -299,7 +299,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         channel: 'unsupported',
         probed_at: new Date().toISOString(),
         tools: [],
-        capabilities: { create: false, update: false, search: false, read: false, comment: false },
+        capabilities: { create: false, update: false, search: false, read: false },
       };
       syncChannel = 'unsupported';
     }
@@ -331,7 +331,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   console.log(`\nPlatform: ${platform} (sync channel: ${syncChannel})`);
   console.log(formatCapabilitySummary(mcp_capabilities));
   if (syncChannel === 'mcp') {
-    const gaps = (['create', 'update', 'search', 'read', 'comment'] as const)
+    const gaps = (['create', 'update', 'search', 'read'] as const)
       .filter((c) => !mcp_capabilities.capabilities[c]);
     if (gaps.length > 0) {
       console.log(`\n⚠ ${gaps.join(', ')} not available via MCP — use CLI adapter instead.`);
