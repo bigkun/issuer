@@ -318,7 +318,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 |---|---|---|---|
 | GitHub | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
 | GitLab | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
-| 云效 (Yunxiao) | 3/4 (create, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
+| 云效 (Yunxiao) | 4/4 (create, update, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
 | PingCode | — (MCP coming soon) | ✓ Full 4/4 (via REST API) | CLI adapter |
 
 **Channel selection logic**:

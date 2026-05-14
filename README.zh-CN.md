@@ -193,7 +193,7 @@ issuer init -y --platform yunxiao --owner <organizationId> --repo <spaceIdentifi
 
 > **注意**：首次 `issuer push` 时，CLI 会自动通过 GetUserByToken API 获取您的用户 ID 并保存到 `.issuer/config.yml`。这需要「组织管理 - 用户」(只读) 权限。
 
-**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/search/read (3/4)。若 MCP 不可用，CLI 适配器使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 提供完整的 4/4 能力覆盖。
+**MCP**：云效 MCP (`alibabacloud-devops-mcp-server`) 目前覆盖 create/update/search/read (4/4)。若 MCP 不可用，CLI 适配器使用 `Bearer <PAT>` 身份验证调用云效 OpenAPI `openapi-rdc.aliyuncs.com` — 提供完整的 4/4 能力覆盖。
 
 ### GitLab
 
