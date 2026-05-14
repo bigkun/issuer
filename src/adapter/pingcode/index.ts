@@ -360,10 +360,6 @@ export class PingCodeAdapter implements Adapter {
     payload.project_id = projectId;
     payload.type_id = typeId;
 
-    // Debug: log request details
-    console.error(`[PingCode] POST /v1/project/work_items`);
-    console.error(`[PingCode] Payload: ${JSON.stringify(payload, null, 2)}`);
-
     const data = await this.request<Record<string, unknown>>(
       `/v1/project/work_items`,
       {
