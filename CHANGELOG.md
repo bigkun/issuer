@@ -5,6 +5,78 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-14
+
+### 🎉 Major Features
+
+#### PingCode Platform Support
+- **PingCode Adapter**: Added full PingCode public cloud REST API adapter with token-based authentication
+- **Init Integration**: Added PingCode as 4th built-in platform in `issuer init` (alongside GitHub, GitLab, Yunxiao)
+- **HTML Format Conversion**: Automatic Markdown to HTML conversion for PingCode descriptions
+- **Project Type Detection**: Auto-detect and cache PingCode project type (Req/Bug/Task/Epic) on first push
+- **Platform-Specific MCP Detection**: Added PingCode tool name patterns for MCP capability detection
+
+#### Language Preservation
+- **Task Content Language**: Task files now preserve user's input language for all content
+- **Dynamic Section Headers**: Section headers automatically match user's language (Chinese: 用户故事/验收标准, English: User Story/Acceptance Criteria)
+- **Multi-Language Support**: Added support for Chinese, English, Japanese, Korean, French and other languages
+- **No Auto-Translation**: Prevented AI from auto-translating task content
+
+### 🔧 Improvements
+
+#### Yunxiao MCP Coverage
+- **Update Support**: Yunxiao MCP now supports `update_work_item` tool
+- **Full 4/4 Coverage**: Upgraded from 3/4 to 4/4 capabilities (create, update, search, read)
+
+#### Code Cleanup
+- **Comment Removal**: Removed `comment` capability from MCP/CLI capability model (5→4 capabilities)
+- **Adapter Cleanup**: Removed `addComment()` method from all platform adapters (PingCode, GitLab, Yunxiao)
+- **Token Helper**: Removed unused `token-helper.ts` from PingCode adapter
+- **Auth Simplification**: Removed `client_id`/`client_secret` prompts from auth command
+- **Debug Logs**: Cleaned up all debug logs from PingCode adapter and dedup logic
+
+#### Bug Fixes
+- **PingCode API Endpoints**: Corrected to `/v1/project/work_items` (was incorrect path)
+- **Platform ID/URL**: Fixed to use `short_id` and `html_url` for PingCode
+- **Dedup Cache**: Fixed `listRemote` to read `values` field for proper duplicate detection
+- **HTML Conversion**: 
+  - Preserved `\n` line breaks in PingCode HTML
+  - Removed extra `<br>` tags between HTML elements
+  - Wrapped plain text in `<p>` tags
+  - Fixed ordered list conversion
+- **Config Loading**: Fixed waterfall project type support and config loading
+- **Built-in Platforms**: Added pingcode to `BUILT_IN_PLATFORMS` to prevent owner prompt
+
+#### Agent UI Enhancement
+- **Breakdown Approval**: Added Agent UI approval protocol to breakdown skill
+
+### 📚 Documentation
+
+- **README Updates**: 
+  - Added PingCode to all platform tables and setup guides
+  - Synced English README with Chinese version (PingCode OAuth details)
+  - Corrected PingCode MCP availability status (coming soon)
+  - Updated Yunxiao MCP coverage to 4/4
+- **SKILL.md Updates**:
+  - Removed comment capability from issuer-sync SKILL.md
+  - Added language preservation rules to issuer-breakdown SKILL.md
+  - Updated capability counts (5/5 → 4/4) across all documentation
+- **Platform Analysis**: Added comprehensive PingCode platform analysis and adapter design reference
+
+### 📦 Technical Details
+
+#### Breaking Changes
+- **Capability Model**: Reduced from 5 to 4 capabilities (removed `comment`)
+  - Old: `create | update | search | read | comment`
+  - New: `create | update | search | read`
+- **Adapter Interface**: Removed `addComment()` method from all adapters
+- **Config Structure**: `mcp_capabilities.capabilities` no longer includes `comment` field
+
+#### Migration Guide
+- Re-initialize config if you have existing `comment: false` in capabilities (not required but recommended)
+- Update any custom code that calls `adapter.addComment()` (method removed)
+- Update capability checks from 5-field to 4-field model
+
 ## [0.2.1] - 2026-05-13
 
 ### 🎉 Major Features
