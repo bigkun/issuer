@@ -37,7 +37,7 @@ export interface InitResult {
 }
 
 // Platforms with built-in adapters (CLI fallback available)
-const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao'];
+const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao', 'pingcode'];
 
 /**
  * 检查指定 Agent 目录是否已安装 issuer skills
