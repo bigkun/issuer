@@ -48,6 +48,7 @@ interface ProjectInfo {
   identifier: string;
   name: string;
   url: string;
+  project_type?: string;  // scrum/kanban/waterfall/hybrid
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,8 @@ export class PingCodeAdapter implements Adapter {
   
   /** Resolved project ID (from identifier) */
   private projectId: string | null = null;
+  /** Project type: scrum/kanban/waterfall/hybrid */
+  private projectType: string | null = null;
   /** Cached work item type mapping: name/id → type_id */
   private workItemTypesCache: Map<string, string> | null = null;
 
@@ -112,6 +115,7 @@ export class PingCodeAdapter implements Adapter {
       const config = await loadProjectConfig(this.projectRoot);
       if (config.pingcode_project_id) {
         this.projectId = config.pingcode_project_id;
+        this.projectType = config.pingcode_project_type || null;
         return this.projectId;
       }
     } catch {
@@ -120,6 +124,15 @@ export class PingCodeAdapter implements Adapter {
 
     // 3. Resolve via API and save to config
     return this.resolveAndCacheProjectId();
+  }
+
+  /**
+   * Get project type (scrum/kanban/waterfall/hybrid)
+   * Lazy-loaded: triggers getProjectId() if not yet resolved
+   */
+  async getProjectType(): Promise<string | null> {
+    await this.getProjectId();  // Ensure project is resolved
+    return this.projectType;
   }
 
   /**
@@ -155,16 +168,20 @@ export class PingCodeAdapter implements Adapter {
     }
 
     const projectId = projects[0].id;
+    const projectType = projects[0].project_type || null;
+    
     this.projectId = projectId;
+    this.projectType = projectType;
 
     // Save to config.yml for future use
     try {
       saveProjectConfig(this.projectRoot, {
         pingcode_project_id: projectId,
+        ...(projectType && { pingcode_project_type: projectType }),
       });
     } catch (err: any) {
       // Don't fail if config save fails, just warn
-      console.warn(` Warning: Could not save project ID to config: ${err.message}`);
+      console.warn(` Warning: Could not save project config: ${err.message}`);
     }
 
     return projectId;
@@ -207,11 +224,16 @@ export class PingCodeAdapter implements Adapter {
     // Different PingCode project types have different type IDs:
     // - scrum/kanban/hybrid: story, task, bug, epic, feature
     // - waterfall: 需求 (UUID), 任务 (task), 缺陷 (bug), 阶段 (UUID), 里程碑 (UUID)
+    // Use project type to prioritize the right alias
+    const isWaterfall = this.projectType === 'waterfall';
+    
     const aliases: Record<string, string[]> = {
-      story: ['user_story', 'req', 'requirement', '\u9700\u6C42'],  // 需求 = waterfall equivalent of story
-      bug: ['defect', '\u7F3A\u9677'],                              // 缺陷
-      task: ['todo', '\u4EFB\u52A1'],                              // 任务
-      epic: ['feature', '\u53F2\u8BD7'],                           // 史诗
+      story: isWaterfall
+        ? ['\u9700\u6C42', 'user_story', 'req', 'requirement']  // Waterfall: try 需求 first
+        : ['user_story', 'req', 'requirement', '\u9700\u6C42'],  // Scrum/Kanban: try story first
+      bug: ['defect', '\u7F3A\u9677'],
+      task: ['todo', '\u4EFB\u52A1'],
+      epic: ['feature', '\u53F2\u8BD7'],
     };
 
     const aliasList = aliases[pingCodeType] || [];

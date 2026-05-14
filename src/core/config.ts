@@ -26,6 +26,8 @@ export interface ProjectConfig {
   priority_field_map?: SeverityFieldMap;
   /** PingCode: project ID for API requests */
   pingcode_project_id?: string;
+  /** PingCode: project type (scrum/kanban/waterfall/hybrid, auto-detected on first push) */
+  pingcode_project_type?: string;
   /** PingCode: work item type mapping (auto-fetched via ListWorkItemTypes, id→name) */
   pingcode_workitem_types?: Record<string, string>;
   /** PingCode: priority mapping (auto-fetched on first push, id→name) */
