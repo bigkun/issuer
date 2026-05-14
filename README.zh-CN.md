@@ -267,7 +267,7 @@ PingCode 支持两种访问令牌。两种都需要先创建应用：
 - 适配器首次使用时自动解析为项目 ID
 - 解析后的 ID 保存到 `.issuer/config.yml`，后续操作更快
 
-**MCP**：支持 PingCode MCP Server。如果未配置 MCP 或缺少 `create` + `read` 能力，issuer 会自动回退到 CLI 适配器 + REST API。
+**MCP**：PingCode MCP Server 尚未推出。CLI 适配器使用 PingCode REST API，提供完整的功能覆盖（创建、更新、搜索、读取、注释）。
 
 ## 支持的 Agent
 
@@ -316,6 +316,7 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 | GitHub | 5/5（创建、更新、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
 | GitLab | 4/5（创建、搜索、读取、注释） | ✓ 完整 5/5 | MCP 可用时用 MCP，否则用 CLI |
 | 云效 | 3/5（创建、搜索、读取） | ✓ 完整 5/5（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
+| PingCode | —（MCP 开发中） | ✓ 完整 5/5（通过 REST API） | CLI 适配器 |
 
 **通道选择逻辑**：
 1. **MCP 优先** — 若 MCP 已配置且满足最低要求（create + read），使用 MCP 通道
@@ -334,6 +335,7 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 | GitHub | ✓ 所有测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
 | GitLab | ✓ 测试通过 | ✓ 测试通过 | 任一通道均完整 5/5 |
 | 云效 (Yunxiao) | ✓ 测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
+| PingCode | —（开发中） | ✓ 所有测试通过 | CLI 适配器提供完整功能 |
 
 两个通道对各支持的平台都处于生产就绪状态。
 

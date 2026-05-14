@@ -270,7 +270,7 @@ PingCode supports two types of access tokens. Both require creating an applicati
 - The adapter automatically resolves it to a project ID on first use
 - The resolved ID is saved to `.issuer/config.yml` for faster subsequent operations
 
-**MCP**: PingCode MCP Server support is available. If MCP is not configured or lacks `create` + `read` capabilities, issuer automatically falls back to CLI adapter with REST API.
+**MCP**: PingCode MCP Server is not yet available. The CLI adapter uses PingCode REST API with full capability coverage (create, update, search, read, comment).
 
 ## Supported Agents
 
@@ -319,7 +319,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitHub | 5/5 (create, update, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
 | GitLab | 4/5 (create, search, read, comment) | ✓ Full 5/5 | MCP when available, CLI otherwise |
 | 云效 (Yunxiao) | 3/5 (create, search, read) | ✓ Full 5/5 (via OpenAPI) | MCP when available, CLI otherwise |
-| PingCode | ✓ Full 5/5 | ✓ Full 5/5 (via REST API) | MCP when available, CLI otherwise |
+| PingCode | — (MCP coming soon) | ✓ Full 5/5 (via REST API) | CLI adapter |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
@@ -338,7 +338,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitHub | ✓ All tests pass | ✓ All tests pass | Full 5/5 via either channel |
 | GitLab | ✓ Tests pass | ✓ Tests pass | Either channel provides full capability |
 | 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
-| PingCode | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
+| PingCode | — (coming soon) | ✓ All tests pass | CLI adapter provides full capability |
 
 Both channels are production-ready for all supported platforms.
 
