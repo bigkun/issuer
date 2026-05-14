@@ -126,22 +126,13 @@ export class PingCodeAdapter implements Adapter {
     const url = new URL(`${this.apiRoot}/v1/project/projects`);
     url.searchParams.set('identifier', this.projectIdentifier);
 
-    console.log(`\n🔍 [PingCode Debug] Resolving project identifier...`);
-    console.log(`   Identifier: ${this.projectIdentifier}`);
-    console.log(`   API URL: ${url.toString()}`);
-    console.log(`   Token: ${this.token.substring(0, 20)}...`);
-
     const res = await this.httpFetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${this.token}`,
       },
     });
 
-    console.log(`   Response Status: ${res.status} ${res.statusText}`);
-    
     if (!res.ok) {
-      const errorBody = await res.text().catch(() => '');
-      console.log(`   Response Body: ${errorBody}`);
       throw new AdapterError(
         this.name,
         `Failed to resolve project identifier: ${res.status}`,
@@ -149,13 +140,11 @@ export class PingCodeAdapter implements Adapter {
     }
 
     const data = await res.json() as { values?: ProjectInfo[]; list?: ProjectInfo[] };
-    console.log(`   Response Data:`, JSON.stringify(data, null, 2));
     
     // PingCode API returns 'values' field, not 'list'
     const projects = data.values || data.list || [];
     
     if (projects.length === 0) {
-      console.log(`   ❌ No projects found with identifier '${this.projectIdentifier}'`);
       throw new AdapterError(
         this.name,
         `Project with identifier '${this.projectIdentifier}' not found`,
@@ -164,14 +153,12 @@ export class PingCodeAdapter implements Adapter {
 
     const projectId = projects[0].id;
     this.projectId = projectId;
-    console.log(`   ✓ Found project: ${projects[0].name} (ID: ${projectId})`);
 
     // Save to config.yml for future use
     try {
       saveProjectConfig(this.projectRoot, {
         pingcode_project_id: projectId,
       });
-      console.log(`   → Saved to .issuer/config.yml\n`);
     } catch (err: any) {
       // Don't fail if config save fails, just warn
       console.warn(` Warning: Could not save project ID to config: ${err.message}`);
@@ -198,25 +185,16 @@ export class PingCodeAdapter implements Adapter {
       Object.assign(headers, options.headers);
     }
 
-    console.log(`\n [PingCode API] ${options.method || 'GET'} ${url}`);
-    if (options.body) {
-      console.log(`   Request Body: ${options.body}`);
-    }
-
     const res = await this.httpFetch(url, {
       ...options,
       headers,
     });
 
-    console.log(`   Response Status: ${res.status} ${res.statusText}`);
-
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.log(`   Error Response: ${body}`);
       throw new AdapterError(
         this.name,
         `API request failed: ${res.status} ${res.statusText}`,
-        { url, status: res.status, body },
+        { url, status: res.status },
       );
     }
 
@@ -327,10 +305,6 @@ export class PingCodeAdapter implements Adapter {
     const pageSize = options?.pageSize ?? 50;
     params.set('page', String(page));
     params.set('per_page', String(pageSize));
-
-    console.log(`\n📋 [PingCode API] List Work Items`);
-    console.log(`   URL: ${this.apiRoot}/v1/project/work_items`);
-    console.log(`   Params: ${params.toString()}`);
 
     const res = await this.request<PingCodeListResponse<Record<string, unknown>>>(
       `/v1/project/work_items?${params.toString()}`,
