@@ -169,19 +169,4 @@ describe('GitLabAdapter', () => {
     expect(items[0].id).toBe('1');
     expect(items[1].id).toBe('2');
   });
-
-  it('addComment calls IssueNotes.create', async () => {
-    const client = makeMockClient({
-      comment: [{ id: 99, body: 'A comment' }],
-    });
-    const adapter = new GitLabAdapter({
-      token: 'glpat-test',
-      owner: 'org',
-      repo: 'proj',
-      client,
-    });
-
-    // Should not throw
-    await adapter.addComment(7, 'A comment');
-  });
 });

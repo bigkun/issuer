@@ -4,7 +4,6 @@ import {
   priorityToFieldValue,
   taskToCreateBody,
   taskToUpdateBody,
-  taskToCommentBody,
   workitemToRemote,
 } from '../../src/adapter/yunxiao/mapper.js';
 import { TaskFile, WorkType, Status, Priority } from '../../src/core/types.js';
@@ -68,11 +67,6 @@ describe('yunxiao/mapper', () => {
     const body = taskToUpdateBody(task);
     expect(body.subject).toBe('Test story');
     expect(body.description).toBe('## Description\nThis is a test.');
-  });
-
-  it('builds comment body (新版 API 格式)', () => {
-    const body = taskToCommentBody('wi-123', 'Hello world');
-    expect(body.content).toBe('Hello world');
   });
 
   it('converts workitem to RemoteIssue (新版 API 格式)', () => {
@@ -213,30 +207,6 @@ describe('YunxiaoAdapter', () => {
     const items = await adapter.listRemote();
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe('wi-1');
-  });
-
-  it('addComment sends POST and succeeds', async () => {
-    const adapter = new YunxiaoAdapter({
-      ...opts,
-      fetch: mockFetch([{
-        ok: true,
-        json: { id: 'comment-42' },  // 新版 API 返回 { id }
-      }]),
-    });
-
-    await expect(adapter.addComment('wi-1', 'A comment')).resolves.toBeUndefined();
-  });
-
-  it('addComment throws on API error', async () => {
-    const adapter = new YunxiaoAdapter({
-      ...opts,
-      fetch: mockFetch([{
-        ok: true,
-        json: { errorMsg: 'no perm', errorCode: 'Openapi.RequestError' },
-      }]),
-    });
-
-    await expect(adapter.addComment('wi-1', 'fail')).rejects.toThrow('addComment failed');
   });
 });
 

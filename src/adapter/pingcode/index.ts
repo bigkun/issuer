@@ -504,16 +504,6 @@ export class PingCodeAdapter implements Adapter {
     return this.listRemote({ title });
   }
 
-  async addComment(issueId: string, comment: string): Promise<void> {
-    await this.request<void>(
-      `/v1/project/work_items/${issueId}/comments`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ content: comment }),
-      },
-    );
-  }
-
   async setParent(issueId: string, parentId: string): Promise<void> {
     await this.request<void>(
       `/v1/project/work_items/${issueId}/parent`,

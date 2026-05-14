@@ -22,7 +22,6 @@ import {
   findRequiredFieldDefault,
   YunxiaoCreateResponse,
   YunxiaoSearchResponse,
-  YunxiaoCommentResponse,
   YunxiaoUserResponse,
   YunxiaoWorkitemType,
   FieldConfigResponse,
@@ -543,24 +542,6 @@ export class YunxiaoAdapter implements Adapter {
     }
 
     return items;
-  }
-
-  // -----------------------------------------------------------------------
-  // addComment → POST /oapi/v1/projex/organizations/{orgId}/workitems/{id}/comments
-  // -----------------------------------------------------------------------
-
-  async addComment(workitemIdentifier: string, content: string): Promise<void> {
-    const body = { content };
-    const path = this.apiPath(`/organizations/${this.organizationId}/workitems/${workitemIdentifier}/comments`);
-
-    const res = await this.request<YunxiaoCommentResponse>('POST', path, body);
-
-    if (!res.id) {
-      throw new AdapterError(
-        `addComment failed: ${res.errorMsg ?? res.errorCode ?? 'unknown'}`,
-        this.name,
-      );
-    }
   }
 
   // -----------------------------------------------------------------------

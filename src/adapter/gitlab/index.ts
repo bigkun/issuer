@@ -101,16 +101,4 @@ export class GitLabAdapter implements Adapter {
       throw new AdapterError('listRemote failed', this.name, e);
     }
   }
-
-  // -----------------------------------------------------------------------
-  // addComment (not in Adapter interface yet, exposed for issuer-sync skill)
-  // -----------------------------------------------------------------------
-
-  async addComment(issueIid: number, body: string): Promise<void> {
-    try {
-      await this.api.IssueNotes.create(this.projectId, issueIid, body);
-    } catch (e) {
-      throw new AdapterError(`addComment failed for issue ${issueIid}`, this.name, e);
-    }
-  }
 }
