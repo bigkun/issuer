@@ -170,9 +170,15 @@ export async function loadProjectConfig(projectRoot: string): Promise<ProjectCon
     throw new ConfigError(`${cfgPath} must contain a mapping`);
   }
   const data = raw as Record<string, unknown>;
-  for (const f of ['platform', 'owner', 'repo'] as const) {
+  for (const f of ['platform', 'repo'] as const) {
     if (typeof data[f] !== 'string' || !data[f]) {
       throw new ConfigError(`${cfgPath}: '${f}' must be a non-empty string`);
+    }
+  }
+  // owner is required for most platforms, but PingCode allows empty owner
+  if (data.platform !== 'pingcode') {
+    if (typeof data.owner !== 'string' || !data.owner) {
+      throw new ConfigError(`${cfgPath}: 'owner' must be a non-empty string`);
     }
   }
   const labels = data.default_labels;

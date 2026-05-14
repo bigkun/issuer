@@ -126,41 +126,55 @@ export class PingCodeAdapter implements Adapter {
     const url = new URL(`${this.apiRoot}/v1/project/projects`);
     url.searchParams.set('identifier', this.projectIdentifier);
 
+    console.log(`\n🔍 [PingCode Debug] Resolving project identifier...`);
+    console.log(`   Identifier: ${this.projectIdentifier}`);
+    console.log(`   API URL: ${url.toString()}`);
+    console.log(`   Token: ${this.token.substring(0, 20)}...`);
+
     const res = await this.httpFetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${this.token}`,
       },
     });
 
+    console.log(`   Response Status: ${res.status} ${res.statusText}`);
+    
     if (!res.ok) {
+      const errorBody = await res.text().catch(() => '');
+      console.log(`   Response Body: ${errorBody}`);
       throw new AdapterError(
         this.name,
         `Failed to resolve project identifier: ${res.status}`,
       );
     }
 
-    const data = await res.json() as { list: ProjectInfo[] };
+    const data = await res.json() as { values?: ProjectInfo[]; list?: ProjectInfo[] };
+    console.log(`   Response Data:`, JSON.stringify(data, null, 2));
     
-    if (!data.list || data.list.length === 0) {
+    // PingCode API returns 'values' field, not 'list'
+    const projects = data.values || data.list || [];
+    
+    if (projects.length === 0) {
+      console.log(`   ❌ No projects found with identifier '${this.projectIdentifier}'`);
       throw new AdapterError(
         this.name,
         `Project with identifier '${this.projectIdentifier}' not found`,
       );
     }
 
-    const projectId = data.list[0].id;
+    const projectId = projects[0].id;
     this.projectId = projectId;
+    console.log(`   ✓ Found project: ${projects[0].name} (ID: ${projectId})`);
 
     // Save to config.yml for future use
     try {
       saveProjectConfig(this.projectRoot, {
         pingcode_project_id: projectId,
       });
-      console.log(`✓ Resolved project identifier '${this.projectIdentifier}' → ID: ${projectId}`);
-      console.log(`  → Saved to .issuer/config.yml\n`);
+      console.log(`   → Saved to .issuer/config.yml\n`);
     } catch (err: any) {
       // Don't fail if config save fails, just warn
-      console.warn(`⚠ Warning: Could not save project ID to config: ${err.message}`);
+      console.warn(` Warning: Could not save project ID to config: ${err.message}`);
     }
 
     return projectId;
@@ -184,13 +198,21 @@ export class PingCodeAdapter implements Adapter {
       Object.assign(headers, options.headers);
     }
 
+    console.log(`\n [PingCode API] ${options.method || 'GET'} ${url}`);
+    if (options.body) {
+      console.log(`   Request Body: ${options.body}`);
+    }
+
     const res = await this.httpFetch(url, {
       ...options,
       headers,
     });
 
+    console.log(`   Response Status: ${res.status} ${res.statusText}`);
+
     if (!res.ok) {
       const body = await res.text().catch(() => '');
+      console.log(`   Error Response: ${body}`);
       throw new AdapterError(
         this.name,
         `API request failed: ${res.status} ${res.statusText}`,
@@ -210,7 +232,7 @@ export class PingCodeAdapter implements Adapter {
     const payload = buildCreatePayload(task);
 
     const data = await this.request<Record<string, unknown>>(
-      `/v1/workitems/workitems?project_id=${projectId}`,
+      `/v1/project/work_items?project_id=${projectId}`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -218,7 +240,7 @@ export class PingCodeAdapter implements Adapter {
     );
 
     const id = String(data.id || '');
-    const url = String(data.url || `${this.apiRoot}/v1/workitems/workitems/${id}`);
+    const url = String(data.url || `${this.apiRoot}/v1/project/work_items/${id}`);
 
     return { id, url };
   }
@@ -239,20 +261,20 @@ export class PingCodeAdapter implements Adapter {
     });
 
     await this.request<void>(
-      `/v1/workitems/workitems/${task.platform_id}`,
+      `/v1/project/work_items/${task.platform_id}`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
       },
     );
 
-    return { id: task.platform_id, url: `${this.apiRoot}/v1/workitems/workitems/${task.platform_id}` };
+    return { id: task.platform_id, url: `${this.apiRoot}/v1/project/work_items/${task.platform_id}` };
   }
 
   async getIssue(issueId: string): Promise<RemoteIssue | null> {
     try {
       const data = await this.request<Record<string, unknown>>(
-        `/v1/workitems/workitems/${issueId}`,
+        `/v1/project/work_items/${issueId}`,
       );
 
       if (!data || !data.id) return null;
@@ -263,7 +285,7 @@ export class PingCodeAdapter implements Adapter {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     } catch (err: any) {
@@ -306,8 +328,12 @@ export class PingCodeAdapter implements Adapter {
     params.set('page', String(page));
     params.set('per_page', String(pageSize));
 
+    console.log(`\n📋 [PingCode API] List Work Items`);
+    console.log(`   URL: ${this.apiRoot}/v1/project/work_items`);
+    console.log(`   Params: ${params.toString()}`);
+
     const res = await this.request<PingCodeListResponse<Record<string, unknown>>>(
-      `/v1/workitems/workitems?${params.toString()}`,
+      `/v1/project/work_items?${params.toString()}`,
     );
 
     return (res.list || []).map((item) => {
@@ -316,7 +342,7 @@ export class PingCodeAdapter implements Adapter {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     });
@@ -325,7 +351,7 @@ export class PingCodeAdapter implements Adapter {
   async listWorkitemTypes(): Promise<{ id: string; name: string; category: string }[]> {
     const projectId = await this.getProjectId();
     const res = await this.request<PingCodeListResponse<PingCodeWorkItemType>>(
-      `/v1/workitems/workitem_types?project_id=${projectId}`,
+      `/v1/project/work_item_types?project_id=${projectId}`,
     );
 
     return (res.list || []).map((item) => ({
@@ -354,7 +380,7 @@ export class PingCodeAdapter implements Adapter {
 
   async addComment(issueId: string, comment: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/comments`,
+      `/v1/project/work_items/${issueId}/comments`,
       {
         method: 'POST',
         body: JSON.stringify({ content: comment }),
@@ -364,7 +390,7 @@ export class PingCodeAdapter implements Adapter {
 
   async setParent(issueId: string, parentId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/parent`,
+      `/v1/project/work_items/${issueId}/parent`,
       {
         method: 'PUT',
         body: JSON.stringify({ parent_id: parentId }),
@@ -374,7 +400,7 @@ export class PingCodeAdapter implements Adapter {
 
   async removeParent(issueId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/parent`,
+      `/v1/project/work_items/${issueId}/parent`,
       {
         method: 'DELETE',
       },
@@ -383,7 +409,7 @@ export class PingCodeAdapter implements Adapter {
 
   async addLink(issueId: string, targetId: string, linkType: string = 'relates'): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/links`,
+      `/v1/project/work_items/${issueId}/links`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -396,7 +422,7 @@ export class PingCodeAdapter implements Adapter {
 
   async removeLink(issueId: string, targetId: string): Promise<void> {
     await this.request<void>(
-      `/v1/workitems/workitems/${issueId}/links/${targetId}`,
+      `/v1/project/work_items/${issueId}/links/${targetId}`,
       {
         method: 'DELETE',
       },
@@ -421,7 +447,7 @@ export class PingCodeAdapter implements Adapter {
         id: String(normalized.id),
         title: String(normalized.title),
         state: normalized.status ? String(normalized.status) : 'unknown',
-        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/workitems/workitems/${normalized.id}`,
+        url: normalized.platformUrl ? String(normalized.platformUrl) : `${this.apiRoot}/v1/project/work_items/${normalized.id}`,
         type: normalized.category ? String(normalized.category) : undefined,
       };
     });

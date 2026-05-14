@@ -252,7 +252,7 @@ describe('PingCodeAdapter', () => {
     
     const mockResponse = {
       id: 'wi-new-123',
-      url: 'https://open.pingcode.com/v1/workitems/workitems/wi-new-123',
+      url: 'https://open.pingcode.com/v1/project/work_items/wi-new-123',
     };
 
     const adapter = new PingCodeAdapter({
@@ -269,7 +269,7 @@ describe('PingCodeAdapter', () => {
     const result = await adapter.createIssue(task);
 
     expect(result.id).toBe('wi-new-123');
-    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-new-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/project/work_items/wi-new-123');
   });
 
   it('updates an issue', async () => {
@@ -284,7 +284,7 @@ describe('PingCodeAdapter', () => {
     const result = await adapter.updateIssue(task);
 
     expect(result.id).toBe('wi-existing-123');
-    expect(result.url).toBe('https://open.pingcode.com/v1/workitems/workitems/wi-existing-123');
+    expect(result.url).toBe('https://open.pingcode.com/v1/project/work_items/wi-existing-123');
   });
 
   it('throws error if update without platform_id', async () => {
