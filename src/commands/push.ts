@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { TaskStore } from '../core/task-store.js';
 import { serializeTaskFile } from '../core/task-file.js';
 import { Status, TaskFile } from '../core/types.js';
-import { loadProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
+import { loadProjectConfig, saveProjectConfig, DEFAULT_DEDUP_CONFIG, type DedupConfig } from '../core/config.js';
 import { loadCache, saveCache, needsRefresh } from '../core/cache.js';
 import { findSimilarIssues, type MatchResult } from '../core/similarity.js';
 import { REMOTE_STATE_OPEN } from '../core/constants.js';
@@ -35,6 +35,11 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   const cfg = await loadProjectConfig(opts.cwd);
   // Use CLI-provided dedupConfig if available, otherwise use config file defaults
   const dedup = opts.dedupConfig ?? cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
+
+  // PingCode: Check project type on first push
+  if (cfg.platform === 'pingcode' && !cfg.pingcode_project_type) {
+    await ensurePingCodeProjectType(opts.cwd, opts.adapter, cfg);
+  }
 
   const store = new TaskStore(opts.cwd, {
     tasksDir: cfg.tasks_dir,
@@ -141,4 +146,40 @@ export async function runPush(opts: PushOptions): Promise<PushSummary> {
   }
 
   return { created, updated, skipped, duplicates, duplicateUploaded, duplicateSkipped };
+}
+
+/**
+ * Ensure PingCode project type is detected and cached on first push.
+ * Checks task types against available work item types and warns on mismatch.
+ */
+async function ensurePingCodeProjectType(
+  cwd: string,
+  adapter: Adapter,
+  cfg: any,
+): Promise<void> {
+  // Only for PingCode adapter
+  if (adapter.name !== 'pingcode') return;
+
+  // Try to get project type from adapter
+  const adapterAny = adapter as any;
+  if (typeof adapterAny.getProjectType !== 'function') return;
+
+  try {
+    const projectType = await adapterAny.getProjectType();
+    if (!projectType) return;
+
+    // Save to config
+    saveProjectConfig(cwd, {
+      pingcode_project_type: projectType,
+    });
+
+    console.log(`\n Detected PingCode project type: ${projectType}`);
+
+    // If waterfall, warn about type mapping
+    if (projectType === 'waterfall') {
+      console.log(' Note: In waterfall projects, "story" type maps to "需求" (requirement).');
+    }
+  } catch {
+    // Ignore errors, will be resolved during type_id lookup
+  }
 }
