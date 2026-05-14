@@ -130,11 +130,12 @@ describe('pingcode/mapper', () => {
       // type_id is set by adapter at runtime via resolveTypeId()
     });
 
-    it('includes description if present', () => {
+    it('converts Markdown description to HTML', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      expect(payload.description).toBe('## Description\nThis is a test.');
+      // Markdown should be converted to HTML
+      expect(payload.description).toBe('<h2>Description</h2><br>This is a test.');
     });
 
     it('does not include tags (PingCode has no tags field)', () => {

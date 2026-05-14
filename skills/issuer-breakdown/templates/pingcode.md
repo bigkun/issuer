@@ -9,7 +9,7 @@ PingCode supports multiple project types, each with different work item types an
 | **Waterfall** | 需求(UUID), task, bug, 阶段(UUID), 里程碑(UUID) | Plan-driven development |
 | **Hybrid** | All types from above | Mixed methodology |
 
-> **Important**: PingCode does **NOT** support Markdown formatting in descriptions. Use **plain text** only.
+> **Important**: PingCode does **NOT** support Markdown natively. The issuer adapter automatically converts Markdown to HTML tags before sending to PingCode API. You can write descriptions in Markdown format, and they will be converted to HTML.
 
 References:
 - https://open.pingcode.com/#api-创建工作项
@@ -32,7 +32,7 @@ Field conversion in adapter `createIssue()` (src/adapter/pingcode/index.ts):
 | issuer frontmatter | PingCode API Field | Description |
 |--------------------|-------------------|-------------|
 | `title` | `title` | Work item title (required) |
-| `body` | `description` | **Plain text only** (no Markdown) |
+| `body` | `description` | **Markdown format** (auto-converted to HTML by adapter) |
 | `type` | `type_id` | Resolved via `ensureTypeId()` with project-type-aware mapping |
 | `priority` | `priority_id` | Not yet implemented (requires UUID lookup) |
 | `labels` | — | PingCode has no native labels field |
@@ -80,27 +80,27 @@ If the project type is not yet cached in `config.yml`, the adapter queries it on
 
 ## Epic (Scrum/Kanban)
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-STRATEGIC DIRECTION
+```markdown
+# Strategic Direction
 
 [Describe the long-term product strategy and business objectives this epic supports.]
 
-BUSINESS VALUE
+## Business Value
 
 [What business value will this epic deliver?]
 
-SCOPE
+## Scope
 
 [Define the boundaries: what's included and what's excluded.]
 
-SUCCESS METRICS
+## Success Metrics
 
 - [Metric 1: How to measure success]
 - [Metric 2: Key performance indicators]
 
-DEPENDENCIES
+## Dependencies
 
 - [Dependency 1: Related epics or external systems]
 - [Dependency 2: Prerequisites]
@@ -110,35 +110,35 @@ DEPENDENCIES
 
 ## Feature (Scrum/Kanban)
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-PARENT EPIC: [Epic title or ID]
+```markdown
+# Feature Overview
 
-FEATURE OVERVIEW
+**Parent Epic:** [Epic title or ID]
 
 [Describe this feature and how it contributes to the parent epic.]
 
-USER VALUE
+## User Value
 
 [What value does this feature provide to end users?]
 
-SCOPE & BOUNDARIES
+## Scope & Boundaries
 
-In Scope:
+**In Scope:**
 - [Capability 1]
 - [Capability 2]
 
-Out of Scope:
+**Out of Scope:**
 - [Exclusion 1]
 
-USER STORIES
+## User Stories
 
 This feature includes the following user stories:
 - [Story 1 title]
 - [Story 2 title]
 
-ACCEPTANCE CRITERIA
+## Acceptance Criteria
 
 [Define the criteria that must be met for this feature to be considered complete.]
 ```
@@ -147,84 +147,84 @@ ACCEPTANCE CRITERIA
 
 ## User Story (Scrum/Kanban) / 需求 (Waterfall)
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-USER STORY
+```markdown
+# User Story
 
-As a [role/persona]
-I want [capability/action]
-So that [business value/benefit]
+**As a** [role/persona]  
+**I want** [capability/action]  
+**So that** [business value/benefit]
 
-BACKGROUND & CONTEXT
+## Background & Context
 
 [Describe the context: why this is needed, what problem it solves.]
 
-DETAILED DESCRIPTION
+## Detailed Description
 
 [Describe the feature scope, interaction flow, and key rules.]
 
-CORE FLOW
+### Core Flow
 
 1. [Step 1: User action or system behavior]
 2. [Step 2: User action or system behavior]
 3. [Step 3: Expected outcome]
 
-KEY RULES & CONSTRAINTS
+### Key Rules & Constraints
 
 - [Rule 1: Condition and expected behavior]
 - [Rule 2: Business logic or validation]
 - [Rule 3: Edge case handling]
 
-ACCEPTANCE CRITERIA
+## Acceptance Criteria
 
-Scenario 1: [Scenario name]
-- Given [precondition]
-- When [action]
-- Then [expected result]
+**Scenario 1: [Scenario name]**
+- **Given** [precondition]
+- **When** [action]
+- **Then** [expected result]
 
-Scenario 2: [Scenario name]
-- Given [precondition]
-- When [action]
-- Then [expected result]
+**Scenario 2: [Scenario name]**
+- **Given** [precondition]
+- **When** [action]
+- **Then** [expected result]
 
-NON-FUNCTIONAL REQUIREMENTS
+## Non-Functional Requirements
 
-- Performance: [Response time, throughput, etc.]
-- Security: [Authentication, authorization, data protection]
-- Usability: [Accessibility, user experience considerations]
+- **Performance:** [Response time, throughput, etc.]
+- **Security:** [Authentication, authorization, data protection]
+- **Usability:** [Accessibility, user experience considerations]
 ```
 
 ---
 
 ## Task
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-PARENT WORK ITEM: [Story/Feature title or ID]
+```markdown
+# Task Objective
 
-TASK OBJECTIVE
+**Parent Work Item:** [Story/Feature title or ID]
 
 [What needs to be accomplished?]
 
-IMPLEMENTATION DETAILS
+## Implementation Details
 
 [Technical approach, design decisions, or implementation steps.]
 
-TECHNICAL NOTES
+## Technical Notes
 
 - [Note 1: Architecture or design consideration]
 - [Note 2: Technology or tool selection]
 - [Note 3: Integration points or dependencies]
 
-ACCEPTANCE CRITERIA
+## Acceptance Criteria
 
 - [ ] [Criterion 1: What must be true for this task to be complete]
 - [ ] [Criterion 2: Testable outcome]
 - [ ] [Criterion 3: Code review or documentation requirement]
 
-DEPENDENCIES
+## Dependencies
 
 - [Dependency 1: Prerequisite tasks or work items]
 - [Dependency 2: External systems or APIs]
@@ -234,44 +234,44 @@ DEPENDENCIES
 
 ## Bug / 缺陷
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-BUG SUMMARY
+```markdown
+# Bug Summary
 
 [Brief description of the issue.]
 
-ENVIRONMENT
+## Environment
 
-- Platform: [Web/Mobile/API/etc.]
-- Browser/OS: [Browser name and version, OS version]
-- PingCode Project: [Project name/ID]
-- Environment: [Development/Staging/Production]
+- **Platform:** [Web/Mobile/API/etc.]
+- **Browser/OS:** [Browser name and version, OS version]
+- **PingCode Project:** [Project name/ID]
+- **Environment:** [Development/Staging/Production]
 
-STEPS TO REPRODUCE
+## Steps to Reproduce
 
 1. [Step 1: Navigate to page X]
 2. [Step 2: Perform action Y]
 3. [Step 3: Observe result Z]
 
-EXPECTED BEHAVIOR
+## Expected Behavior
 
 [What should have happened?]
 
-ACTUAL BEHAVIOR
+## Actual Behavior
 
 [What actually happened?]
 
-IMPACT & SEVERITY
+## Impact & Severity
 
-- Severity: [Critical/High/Medium/Low]
-- Impact: [How many users affected? What business impact?]
+- **Severity:** [Critical/High/Medium/Low]
+- **Impact:** [How many users affected? What business impact?]
 
-SCREENSHOTS/LOGS
+## Screenshots/Logs
 
 [Attach screenshots, error logs, or screen recordings if available.]
 
-ADDITIONAL CONTEXT
+## Additional Context
 
 [Any other relevant information: related work items, recent changes, etc.]
 ```
@@ -280,25 +280,27 @@ ADDITIONAL CONTEXT
 
 ## Issue (Kanban/Hybrid Only)
 
-### Description Template (Plain Text)
+### Description Template (Markdown → HTML)
 
-```
-ISSUE TYPE: [Custom issue type]
+```markdown
+# Issue Details
 
-DESCRIPTION
+**Issue Type:** [Custom issue type]
+
+## Description
 
 [Describe the issue, request, or custom work item.]
 
-CONTEXT
+## Context
 
 [Provide background information and context.]
 
-REQUIREMENTS
+## Requirements
 
 - [Requirement 1]
 - [Requirement 2]
 
-EXPECTED OUTCOME
+## Expected Outcome
 
 [What should be the result after this issue is resolved?]
 ```
@@ -321,13 +323,36 @@ When breaking down requirements for PingCode:
 
 ### 2. Description Format
 
-**CRITICAL**: PingCode does NOT support Markdown in descriptions.
+**CRITICAL**: PingCode does NOT support Markdown natively, but the issuer adapter **automatically converts Markdown to HTML** before sending to the API.
 
-- Use **plain text** only
-- Use line breaks for formatting
-- Use `-` for bullet points
-- Use numbered lists `1. 2. 3.` for steps
-- Avoid `**bold**`, `*italic*`, `# headers`, code blocks, etc.
+- Write descriptions in **Markdown format** as usual
+- The adapter will convert:
+  - Headers (`#`, `##`, `###`) → `<h1>`, `<h2>`, `<h3>`
+  - Bold (`**text**`) → `<strong>text</strong>`
+  - Italic (`*text*`) → `<em>text</em>`
+  - Lists (`- item`, `1. item`) → `<ul><li>`, `<ol><li>`
+  - Links (`[text](url)`) → `<a href="url">text</a>`
+  - Code (`` `code` ``) → `<code>code</code>`
+  - Code blocks (``` ```) → `<pre><code>`
+  - Line breaks → `<br>`
+
+**Example:**
+
+```markdown
+# User Story
+
+**As a** user  
+**I want** to login  
+**So that** I can access my account
+
+## Acceptance Criteria
+
+- **Given** I'm on the login page
+- **When** I enter valid credentials
+- **Then** I should be redirected to dashboard
+```
+
+Will be converted to HTML and sent to PingCode.
 
 ### 3. Type Selection Strategy
 

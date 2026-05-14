@@ -108,6 +108,55 @@ export function pingCodeToPriority(priorityCode: string): Priority | undefined {
 }
 
 /**
+ * Convert Markdown to HTML for PingCode description field.
+ * PingCode supports HTML tags in description, not Markdown.
+ */
+function markdownToHtml(markdown: string): string {
+  let html = markdown;
+
+  // Headers: # H1, ## H2, ### H3
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold: **text** or __text__
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // Italic: *text* or _text_
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Code blocks: ```code```
+  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+  // Links: [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Unordered lists: - item or * item
+  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+  // Ordered lists: 1. item
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Horizontal rule: --- or ***
+  html = html.replace(/^(---|\*\*\*)$/gm, '<hr>');
+
+  // Line breaks: convert double newlines to <br>
+  html = html.replace(/\n\n/g, '<br><br>');
+  html = html.replace(/\n/g, '<br>');
+
+  // Blockquotes: > text
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  return html;
+}
+
+/**
  * Build PingCode create work item payload
  *
  * PingCode API field names (from official docs):
@@ -117,7 +166,7 @@ export function pingCodeToPriority(priorityCode: string): Priority | undefined {
  * - priority_id: optional, priority ID (needs lookup)
  * - assignee_id: optional, assignee user ID
  * - parent_id: optional, parent work item ID
- * - description: optional, work item description
+ * - description: optional, work item description (HTML format)
  */
 export function buildCreatePayload(issue: any): Record<string, unknown> {
   const payload: Record<string, unknown> = {
@@ -129,7 +178,8 @@ export function buildCreatePayload(issue: any): Record<string, unknown> {
 
   // Optional fields
   if (issue.body) {
-    payload.description = issue.body;
+    // Convert Markdown to HTML for PingCode
+    payload.description = markdownToHtml(issue.body);
   }
 
   if (issue.assignee) {
