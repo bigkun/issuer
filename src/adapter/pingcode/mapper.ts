@@ -149,16 +149,9 @@ function markdownToHtml(markdown: string): string {
   // Blockquotes: > text
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
 
-  // Line breaks: only convert newlines that are NOT adjacent to HTML tags
-  // First, remove newlines right after opening tags or before closing tags
-  html = html.replace(/(>[^<]*)\n([^<]*<)/g, '$1$2');
-  // Then convert remaining newlines to <br>
-  html = html.replace(/\n/g, '<br>');
-  // Clean up: remove <br> that appear right after/before block tags
-  html = html.replace(/(<\/?(?:h[1-6]|ul|ol|li|pre|blockquote|hr)[^>]*>)<br>/g, '$1');
-  html = html.replace(/<br>(<\/?(?:h[1-6]|ul|ol|li|pre|blockquote|hr)[^>]*>)/g, '$1');
-  // Remove multiple consecutive <br> tags
-  html = html.replace(/(<br>\s*){2,}/g, '<br>');
+  // Line breaks: keep \n as-is (PingCode uses \n for line breaks)
+  // Only remove multiple consecutive newlines (empty lines) between block elements
+  html = html.replace(/\n{2,}/g, '\n');
 
   return html;
 }

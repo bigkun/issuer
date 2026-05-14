@@ -28,7 +28,8 @@ function makeTask(overrides: Partial<TaskFile> = {}): TaskFile {
     labels: ['feature'],
     created_at: '2026-05-06T10:00:00Z',
     updated_at: '2026-05-06T10:00:00Z',
-    body: '## Description\nThis is a test.',
+    body: `## Description
+This is a test.`,  // Use template literal with actual newline
     filePath: '/tmp/task-1.md',
     ...overrides,
   };
@@ -134,8 +135,8 @@ describe('pingcode/mapper', () => {
       const task = makeTask();
       const payload = buildCreatePayload(task);
 
-      // Markdown should be converted to HTML, no <br> between tags
-      expect(payload.description).toBe('<h2>Description</h2>This is a test.');
+      // Markdown should be converted to HTML, keep \n for line breaks
+      expect(payload.description).toBe('<h2>Description</h2>\nThis is a test.');
     });
 
     it('does not include tags (PingCode has no tags field)', () => {
