@@ -206,6 +206,61 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 
 **MCP**：GitLab 内置 MCP 服务器（GitLab 18.6+，`https://<gitlab.example.com>/api/v4/mcp`）覆盖 create/search/read/comment (4/5)。若 MCP 不可用，CLI 适配器处理所有操作。
 
+### PingCode
+
+```bash
+issuer init -y --platform pingcode --repo SCR
+```
+
+- `--repo` → PingCode 项目标识（identifier），不区分大小写，将自动转为大写
+
+**获取令牌**：
+
+PingCode 支持两种访问令牌。两种都需要先创建应用：
+
+1. **创建应用**（两种令牌都需要）：
+   - 访问：`https://<你的组织>.pingcode.com/admin/application/custom`
+   - 创建新应用
+   - 鉴权方式选择：**Authorization Code**
+   - 设置权限：
+     - 项目管理：**只读**
+     - 工作项：**读写**
+   - 记录你的 `client_id` 和 `client_secret`
+
+2. **获取访问令牌**：
+   
+   **企业令牌**（推荐用于自动化）：
+   ```
+   GET https://open.pingcode.com/v1/auth/token
+     ?grant_type=client_credentials
+     &client_id=YOUR_CLIENT_ID
+     &client_secret=YOUR_CLIENT_SECRET
+   ```
+   
+   **用户令牌**（用于用户特定操作）：
+   - 使用 OAuth 2.0 Authorization Code 流程
+   - 详见：https://open.pingcode.com/#api-鉴权
+
+3. **使用令牌**：
+   ```bash
+   issuer auth
+   # → Enter PingCode token: <粘贴你的 access_token>
+   ```
+
+**凭证**（按顺序解析）：
+
+1. `ISSUER_PINGCODE_TOKEN`
+2. `PINGCODE_TOKEN`
+3. `~/.issuer/credentials.yml` → `pingcode_token: your_access_token`
+4. `.issuer/credentials.yml` → `pingcode_token: your_access_token`
+
+**项目 ID 解析**：
+- 只需提供项目标识（如 `SCR`、`PROJ`）
+- 适配器首次使用时自动解析为项目 ID
+- 解析后的 ID 保存到 `.issuer/config.yml`，后续操作更快
+
+**MCP**：PingCode MCP 支持即将推出。目前使用 CLI 适配器 + REST API。
+
 ## 支持的 Agent
 
 | Agent | 技能路径 | 说明 |

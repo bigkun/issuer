@@ -170,6 +170,21 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       if (!owner) owner = await input({ message: 'GitLab group or namespace' });
       if (!repo) repo = await input({ message: 'GitLab project name or ID' });
     }
+    if (platform === 'pingcode') {
+      // PingCode doesn't need owner, only needs project identifier
+      owner = '';  // Will be saved as empty string
+      if (!repo) {
+        console.log('\n📌 PingCode Setup');
+        console.log('   Enter your project identifier (identifier).');
+        console.log('   You can find this in Project Settings → Basic Info.');
+        console.log('   Example: SCR, PROJ, DEV\n');
+        const identifier = await input({ 
+          message: 'Project identifier (标识)',
+          validate: (val) => val.trim() ? true : 'Project identifier is required',
+        });
+        repo = identifier.trim().toUpperCase();  // Convert to uppercase
+      }
+    }
     // Unsupported platforms: ask for owner/repo generically
     if (!BUILT_IN_PLATFORMS.includes(platform)) {
       if (!owner) owner = await input({ message: `${platform} owner / workspace / organization` });
@@ -177,8 +192,12 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     }
   }
 
-  if (!platform || !owner || !repo) {
-    throw new ConfigError('platform, owner and repo are required');
+  if (!platform || !repo) {
+    throw new ConfigError('platform and repo are required');
+  }
+  // PingCode doesn't require owner
+  if (platform !== 'pingcode' && !owner) {
+    throw new ConfigError('owner is required for ' + platform);
   }
 
   // --- Determine if this is a built-in platform ---
@@ -212,7 +231,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       try {
         const tempCfg: ProjectConfig = {
           platform,
-          owner,
+          owner: owner || '',  // PingCode can have empty owner
           repo,
           default_labels: [],
           yunxiao_domain: yunxiaoDomain,

@@ -10,6 +10,7 @@
 import { TaskFile } from '../../core/types.js';
 import { Adapter, IssueRef, RemoteIssue } from '../interface.js';
 import { AdapterError } from '../../core/errors.js';
+import { loadProjectConfig, saveProjectConfig } from '../../core/config.js';
 import {
   buildCreatePayload,
   buildUpdatePayload,
@@ -95,13 +96,33 @@ export class PingCodeAdapter implements Adapter {
   }
 
   /**
-   * Resolve project identifier to project ID
+   * Get project ID: from cache > config > API resolution
    */
   private async getProjectId(): Promise<string> {
+    // 1. Return cached value if available
     if (this.projectId) {
       return this.projectId;
     }
 
+    // 2. Try to load from config.yml
+    try {
+      const config = await loadProjectConfig(this.projectRoot);
+      if (config.pingcode_project_id) {
+        this.projectId = config.pingcode_project_id;
+        return this.projectId;
+      }
+    } catch {
+      // Config not found or invalid, will resolve via API
+    }
+
+    // 3. Resolve via API and save to config
+    return this.resolveAndCacheProjectId();
+  }
+
+  /**
+   * Resolve project identifier to project ID via API and cache it
+   */
+  private async resolveAndCacheProjectId(): Promise<string> {
     const url = new URL(`${this.apiRoot}/v1/project/projects`);
     url.searchParams.set('identifier', this.projectIdentifier);
 
@@ -127,8 +148,22 @@ export class PingCodeAdapter implements Adapter {
       );
     }
 
-    this.projectId = data.list[0].id;
-    return this.projectId;
+    const projectId = data.list[0].id;
+    this.projectId = projectId;
+
+    // Save to config.yml for future use
+    try {
+      saveProjectConfig(this.projectRoot, {
+        pingcode_project_id: projectId,
+      });
+      console.log(`✓ Resolved project identifier '${this.projectIdentifier}' → ID: ${projectId}`);
+      console.log(`  → Saved to .issuer/config.yml\n`);
+    } catch (err: any) {
+      // Don't fail if config save fails, just warn
+      console.warn(`⚠ Warning: Could not save project ID to config: ${err.message}`);
+    }
+
+    return projectId;
   }
 
   // -----------------------------------------------------------------------

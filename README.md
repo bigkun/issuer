@@ -206,6 +206,61 @@ issuer init -y --platform gitlab --owner my-group --repo my-project
 
 **MCP**: GitLab's built-in MCP server (GitLab 18.6+, `https://<gitlab.example.com>/api/v4/mcp`) covers create/search/read/comment (4/5). If MCP is unavailable, the CLI adapter handles all operations.
 
+### PingCode
+
+```bash
+issuer init -y --platform pingcode --repo SCR
+```
+
+- `--repo` → PingCode project identifier (项目标识), case-insensitive, will be converted to uppercase
+
+**Get your token**:
+
+PingCode supports two types of access tokens. Both require creating an application first:
+
+1. **Create an application** (required for both token types):
+   - Go to: `https://<your-org>.pingcode.com/admin/application/custom`
+   - Create a new application
+   - Select Auth method: **Authorization Code**
+   - Set permissions:
+     - Project Management: **Read-only**
+     - Work Items: **Read & Write**
+   - Note your `client_id` and `client_secret`
+
+2. **Obtain access token**:
+   
+   **Enterprise Token** (recommended for automation):
+   ```
+   GET https://open.pingcode.com/v1/auth/token
+     ?grant_type=client_credentials
+     &client_id=YOUR_CLIENT_ID
+     &client_secret=YOUR_CLIENT_SECRET
+   ```
+   
+   **User Token** (for user-specific operations):
+   - Use OAuth 2.0 Authorization Code flow
+   - See: https://open.pingcode.com/#api-鉴权
+
+3. **Use the token**:
+   ```bash
+   issuer auth
+   # → Enter PingCode token: <paste your access_token>
+   ```
+
+**Credentials** (resolved in order):
+
+1. `ISSUER_PINGCODE_TOKEN`
+2. `PINGCODE_TOKEN`
+3. `~/.issuer/credentials.yml` → `pingcode_token: your_access_token`
+4. `.issuer/credentials.yml` → `pingcode_token: your_access_token`
+
+**Project ID resolution**:
+- You only need to provide the project identifier (e.g., `SCR`, `PROJ`)
+- The adapter automatically resolves it to a project ID on first use
+- The resolved ID is saved to `.issuer/config.yml` for faster subsequent operations
+
+**MCP**: PingCode MCP support is coming soon. Currently uses CLI adapter with REST API.
+
 ## Supported Agents
 
 | Agent | Skills Path | Notes |
