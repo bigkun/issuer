@@ -466,7 +466,7 @@ export class PingCodeAdapter implements Adapter {
       `/v1/project/work_items?${params.toString()}`,
     );
 
-    return (res.list || []).map((item) => {
+    return (res.values || res.list || []).map((item) => {
       const normalized = normalizePingCodeIssue(item);
       return {
         id: String(normalized.id),
