@@ -17,6 +17,7 @@ Field conversion in adapter `taskToIssueInput()` (src/adapter/github/mapper.ts):
 | `labels`           | `labels`          | Preserved from original labels                         |
 | `type`             | `labels` += `type:${type}`  | Auto-appended, e.g. `type:bug`                |
 | `priority`         | `labels` += `priority:${priority}` | Auto-appended, e.g. `priority:high` |
+| `dependencies`     | —                 | Informational for AI agent only                        |
 | `severity`         | —                 | No native GitHub severity; written to body only        |
 | `platform_id`      | —                 | Written by sync after creation (GitHub issue number)   |
 | `platform_url`     | —                 | Written by sync after creation                         |
@@ -37,6 +38,7 @@ Field conversion in adapter `taskToIssueInput()` (src/adapter/github/mapper.ts):
 | `title`      | `[Bug]: <short summary>`   |
 | `priority`   | `medium` (default)         |
 | `severity`   | `medium` (default)         |
+| `dependencies` | `[]` (default)           |
 
 ### Body Template (Markdown)
 
@@ -97,6 +99,7 @@ Field conversion in adapter `taskToIssueInput()` (src/adapter/github/mapper.ts):
 | `labels`     | `["enhancement", "triage"]`     |
 | `title`      | `[Feature]: <short summary>`    |
 | `priority`   | `medium` (default)              |
+| `dependencies` | `[]` (default)                |
 
 ### Body Template (Markdown)
 
@@ -150,6 +153,7 @@ So that [benefit/value]
 | `labels`     | `["chore", "triage"]`          |
 | `title`      | `[Task]: <short summary>`      |
 | `priority`   | `medium` (default)             |
+| `dependencies` | `[]` (default)               |
 
 ### Body Template (Markdown)
 
@@ -197,6 +201,7 @@ So that [benefit/value]
 | `labels`     | `["epic"]`                     |
 | `title`      | `[Epic]: <short summary>`      |
 | `priority`   | `medium` (default)             |
+| `dependencies` | `[]` (default)               |
 
 ### Body Template (Markdown)
 

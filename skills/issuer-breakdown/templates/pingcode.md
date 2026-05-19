@@ -35,6 +35,7 @@ Field conversion in adapter `createIssue()` (src/adapter/pingcode/index.ts):
 | `body` | `description` | **Markdown format** (auto-converted to HTML by adapter) |
 | `type` | `type_id` | Resolved via `ensureTypeId()` with project-type-aware mapping |
 | `priority` | `priority_id` | Not yet implemented (requires UUID lookup) |
+| `dependencies` | — | Informational for AI agent only |
 | `labels` | — | PingCode has no native labels field |
 | `assigned_to` | `assignee_id` | User ID |
 | `parent_id` | `parent_id` | Parent work item ID |

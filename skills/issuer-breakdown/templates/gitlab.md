@@ -15,6 +15,7 @@ Field conversion in adapter `taskToIssueInput()` (src/adapter/gitlab/mapper.ts):
 | `labels`           | `labels`             | Preserved from original labels                            |
 | `type`             | `labels` += `type:${type}`    | Auto-appended, e.g. `type:bug`                   |
 | `priority`         | `labels` += `priority:${priority}` | Auto-appended, e.g. `priority:high` |
+| `dependencies`     | —                    | Informational for AI agent only                           |
 | `severity`         | —                    | No native GitLab severity; written to body only           |
 | `platform_id`      | —                    | Written by sync after creation (GitLab issue iid)         |
 | `platform_url`     | —                    | Written by sync after creation                            |

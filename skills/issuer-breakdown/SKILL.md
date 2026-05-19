@@ -688,6 +688,7 @@ platform_id: null
 platform_url: null
 priority: critical | high | medium | low
 severity: critical | high | medium | low  # Bug type only
+dependencies: []  # Array of dependent task ids
 labels: [<from config.default_labels>]
 created_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
@@ -720,8 +721,13 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
 ## Steps
 
 1. Parse the brief.
-2. Decide how many work items it contains. A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
-3. For each item: Pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user) and `priority` (default `medium` unless the brief signals urgency).
+2. **Task Granularity Control**: Decide how many work items it contains. 
+   - **Split**: If a task has >5 acceptance criteria, or heavily spans frontend and backend, split it into 2-3 smaller tasks with clear dependencies.
+   - **Merge**: If a task has <2 trivial criteria, merge it into a related task.
+   - **Golden Rule**: Every generated task MUST be sized so an AI Agent could implement it within a single session.
+   A single small bug is one item. An epic with sub-stories should produce one file per leaf — never an epic file with embedded children.
+3. For each item: Pick `type` (`bug` for defects, `story` for user-facing features, `task` for tech work, `epic` only when explicitly requested by the user), `priority` (default `medium` unless the brief signals urgency), and `dependencies` (list of `<id>`s this task depends on).
+   - **Testability Rule**: Acceptance criteria must be Observable, Testable, or Verifiable. No vague terms like "better" or "works correctly". If the task involves UI changes, you MUST append a visual verification criterion: `- [ ] UI visually verified (e.g. in browser using dev-browser skill)`.
    - **For Bug type**: Both `priority` and `severity` are REQUIRED and MUST be set:
      - `priority` - How urgently we need to fix it (process priority)
        - `critical` (P0) - Fix immediately, drop everything
@@ -800,6 +806,7 @@ updated_at: <full ISO 8601 timestamp, e.g. 2026-05-07T14:32:05Z>
    └─────┴────────────────────────────────────────┴───────┴──────────────┴────────┘
 
    Enter task numbers (e.g. 1,2,3 or all) to select tasks for push.
+   You can also instruct me to refine them (e.g. "merge 1 and 2", "split 2", "change 1 to critical").
    Enter none to skip — all tasks remain in draft status.
    ```
    
