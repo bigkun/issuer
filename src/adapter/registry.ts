@@ -23,6 +23,37 @@ export function hasApiAdapter(platform: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Breakdown template platforms
+// ---------------------------------------------------------------------------
+
+/**
+ * Platforms that have a dedicated built-in breakdown template
+ * under skills/issuer-breakdown/templates/<platform>.md.
+ *
+ * A platform can be in this list WITHOUT having a CLI adapter (e.g. jira).
+ * When a platform is in this list, `issuer init` will NOT generate a generic
+ * .issuer/templates/breakdown.md fallback — the skill resolves the built-in
+ * template automatically at runtime.
+ */
+export const TEMPLATE_PLATFORMS: ReadonlyArray<string> = [
+  // Platforms with CLI adapters — all have dedicated templates
+  'github',
+  'gitlab',
+  'yunxiao',
+  'pingcode',
+  // MCP-only platforms with dedicated templates
+  'jira',
+];
+
+/**
+ * Check if a platform has a built-in breakdown template.
+ * When true, issuer init skips writing the generic fallback template.
+ */
+export function hasBreakdownTemplate(platform: string): boolean {
+  return TEMPLATE_PLATFORMS.includes(platform);
+}
+
+// ---------------------------------------------------------------------------
 // Re-export from mcp-detect for convenience
 // ---------------------------------------------------------------------------
 
