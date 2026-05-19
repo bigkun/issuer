@@ -421,12 +421,15 @@ So that I can access my family library
 For platforms not in the built-in list (GitHub, GitLab, Yunxiao, PingCode), the Generic style is used automatically.
 These platforms can still work via **MCP-first** approach:
 
-1. During `issuer init`, select "Other (MCP)" as the platform
+1. During `issuer init`, select the platform from the list (or "Other (MCP)" for custom platforms)
 2. The skill uses the Generic template structure for task generation
 3. Sync is handled by the MCP server detected at init time
 4. If no MCP server is available, the user can manually push via `issuer push` with a custom adapter
 
 The Generic style ensures consistent task files regardless of platform, while MCP-first ensures sync works even without a built-in adapter.
+
+> **Jira**: Uses the Generic breakdown style. Sync is handled by the [Atlassian Rovo MCP Server](https://mcp.atlassian.com) (`createJiraIssue` tool). No manual format conversion is needed — the MCP server handles Atlassian Document Format (ADF) conversion automatically.
+
 
 ### Brief quality evaluation (optional, only when using a refined brief)
 

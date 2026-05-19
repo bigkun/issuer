@@ -83,6 +83,13 @@ const PLATFORM_TOOL_PATTERNS: Record<string, Record<McpCapability, string[]>> = 
     search: ['search_issues'],
     read: ['get_issue'],
   },
+  // Atlassian Rovo MCP Server (camelCase) and community servers (snake_case)
+  jira: {
+    create: ['createJiraIssue', 'create_jira_issue', 'create_issue'],
+    update: ['updateJiraIssue', 'update_jira_issue', 'transitionJiraIssue', 'update_issue'],
+    search: ['searchJiraIssues', 'search_jira_issues', 'searchJiraIssuesWithJql', 'search_issues'],
+    read:   ['getJiraIssue', 'get_jira_issue', 'get_issue'],
+  },
 };
 
 /**

@@ -135,11 +135,12 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           { name: 'GitLab Issues', value: 'gitlab' },
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
           { name: 'PingCode', value: 'pingcode' },
+          { name: 'Jira (MCP via Atlassian Rovo)', value: 'jira' },
           { name: 'Other (MCP)', value: '__other__' },
         ],
       });
       if (platform === '__other__') {
-        platform = await input({ message: 'Platform name (e.g. jira, linear, asana)', required: true });
+        platform = await input({ message: 'Platform name (e.g. linear, asana)', required: true });
       }
     }
     if (platform === 'github') {
@@ -186,8 +187,24 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         repo = identifier.trim().toUpperCase();  // Convert to uppercase
       }
     }
+    if (platform === 'jira') {
+      console.log('\n☁ Jira Setup (MCP-only via Atlassian Rovo)');
+      console.log('   Sync is handled by the Atlassian Rovo MCP Server — no API token needed.');
+      console.log('   Ensure the Rovo MCP Server is configured in your AI agent (Claude, Cursor, etc.)\n');
+      if (!owner) owner = await input({
+        message: 'Jira Cloud Domain (e.g. company.atlassian.net)',
+        validate: (val) => val.trim() ? true : 'Domain is required',
+      });
+      if (!repo) {
+        const key = await input({
+          message: 'Jira Project Key (e.g. PROJ)',
+          validate: (val) => val.trim() ? true : 'Project Key is required',
+        });
+        repo = key.trim().toUpperCase();
+      }
+    }
     // Unsupported platforms: ask for owner/repo generically
-    if (!BUILT_IN_PLATFORMS.includes(platform)) {
+    if (!BUILT_IN_PLATFORMS.includes(platform) && platform !== 'jira') {
       if (!owner) owner = await input({ message: `${platform} owner / workspace / organization` });
       if (!repo) repo = await input({ message: `${platform} project / repo / space ID` });
     }
@@ -219,7 +236,16 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     }
   }
   if (!token && !opts.nonInteractive) {
-    token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
+    if (isBuiltIn) {
+      token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
+    } else {
+      // MCP-only platforms — token is optional, auth is handled by the MCP server
+      console.log(`\nℹ '${platform}' uses MCP for sync. Authentication is handled by the MCP server.`);
+      if (platform === 'jira') {
+        console.log('  Atlassian Rovo MCP uses OAuth 2.1 — no API token required.');
+        console.log('  Run: npx -y mcp-remote https://mcp.atlassian.com/v1/mcp  (first-time OAuth setup)\n');
+      }
+    }
   }
   // Write token to project credentials file if provided
   if (token) {
@@ -249,6 +275,12 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       }
     } else {
       console.log(`⚠ Token saved. Validation skipped — ${platform} uses MCP for sync.`);
+    }
+  } else if (!isBuiltIn) {
+    // MCP-only platform — no token needed, auth is handled by MCP server
+    if (platform !== 'jira') {
+      // For non-Jira MCP platforms, show generic token hint
+      console.log(`\nℹ No ${platform} token configured. For MCP-only platforms this is usually fine.`);
     }
   } else {
     console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);

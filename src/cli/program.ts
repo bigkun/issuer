@@ -11,6 +11,7 @@ import { runSkillInstall, runSkillInstallInteractive } from '../commands/skill-i
 import { runCacheRefresh } from '../commands/cache.js';
 import { createAdapter } from '../adapter/factory.js';
 import { loadProjectConfig, resolveToken, DEFAULT_DEDUP_CONFIG } from '../core/config.js';
+import { hasApiAdapter } from '../adapter/registry.js';
 import { loadCache, getCachePath, getCacheAge } from '../core/cache.js';
 import { Status, TaskFile } from '../core/types.js';
 import { REMOTE_STATE_OPEN, PROMPT_OPTION_UPLOAD, PROMPT_OPTION_SKIP } from '../core/constants.js';
@@ -87,8 +88,20 @@ export function buildProgram() {
     .option('--agent-mode', 'Run in agent mode (non-interactive approval output)')
     .action(async (opts) => {
       const cwd = process.cwd();
-      const adapter = await buildAdapter(cwd);
       const cfg = await loadProjectConfig(cwd);
+
+      // Guard: MCP-only platforms cannot use CLI push
+      if (!hasApiAdapter(cfg.platform)) {
+        console.log(`⚠ '${cfg.platform}' is configured as an MCP-only platform.`);
+        console.log(`  Direct CLI sync (issuer push) is not supported.\n`);
+        console.log(`  To sync tasks to ${cfg.platform}, open your AI agent and run:`);
+        console.log(`    /issuer-sync`);
+        console.log(`  Your agent will use the MCP server to create/update issues directly.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const adapter = await buildAdapter(cwd);
       const dedup = cfg.dedup ?? DEFAULT_DEDUP_CONFIG;
       
       // Build effective dedup config with CLI overrides
@@ -245,7 +258,15 @@ export function buildProgram() {
     .command('list-remote')
     .description('List issues on the configured remote platform')
     .action(async () => {
-      const adapter = await buildAdapter(process.cwd());
+      const cwd = process.cwd();
+      const cfg = await loadProjectConfig(cwd);
+      if (!hasApiAdapter(cfg.platform)) {
+        console.log(`⚠ '${cfg.platform}' is an MCP-only platform. 'list-remote' requires a CLI adapter.`);
+        console.log(`  Use your AI agent to search Jira issues via the MCP server.`);
+        process.exitCode = 1;
+        return;
+      }
+      const adapter = await buildAdapter(cwd);
       const items = await runListRemote({ adapter });
       table([
         ['#', 'Title', 'State', 'URL'],
@@ -286,8 +307,15 @@ export function buildProgram() {
     .command('refresh')
     .description('Refresh local issue cache from platform')
     .action(async () => {
-      const adapter = await buildAdapter(process.cwd());
-      const r = await runCacheRefresh({ cwd: process.cwd(), adapter });
+      const cwd = process.cwd();
+      const cfg = await loadProjectConfig(cwd);
+      if (!hasApiAdapter(cfg.platform)) {
+        console.log(`⚠ '${cfg.platform}' is an MCP-only platform. 'cache refresh' requires a CLI adapter.`);
+        process.exitCode = 1;
+        return;
+      }
+      const adapter = await buildAdapter(cwd);
+      const r = await runCacheRefresh({ cwd, adapter });
       success(`Refreshed ${r.count} issues into ${r.path}`);
     });
 

@@ -3,6 +3,7 @@ import { input } from '@inquirer/prompts';
 import { ConfigError } from '../core/errors.js';
 import { loadProjectConfig, resolveToken, validateToken, writeCredentialsFile, findTokenSource } from '../core/config.js';
 import { createAdapter } from '../adapter/factory.js';
+import { hasApiAdapter } from '../adapter/registry.js';
 import type { Adapter } from '../adapter/interface.js';
 
 export interface AuthOptions {
@@ -35,6 +36,17 @@ export async function runAuth(opts: AuthOptions): Promise<AuthResult> {
     if (!platform) {
       throw new ConfigError('No platform configured. Run `issuer init` first or specify --platform.');
     }
+  }
+
+  // MCP-only platforms don't use CLI token validation — auth is handled by the MCP server
+  if (cfg && !hasApiAdapter(cfg.platform)) {
+    console.log(`ℹ '${cfg.platform}' is an MCP-only platform.`);
+    console.log(`  Authentication is handled by the MCP server (e.g., Atlassian Rovo OAuth 2.1).`);
+    console.log(`  No CLI token validation is required.\n`);
+    console.log(`  To configure Rovo MCP auth, run the following in your terminal:`);
+    console.log(`    npx -y mcp-remote https://mcp.atlassian.com/v1/mcp`);
+    console.log(`  Then restart your AI agent (Cursor, Claude Desktop, etc.)\n`);
+    return { platform: cfg.platform, valid: true };
   }
 
   // Resolve token: explicit > existing > prompt

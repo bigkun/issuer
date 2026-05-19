@@ -272,6 +272,40 @@ PingCode supports two types of access tokens. Both require creating an applicati
 
 **MCP**: PingCode MCP Server is not yet available. The CLI adapter uses PingCode REST API with full capability coverage (create, update, search, read).
 
+### Jira (MCP-only via Atlassian Rovo)
+
+```bash
+issuer init -y --platform jira --owner company.atlassian.net --repo PROJ
+```
+
+- `--owner` → Jira Cloud domain (e.g. `company.atlassian.net`)
+- `--repo` → Jira Project Key (e.g. `PROJ`, `MYAPP`)
+
+**Sync**: Jira is an MCP-only platform. Sync operations are performed through the [Atlassian Rovo MCP Server](https://mcp.atlassian.com) via your AI agent. No REST API adapter or personal access token is required.
+
+**First-time MCP setup** — configure the Rovo MCP Server in your AI agent:
+
+```json
+{
+  "mcpServers": {
+    "atlassian-rovo": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"]
+    }
+  }
+}
+```
+
+Then run the following once to complete OAuth 2.1 browser consent:
+
+```bash
+npx -y mcp-remote https://mcp.atlassian.com/v1/mcp
+```
+
+Restart your agent, then use `/issuer-sync` to push tasks to Jira.
+
+> **Note**: The `issuer push` CLI command is not supported for Jira. Use `/issuer-sync` inside your AI agent instead.
+
 ## Supported Agents
 
 | Agent | Skills Path | Notes |
@@ -320,6 +354,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitLab | 4/4 (create, update, search, read) | ✓ Full 4/4 | MCP when available, CLI otherwise |
 | 云效 (Yunxiao) | 4/4 (create, update, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
 | PingCode | — (MCP coming soon) | ✓ Full 4/4 (via REST API) | CLI adapter |
+| **Jira** | **4/4 via Atlassian Rovo MCP** | **— (MCP only)** | **MCP channel only** |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
@@ -339,6 +374,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | GitLab | ✓ Tests pass | ✓ Tests pass | Either channel provides full capability |
 | 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
 | PingCode | — (coming soon) | ✓ All tests pass | CLI adapter provides full capability |
+| Jira | ✓ Via Atlassian Rovo MCP | — (MCP only) | Sync via AI agent `/issuer-sync` |
 
 Both channels are production-ready for all supported platforms.
 
