@@ -9,17 +9,18 @@ Best practice templates for each platform's work items, serving as reference for
 | GitHub   | Issue (single type)                            | Labels: `type:bug`, etc. | [github.md](github.md)    |
 | GitLab   | Issue / Epic / Task / OKR (17.10+)             | Labels + Quick Actions   | [gitlab.md](gitlab.md)    |
 | Yunxiao  | Requirement (Req) / Bug / Task / Theme         | Native type distinction  | [yunxiao.md](yunxiao.md)  |
+| Jira     | Story / Bug / Task / Epic                      | Native issue types       | [jira.md](jira.md)        |
 
 ## issuer Type Mapping
 
 issuer uses a unified `type` field; each platform adapter handles the mapping:
 
-| issuer `type` | GitHub label     | GitLab label         | Yunxiao category | PingCode type  |
-|---------------|------------------|----------------------|------------------|----------------|
-| `bug`         | `type:bug`       | `type::bug`          | `Bug`            | `bug`          |
-| `story`       | `type:feature`   | `type::feature`      | `Req`            | `story`/`需求` |
-| `task`        | `type:chore`     | `type::maintenance`  | `Task`           | `task`         |
-| `epic`        | `type:epic`      | `type::epic`         | Theme (custom)   | `epic`/`阶段`  |
+| issuer `type` | GitHub label     | GitLab label         | Yunxiao category | PingCode type  | Jira issueType |
+|---------------|------------------|----------------------|------------------|----------------|----------------|
+| `bug`         | `type:bug`       | `type::bug`          | `Bug`            | `bug`          | `Bug`          |
+| `story`       | `type:feature`   | `type::feature`      | `Req`            | `story`/`需求` | `Story`        |
+| `task`        | `type:chore`     | `type::maintenance`  | `Task`           | `task`         | `Task`         |
+| `epic`        | `type:epic`      | `type::epic`         | Theme (custom)   | `epic`/`阶段`  | `Epic`         |
 
 ## Template Design Principles
 

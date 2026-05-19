@@ -49,6 +49,7 @@ Detailed templates with API field mappings are available in the `templates/` dir
 | GitHub     | `templates/github.md`            |
 | GitLab     | `templates/gitlab.md`            |
 | Yunxiao    | `templates/yunxiao.md`           |
+| Jira       | `templates/jira.md`              |
 
 For platforms with built-in support, the skill applies the corresponding template automatically. For all other platforms, the **Generic style** (below) is used.
 
@@ -337,10 +338,232 @@ So that [benefit]
 The skill **automatically** detects platform from `.issuer/config.yml`:
 
 ```yaml
-platform: yunxiao  # ← Reads this, applies Yunxiao style automatically
+platform: github  # ← Reads this, applies the corresponding platform style
+platform: jira    # ← Reads this, applies Jira style automatically
 ```
 
 **No extra configuration needed!**
+
+> Full template with issue type field mappings: `templates/jira.md`
+
+---
+
+### Jira Style
+
+**Characteristics**: Agile-native, structured, user-value focused. Uses Jira's native issue types (Story, Bug, Task, Epic) with industry-standard agile practices.
+
+Sync is handled by the Atlassian Rovo MCP Server (`createJiraIssue`). The MCP server converts Markdown description to Atlassian Document Format (ADF) automatically — no manual conversion needed.
+
+#### Story (User Story)
+
+**issuer `type: story` → Jira `issueType: Story`**
+
+**Structure**:
+```markdown
+## User Story
+
+As a [type of user]
+I want to [action / capability]
+So that [value / benefit]
+
+---
+
+## Acceptance Criteria
+
+- [ ] **Scenario 1: [Happy path]**
+  - Given [precondition]
+  - When [action]
+  - Then [expected result]
+- [ ] **Scenario 2: [Error / edge case]**
+  - Given [precondition]
+  - When [action]
+  - Then [expected result]
+
+---
+
+## Design & Mockups
+
+- **Figma / Prototype**: <!-- Link to design file -->
+- **Design Notes**: <!-- UI/UX constraints -->
+
+---
+
+## Definition of Done (DoD)
+
+- [ ] Code reviewed by at least one team member.
+- [ ] Unit tests pass with ≥ 80% coverage for new logic.
+- [ ] Verified on Staging environment.
+```
+
+**Rules**:
+- ✅ Must use `As a / I want to / So that` User Story format
+- ✅ Acceptance criteria MUST use checkbox syntax (`- [ ]`) — they render as interactive tasks in Jira Cloud
+- ✅ Minimum 3 acceptance scenarios (at least 1 edge case or error scenario)
+- ✅ Include Definition of Done checklist
+- ✅ Title: noun phrase, no verb prefix (`"User login via phone number"`, NOT `"Implement phone login"`)
+- ❌ No effort estimation (Jira uses Story Points as a separate field)
+
+#### Bug (Defect)
+
+**issuer `type: bug` → Jira `issueType: Bug`**
+
+**Structure**:
+```markdown
+## Bug Description
+
+<!-- A clear statement of what the bug is. -->
+
+---
+
+## Environment
+
+- **App Version / Build**: <!-- e.g. v2.3.1-build-490 -->
+- **OS / Device**: <!-- e.g. iOS 17.4 / iPhone 15 Pro -->
+- **Browser**: <!-- e.g. Chrome 124 (if web) -->
+- **Related Module**: <!-- e.g. User Authentication -->
+- **Impact Severity**: **<!-- critical | high | medium | low -->**
+
+---
+
+## Steps to Reproduce
+
+1. Go to [URL or screen]
+2. Click on [element]
+3. Enter [input data]
+4. Observe the result
+
+---
+
+## Expected Behavior
+
+<!-- What should have happened. -->
+
+---
+
+## Actual Behavior
+
+<!-- What actually happened. Include the exact error message. -->
+
+---
+
+## Impact Scope
+
+- **Affected users**: <!-- e.g. All users / Admin users only -->
+- **Frequency**: <!-- e.g. Always / Intermittent (~30%) -->
+- **Workaround**: <!-- Describe if available, otherwise: "None." -->
+
+---
+
+## Logs & Attachments
+
+```
+<!-- Paste console logs, stack traces, or network errors here -->
+```
+```
+
+**Rules**:
+- ✅ Title MUST describe the **problem**, not the solution
+- ✅ Use noun phrases or problem statements (e.g. `"Login page shows blank screen on Safari 17"`)
+- ❌ Do NOT use action verbs like `"Fix"`, `"Resolve"` in the title
+- ✅ Steps to Reproduce MUST be numbered and independently reproducible
+- ✅ Both `priority` (urgency) and `severity` (impact) MUST be set in frontmatter
+- ✅ Environment section is mandatory (version, OS, browser)
+- ✅ State workaround if one exists
+- ❌ No effort estimation
+
+#### Task (Technical Work)
+
+**issuer `type: task` → Jira `issueType: Task`**
+
+**Structure**:
+```markdown
+## Objective
+
+<!-- What needs to be done, why it is necessary, and what problem it solves. -->
+
+---
+
+## Implementation Steps
+
+- [ ] **Phase 1: Preparation**
+  - [ ] [Step 1.1]
+  - [ ] [Step 1.2]
+- [ ] **Phase 2: Implementation**
+  - [ ] [Step 2.1]
+  - [ ] [Step 2.2]
+- [ ] **Phase 3: Validation & Cleanup**
+  - [ ] [Step 3.1]
+  - [ ] [Step 3.2]
+
+---
+
+## Technical Constraints & Dependencies
+
+- **Affected modules**: <!-- e.g. auth-service, api-gateway -->
+- **Dependencies / Blockers**: <!-- e.g. Requires PROJ-88 first -->
+- **Breaking changes**: <!-- None / Yes — describe impact -->
+
+---
+
+## Testing Checklist
+
+- [ ] Unit tests added/updated.
+- [ ] Integration tests pass on Staging.
+- [ ] Manual smoke test on critical paths.
+- [ ] Documentation updated (if applicable).
+```
+
+**Rules**:
+- ✅ Objective provides full context for any developer to start without prior knowledge
+- ✅ Implementation steps are grouped by phase and use checkboxes for progress tracking
+- ✅ List all affected modules and dependencies explicitly
+- ✅ Specify whether breaking changes exist and how to handle them
+- ✅ Title: action verb + subject (`"Migrate session storage to Redis"`)
+
+#### Epic (Major Initiative)
+
+**issuer `type: epic` → Jira `issueType: Epic`**
+
+**Structure**:
+```markdown
+## Strategic Objective
+
+<!-- One paragraph: what this Epic delivers and what business goal or KPI it targets. -->
+
+---
+
+## Scope Boundaries
+
+### In Scope
+- [ ] [Deliverable 1]
+- [ ] [Deliverable 2]
+
+### Out of Scope
+- [Deferred item 1 — reason]
+- [Deferred item 2 — reason]
+
+---
+
+## Milestones & Deliverables
+
+- **Milestone 1: [Name]** (Target: YYYY-MM-DD) — [key deliverables]
+- **Milestone 2: [Name]** (Target: YYYY-MM-DD) — [key deliverables]
+
+---
+
+## Success Metrics
+
+- [Quantified KPI 1: e.g. Signup conversion rate increases by ≥ 15%]
+- [Quantified KPI 2: e.g. Login latency < 300ms p95]
+```
+
+**Rules**:
+- ✅ Strategic Objective explains the business "why" (KPI / OKR alignment)
+- ✅ Scope Boundaries MUST list both In Scope and Out of Scope (prevents scope creep)
+- ✅ Define time-bound Milestones with target dates
+- ✅ Success Metrics MUST be quantified (numbers, percentages, latencies)
+- ✅ Epics should be broken down into child issues before the sprint begins
+
 
 ### Language preservation rules
 
