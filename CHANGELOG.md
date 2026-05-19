@@ -5,8 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-05-19
+## [Unreleased]
 
+### Added
+- **Dependencies Field**: Added `dependencies` frontmatter field support to the breakdown schema and all platform templates (GitHub, GitLab, Yunxiao, PingCode, Jira).
+
+### Changed
+- **Proactive Clarification**: Enhanced `issuer-refine` skill to automatically ask 3-5 multiple-choice clarifying questions when user input completeness score is < 80.
+- **Granularity Control**: Updated `issuer-breakdown` skill with strict split/merge rules based on AC count to ensure single-session task sizing.
+- **Testability Enforcement**: Enhanced `issuer-breakdown` skill to require observable/testable Acceptance Criteria and added mandatory visual verification for UI tasks.
+- **Interactive Review**: Improved `issuer-breakdown` fallback text prompt to explicitly support natural language refinement commands (e.g. "merge 1 and 2", "split 2").
+
+---
+
+## [0.3.0] - 2026-05-19
 ### Added
 
 #### Jira Platform Support (MCP-only via Atlassian Rovo)

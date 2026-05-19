@@ -17,6 +17,7 @@ Field conversion in adapter `createIssue()` (src/adapter/yunxiao/index.ts):
 | `type`             | `workitemTypeId`               | Mapped via `workTypeToCategory()` to Req/Bug/Task, then lookup typeId |
 | `priority`         | `customFieldValues[priorityFieldId]` | Auto-mapped for Bug type (ensurePriorityFieldMapping) |
 | `severity`         | `customFieldValues[severityFieldId]` | Auto-mapped for Bug type (ensureSeverityFieldMapping) |
+| `dependencies`     | —                              | Informational for AI agent only                              |
 | `labels`           | —                              | Yunxiao has no native labels; written to description only    |
 | `assigned_to`      | `assignedTo`                   | Auto-fetched current user (ensureAssignedTo)                 |
 | (config) `owner`   | `spaceId`                      | Project space ID (from config.repo)                          |

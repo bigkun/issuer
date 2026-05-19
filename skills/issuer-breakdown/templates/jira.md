@@ -20,6 +20,7 @@ Field conversion performed by the AI agent when calling the Atlassian Rovo MCP t
 | `type`              | `issueType`        | Mapped: story→Story, bug→Bug, task→Task, epic→Epic                 |
 | `priority`          | `priority`         | critical→Highest, high→High, medium→Medium, low→Low               |
 | `severity`          | —                  | Bug only; written to description body (no native Jira field)      |
+| `dependencies`      | —                  | Informational for AI agent only                                    |
 | `labels`            | `labels`           | Array of strings, passed as-is                                     |
 | (config) `repo`     | `projectKey`       | From `.issuer/config.yml` → `repo` field (e.g. `PROJ`)            |
 | (config) `owner`    | —                  | Jira Cloud domain from `.issuer/config.yml` → `owner` field       |

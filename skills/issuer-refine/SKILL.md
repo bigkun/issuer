@@ -95,15 +95,34 @@ Omit the section if none apply.
    - **Score 60-80** → `LIGHT_TOUCH`: Format validation, minor tweaks only.
    - **Score ≥ 80** → `SKIP`: Document is professional. Tell user "Input quality sufficient (X/100). No refinement needed."
 
-   **Inform the user** before proceeding:
+   **Ask Clarifying Questions (If Score < 80):** 
+   If the input is ambiguous or missing critical context (Score < 80), before proceeding to enrich the brief, you MUST ask 3-5 clarifying questions with multiple-choice lettered options to gather the missing information. Focus on:
+   - Problem/Goal
+   - Core Functionality
+   - Scope/Boundaries
+   - Success Criteria
+   
+   Example format:
    ```
    Input Completeness Score: 45/100
-   Missing: Assumptions, Boundaries, 2 vague acceptance criteria
-   Recommendation: PARTIAL_ENRICHMENT
-   → Proceed with enrichment? (y/n)
+   Missing: Clear boundaries, specific acceptance criteria
+   
+   To help me refine this perfectly, please answer a few quick questions:
+   
+   1. What is the primary goal of this feature?
+      A. Improve user onboarding experience
+      B. Increase user retention
+      C. Reduce support burden
+      D. Other: [please specify]
+      
+   2. What is the scope?
+      A. Minimal viable version (MVP)
+      B. Full-featured implementation
+      C. Just the backend/API
+      
+   → Please reply with your choices (e.g., "1A, 2C") or type 'skip' to proceed with assumptions.
    ```
-
-   If user declines or input is `SKIP`, stop here.
+   Wait for the user's response. Incorporate their answers into your enrichment process. If they decline or type skip, proceed with reasonable assumptions and mark them clearly. If the input is `SKIP` (Score ≥ 80), stop here.
 
 1. Read the source text.
 2. **Surface assumptions immediately.** If the source contains ambiguous or incomplete requirements, list what you're assuming before writing any brief content. Format:
