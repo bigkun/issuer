@@ -222,30 +222,39 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const isBuiltIn = BUILT_IN_PLATFORMS.includes(platform);
 
   // --- Credential flow ---
+  // MCP-only platforms (e.g. jira) authenticate via the MCP server's OAuth flow.
+  // No CLI token is needed — skip the entire credential flow.
   let credentialsPath: string | undefined;
-  if (!token) {
-    const existing = findTokenSource(platform, { projectRoot: opts.cwd });
-    if (existing) {
-      console.log(`\nFound ${platform} credentials from ${existing.source}`);
-      if (!opts.nonInteractive) {
-        const useExisting = await confirm({ message: 'Use this credential?', default: true });
-        if (useExisting) token = existing.token;
-      } else {
-        token = existing.token;
+  if (!hasApiAdapter(platform)) {
+    console.log(`\nℹ '${platform}' authenticates via the MCP server — no API token required.`);
+    if (platform === 'jira') {
+      console.log('  Atlassian Rovo MCP uses OAuth 2.1 (browser-based consent).');
+      console.log('  Run once to authorise:');
+      console.log('    npx -y mcp-remote https://mcp.atlassian.com/v1/mcp');
+    }
+  } else {
+    // Built-in CLI-adapter platform: run the full token resolution flow.
+    if (!token) {
+      const existing = findTokenSource(platform, { projectRoot: opts.cwd });
+      if (existing) {
+        console.log(`\nFound ${platform} credentials from ${existing.source}`);
+        if (!opts.nonInteractive) {
+          const useExisting = await confirm({ message: 'Use this credential?', default: true });
+          if (useExisting) token = existing.token;
+        } else {
+          token = existing.token;
+        }
       }
     }
-  }
-  if (!token && !opts.nonInteractive) {
-    token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
-  }
-  // Write token to project credentials file if provided
-  if (token) {
-    const credPath = join(issuerDir, 'credentials.yml');
-    writeCredentialsFile(credPath, platform, token);
-    credentialsPath = credPath;
-    console.log(`Credentials written to ${credPath}`);
-    // Validate token only for built-in platforms (have adapters)
-    if (isBuiltIn) {
+    if (!token && !opts.nonInteractive) {
+      token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
+    }
+    // Write token to project credentials file if provided
+    if (token) {
+      const credPath = join(issuerDir, 'credentials.yml');
+      writeCredentialsFile(credPath, platform, token);
+      credentialsPath = credPath;
+      console.log(`Credentials written to ${credPath}`);
       try {
         const tempCfg: ProjectConfig = {
           platform,
@@ -265,13 +274,11 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         console.log(`⚠ Token validation failed: ${(e as Error).message}`);
       }
     } else {
-      console.log(`⚠ Token saved. Validation skipped — ${platform} uses MCP for sync.`);
+      console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
+      console.log(`  1. Environment variable: ${platform.toUpperCase()}_TOKEN`);
+      console.log(`  2. Project config: .issuer/credentials.yml`);
+      console.log(`  3. CLI command: issuer auth --token <your-token>`);
     }
-  } else {
-    console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
-    console.log(`  1. Environment variable: ${platform.toUpperCase()}_TOKEN`);
-    console.log(`  2. Project config: .issuer/credentials.yml`);
-    console.log(`  3. CLI command: issuer auth --token <your-token>`);
   }
 
   mkdirSync(join(issuerDir, 'tasks'), { recursive: true });
