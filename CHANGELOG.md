@@ -5,7 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-19
+
+### Added
+
+#### Jira Platform Support (MCP-only via Atlassian Rovo)
+- **First-class Jira platform**: `issuer init --platform jira` now prompts for Jira Cloud domain (`--owner`) and Project Key (`--repo`) with dedicated interactive flow
+- **Zero-token init**: Jira skips the entire CLI credential flow; OAuth 2.1 is handled by the Atlassian Rovo MCP Server — no API token required
+- **OAuth guidance**: `issuer init` and `issuer auth` print clear setup instructions for `mcp-remote` and Rovo OAuth consent
+- **Jira MCP tool detection**: Added Rovo MCP Server tool name patterns to heuristic capability detection (`createJiraIssue`, `updateJiraIssue`, `searchJiraIssuesWithJql`, `getJiraIssue`, plus snake_case community-server variants)
+- **CLI guards**: `issuer push`, `issuer list-remote`, and `issuer cache refresh` detect MCP-only platforms and print actionable `/issuer-sync` redirect messages instead of crashing
+- **Jira breakdown template**: Added `skills/issuer-breakdown/templates/jira.md` with best-practice Agile templates for Story (GWT acceptance criteria, DoD), Bug (Environment block, Steps to Reproduce, Impact Scope), Task (phased Implementation Steps, Technical Constraints), and Epic (Strategic Objective, Scope Boundaries, Milestones, quantified Success Metrics)
+- **Jira field mapping**: Added Jira-specific field mapping table to `skills/issuer-sync/SKILL.md` (`title→summary`, `body→description`, `type→issueType`, `repo→projectKey`, priority mapping)
+- **Jira docs**: Added Jira setup section and updated sync channel tables in both `README.md` and `README.zh-CN.md`
+
+#### Platform Registry Improvements
+- **`TEMPLATE_PLATFORMS`**: New registry constant listing platforms with dedicated built-in breakdown templates (superset of `CLI_ADAPTER_PLATFORMS`)
+- **`hasBreakdownTemplate(platform)`**: New helper — returns `true` for platforms with a built-in template file in `skills/issuer-breakdown/templates/`
+- **Cleaner `issuer init`**: Known platforms with templates (including Jira) no longer generate a generic `.issuer/templates/breakdown.md` fallback; `breakdown_template` is omitted from `config.yml`
+
+### Fixed
+
+- **`issuer auth` for MCP-only platforms**: Now exits gracefully with OAuth guidance instead of crashing on `createAdapter`
+- **Credential flow guard**: `init` now correctly skips token lookup, prompt, and write for any platform without a CLI adapter
+
+### Changed
+
+- `BUILT_IN_PLATFORMS` in `init.ts` now references `CLI_ADAPTER_PLATFORMS` directly (single source of truth)
+- Platform description in `package.json` updated to include Jira
+
+---
+
 ## [0.2.2] - 2026-05-14
+
 
 ### 🎉 Major Features
 

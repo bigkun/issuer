@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   CLI_ADAPTER_PLATFORMS,
+  TEMPLATE_PLATFORMS,
   hasApiAdapter,
+  hasBreakdownTemplate,
   formatCapabilitySummary,
   determineChannel,
   type McpCapabilities,
@@ -13,6 +15,10 @@ describe('CLI_ADAPTER_PLATFORMS', () => {
     expect(CLI_ADAPTER_PLATFORMS).toContain('gitlab');
     expect(CLI_ADAPTER_PLATFORMS).toContain('yunxiao');
     expect(CLI_ADAPTER_PLATFORMS).toContain('pingcode');
+  });
+
+  it('does NOT contain jira (MCP-only, no CLI adapter)', () => {
+    expect(CLI_ADAPTER_PLATFORMS).not.toContain('jira');
   });
 });
 
@@ -29,10 +35,35 @@ describe('hasApiAdapter', () => {
     expect(hasApiAdapter('yunxiao')).toBe(true);
   });
 
-  it('returns false for unknown platform', () => {
+  it('returns false for jira (MCP-only) and unknown platforms', () => {
     expect(hasApiAdapter('bitbucket')).toBe(false);
     expect(hasApiAdapter('jira')).toBe(false);
     expect(hasApiAdapter('custom')).toBe(false);
+  });
+});
+
+describe('TEMPLATE_PLATFORMS + hasBreakdownTemplate', () => {
+  it('TEMPLATE_PLATFORMS is a superset of CLI_ADAPTER_PLATFORMS', () => {
+    for (const p of CLI_ADAPTER_PLATFORMS) {
+      expect(TEMPLATE_PLATFORMS).toContain(p);
+    }
+  });
+
+  it('jira has a built-in template but no CLI adapter', () => {
+    expect(hasBreakdownTemplate('jira')).toBe(true);
+    expect(hasApiAdapter('jira')).toBe(false);
+  });
+
+  it('github, gitlab, yunxiao, pingcode have both adapter and template', () => {
+    for (const p of ['github', 'gitlab', 'yunxiao', 'pingcode']) {
+      expect(hasApiAdapter(p)).toBe(true);
+      expect(hasBreakdownTemplate(p)).toBe(true);
+    }
+  });
+
+  it('unknown platforms have neither adapter nor template', () => {
+    expect(hasApiAdapter('custom-pm')).toBe(false);
+    expect(hasBreakdownTemplate('custom-pm')).toBe(false);
   });
 });
 

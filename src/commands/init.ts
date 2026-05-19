@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { input, select, confirm } from '@inquirer/prompts';
 import { stringify as yamlStringify } from 'yaml';
 import { ConfigError } from '../core/errors.js';
-import { CLI_ADAPTER_PLATFORMS, hasApiAdapter, capabilitiesFromProbe, formatCapabilitySummary, formatUnsupportedPlatformMessage, type McpCapabilities, type SyncChannel } from '../adapter/registry.js';
+import { CLI_ADAPTER_PLATFORMS, hasApiAdapter, hasBreakdownTemplate, capabilitiesFromProbe, formatCapabilitySummary, formatUnsupportedPlatformMessage, type McpCapabilities, type SyncChannel } from '../adapter/registry.js';
 import { hasPlatformToken, findTokenSource, writeCredentialsFile, validateToken, DEFAULT_DEDUP_CONFIG, type ProjectConfig } from '../core/config.js';
 import { DEFAULT_TASKS_DIR } from '../core/task-store.js';
 import { createAdapter } from '../adapter/factory.js';
@@ -36,8 +36,8 @@ export interface InitResult {
   skillsPath?: string;
 }
 
-// Platforms with built-in adapters (CLI fallback available)
-const BUILT_IN_PLATFORMS = ['github', 'gitlab', 'yunxiao', 'pingcode'];
+// Platforms with built-in CLI adapters (REST API fallback available)
+const BUILT_IN_PLATFORMS = CLI_ADAPTER_PLATFORMS as readonly string[];
 
 /**
  * 检查指定 Agent 目录是否已安装 issuer skills
@@ -135,11 +135,12 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           { name: 'GitLab Issues', value: 'gitlab' },
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
           { name: 'PingCode', value: 'pingcode' },
+          { name: 'Jira (MCP via Atlassian Rovo)', value: 'jira' },
           { name: 'Other (MCP)', value: '__other__' },
         ],
       });
       if (platform === '__other__') {
-        platform = await input({ message: 'Platform name (e.g. jira, linear, asana)', required: true });
+        platform = await input({ message: 'Platform name (e.g. linear, asana)', required: true });
       }
     }
     if (platform === 'github') {
@@ -186,8 +187,24 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         repo = identifier.trim().toUpperCase();  // Convert to uppercase
       }
     }
+    if (platform === 'jira') {
+      console.log('\n☁ Jira Setup (MCP-only via Atlassian Rovo)');
+      console.log('   Sync is handled by the Atlassian Rovo MCP Server — no API token needed.');
+      console.log('   Ensure the Rovo MCP Server is configured in your AI agent (Claude, Cursor, etc.)\n');
+      if (!owner) owner = await input({
+        message: 'Jira Cloud Domain (e.g. company.atlassian.net)',
+        validate: (val) => val.trim() ? true : 'Domain is required',
+      });
+      if (!repo) {
+        const key = await input({
+          message: 'Jira Project Key (e.g. PROJ)',
+          validate: (val) => val.trim() ? true : 'Project Key is required',
+        });
+        repo = key.trim().toUpperCase();
+      }
+    }
     // Unsupported platforms: ask for owner/repo generically
-    if (!BUILT_IN_PLATFORMS.includes(platform)) {
+    if (!BUILT_IN_PLATFORMS.includes(platform) && platform !== 'jira') {
       if (!owner) owner = await input({ message: `${platform} owner / workspace / organization` });
       if (!repo) repo = await input({ message: `${platform} project / repo / space ID` });
     }
@@ -205,30 +222,39 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const isBuiltIn = BUILT_IN_PLATFORMS.includes(platform);
 
   // --- Credential flow ---
+  // MCP-only platforms (e.g. jira) authenticate via the MCP server's OAuth flow.
+  // No CLI token is needed — skip the entire credential flow.
   let credentialsPath: string | undefined;
-  if (!token) {
-    const existing = findTokenSource(platform, { projectRoot: opts.cwd });
-    if (existing) {
-      console.log(`\nFound ${platform} credentials from ${existing.source}`);
-      if (!opts.nonInteractive) {
-        const useExisting = await confirm({ message: 'Use this credential?', default: true });
-        if (useExisting) token = existing.token;
-      } else {
-        token = existing.token;
+  if (!hasApiAdapter(platform)) {
+    console.log(`\nℹ '${platform}' authenticates via the MCP server — no API token required.`);
+    if (platform === 'jira') {
+      console.log('  Atlassian Rovo MCP uses OAuth 2.1 (browser-based consent).');
+      console.log('  Run once to authorise:');
+      console.log('    npx -y mcp-remote https://mcp.atlassian.com/v1/mcp');
+    }
+  } else {
+    // Built-in CLI-adapter platform: run the full token resolution flow.
+    if (!token) {
+      const existing = findTokenSource(platform, { projectRoot: opts.cwd });
+      if (existing) {
+        console.log(`\nFound ${platform} credentials from ${existing.source}`);
+        if (!opts.nonInteractive) {
+          const useExisting = await confirm({ message: 'Use this credential?', default: true });
+          if (useExisting) token = existing.token;
+        } else {
+          token = existing.token;
+        }
       }
     }
-  }
-  if (!token && !opts.nonInteractive) {
-    token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
-  }
-  // Write token to project credentials file if provided
-  if (token) {
-    const credPath = join(issuerDir, 'credentials.yml');
-    writeCredentialsFile(credPath, platform, token);
-    credentialsPath = credPath;
-    console.log(`Credentials written to ${credPath}`);
-    // Validate token only for built-in platforms (have adapters)
-    if (isBuiltIn) {
+    if (!token && !opts.nonInteractive) {
+      token = await input({ message: `${platform} token (leave empty to configure later)`, required: false });
+    }
+    // Write token to project credentials file if provided
+    if (token) {
+      const credPath = join(issuerDir, 'credentials.yml');
+      writeCredentialsFile(credPath, platform, token);
+      credentialsPath = credPath;
+      console.log(`Credentials written to ${credPath}`);
       try {
         const tempCfg: ProjectConfig = {
           platform,
@@ -248,21 +274,22 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         console.log(`⚠ Token validation failed: ${(e as Error).message}`);
       }
     } else {
-      console.log(`⚠ Token saved. Validation skipped — ${platform} uses MCP for sync.`);
+      console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
+      console.log(`  1. Environment variable: ${platform.toUpperCase()}_TOKEN`);
+      console.log(`  2. Project config: .issuer/credentials.yml`);
+      console.log(`  3. CLI command: issuer auth --token <your-token>`);
     }
-  } else {
-    console.log(`\n⚠ No ${platform} token configured. You can set it later via:`);
-    console.log(`  1. Environment variable: ${platform.toUpperCase()}_TOKEN`);
-    console.log(`  2. Project config: .issuer/credentials.yml`);
-    console.log(`  3. CLI command: issuer auth --token <your-token>`);
   }
 
   mkdirSync(join(issuerDir, 'tasks'), { recursive: true });
   mkdirSync(join(issuerDir, 'briefs'), { recursive: true });
 
-  // --- Template setup for unsupported platforms ---
+  // --- Template setup ---
   let breakdownTemplate: string | undefined;
-  if (!isBuiltIn) {
+  if (!isBuiltIn && !hasBreakdownTemplate(platform)) {
+    // Truly unknown platform: write a generic fallback template so the agent
+    // has something to work from. Known platforms (e.g. jira) already
+    // have a dedicated built-in template in skills/issuer-breakdown/templates/.
     const templatesDir = join(issuerDir, 'templates');
     mkdirSync(templatesDir, { recursive: true });
     const templatePath = join(templatesDir, 'breakdown.md');
@@ -271,6 +298,10 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       console.log(`\nCreated generic breakdown template: ${templatePath}`);
     }
     breakdownTemplate = '.issuer/templates/breakdown.md';
+  } else if (!isBuiltIn && hasBreakdownTemplate(platform)) {
+    // Known platform with a dedicated built-in template (e.g. jira).
+    // No breakdown_template written to config; the skill resolves it automatically.
+    console.log(`\nℹ Using built-in '${platform}' breakdown template (skills/issuer-breakdown/templates/${platform}.md).`);
   }
 
   // Build mcp_capabilities from live probe or CLI adapter check

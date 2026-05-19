@@ -34,7 +34,13 @@ export function createAdapter(cfg: ProjectConfig, token: string, cwd: string): A
         projectRoot: cwd,
       });
     }
-    default:
-      throw new Error(`Unsupported platform: ${cfg.platform}`);
+    default: {
+      // MCP-only platforms (e.g. jira) have no CLI adapter by design
+      const mcpOnlyPlatforms = ['jira', 'linear', 'asana', 'notion'];
+      const mcpHint = mcpOnlyPlatforms.includes(cfg.platform)
+        ? `\n\n'${cfg.platform}' is an MCP-only platform. Use '/issuer-sync' inside your MCP-enabled AI agent (Cursor, Claude Desktop, etc.) to sync tasks.`
+        : '';
+      throw new Error(`Unsupported platform: ${cfg.platform}${mcpHint}`);
+    }
   }
 }

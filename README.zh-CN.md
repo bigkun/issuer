@@ -269,6 +269,40 @@ PingCode 支持两种访问令牌。两种都需要先创建应用：
 
 **MCP**：PingCode MCP Server 尚未推出。CLI 适配器使用 PingCode REST API，提供完整的功能覆盖（创建、更新、搜索、读取）。
 
+### Jira (仅通过 Atlassian Rovo MCP)
+
+```bash
+issuer init -y --platform jira --owner company.atlassian.net --repo PROJ
+```
+
+- `--owner` → Jira Cloud 域名（例如 `company.atlassian.net`）
+- `--repo` → Jira 项目键（Project Key，例如 `PROJ`、`MYAPP`）
+
+**同步**：Jira 是一个仅支持 MCP (MCP-only) 的平台。同步操作通过您的 AI Agent 中的 [Atlassian Rovo MCP 服务](https://mcp.atlassian.com) 执行。不需要 CLI REST API 适配器或个人访问令牌。
+
+**首次 MCP 设置** — 在您的 AI Agent 中配置 Rovo MCP 服务：
+
+```json
+{
+  "mcpServers": {
+    "atlassian-rovo": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"]
+    }
+  }
+}
+```
+
+然后运行以下命令一次以完成 OAuth 2.1 浏览器授权许可：
+
+```bash
+npx -y mcp-remote https://mcp.atlassian.com/v1/mcp
+```
+
+重启您的 Agent，然后使用 `/issuer-sync` 将任务推送到 Jira。
+
+> **注意**：Jira 不支持 `issuer push` CLI 命令。请在您的 AI Agent 内使用 `/issuer-sync` 代替。
+
 ## 支持的 Agent
 
 | Agent | 技能路径 | 说明 |
@@ -315,8 +349,9 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 |---|---|---|---|
 | GitHub | 4/4（创建、更新、搜索、读取） | ✓ 完整 4/4 | MCP 可用时用 MCP，否则用 CLI |
 | GitLab | 4/4（创建、更新、搜索、读取） | ✓ 完整 4/4 | MCP 可用时用 MCP，否则用 CLI |
-| 云效 | 3/4（创建、搜索、读取） | ✓ 完整 4/4（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
+| 云效 | 4/4（创建、更新、搜索、读取） | ✓ 完整 4/4（通过 OpenAPI） | MCP 可用时用 MCP，否则用 CLI |
 | PingCode | —（MCP 开发中） | ✓ 完整 4/4（通过 REST API） | CLI 适配器 |
+| **Jira** | **通过 Atlassian Rovo MCP 达到 4/4** | **— (仅 MCP)** | **仅 MCP 通道** |
 
 **通道选择逻辑**：
 1. **MCP 优先** — 若 MCP 已配置且满足最低要求（create + read），使用 MCP 通道
@@ -336,6 +371,7 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 | GitLab | ✓ 测试通过 | ✓ 测试通过 | 任一通道均完整 5/5 |
 | 云效 (Yunxiao) | ✓ 测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
 | PingCode | —（开发中） | ✓ 所有测试通过 | CLI 适配器提供完整功能 |
+| Jira | ✓ 通过 Atlassian Rovo MCP | — (仅 MCP) | 在 AI Agent 中使用 `/issuer-sync` 进行同步 |
 
 两个通道对各支持的平台都处于生产就绪状态。
 

@@ -119,6 +119,22 @@ For each task file with `status: ready`:
 5. Patch local file: `platform_id`, `platform_url`, `status: synced`, `updated_at`.
 6. Continue on per-task failure but record the error.
 
+### Jira-specific field mapping (Atlassian Rovo MCP)
+
+When the detected MCP tool belongs to Jira (e.g. `createJiraIssue`, `create_jira_issue`), map local task fields as follows:
+
+| Local field | Jira MCP parameter | Notes |
+|---|---|---|
+| `title` | `summary` | Required |
+| `body` (Markdown) | `description` | Rovo MCP handles ADF conversion automatically |
+| `type` (story/bug/task/epic) | `issueType` | Capitalise: Story, Bug, Task, Epic |
+| `config.repo` (Project Key) | `projectKey` | From `.issuer/config.yml` → `repo` field |
+| `labels` | `labels` | Array, pass as-is |
+| `priority` | `priority` | Map: critical→Highest, high→High, medium→Medium, low→Low |
+
+> **No Markdown-to-ADF conversion needed.** The Atlassian Rovo MCP Server accepts plain Markdown in `description` and converts it to ADF automatically.
+
+
 ## CLI channel — steps
 
 1. Run `issuer push` in the project directory with agent mode flag:
