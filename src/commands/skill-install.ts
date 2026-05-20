@@ -192,6 +192,17 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
     new Map(allDetected.map(a => [a.id, a])).values()
   );
 
+  // 排序优先度：1. Universal Agents (agents), 2. Claude Code (claude), 3. Cursor (cursor)
+  const priorityOrder = ['agents', 'claude', 'cursor'];
+  uniqueAgents.sort((a, b) => {
+    const idxA = priorityOrder.indexOf(a.id);
+    const idxB = priorityOrder.indexOf(b.id);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return 0;
+  });
+
   // 如果没有检测到任何 Agent
   if (uniqueAgents.length === 0) {
     console.log('No supported AI agent detected.');
