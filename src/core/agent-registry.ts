@@ -108,6 +108,10 @@ export const AGENT_REGISTRY: AgentConfig[] = [
     id: 'gemini',
     name: 'Gemini CLI',
     skillsDir: '.gemini/skills',
+    detectionPaths: [
+      '.gemini/skills',
+      '.gemini',
+    ],
     available: true,
   },
   {
