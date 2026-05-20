@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-20
+
+### Added
+- **Linear Platform Support**: Added full support for the Linear platform via the official Linear MCP Server.
+- **Linear Breakdown Templates**: Added Linear-specific, professional agile breakdown templates (`linear.md`) for Story, Bug, Task, and Epic issue styles.
+- **MCP Tool Heuristics for Linear**: Integrated tool patterns for Linear (`create_issue`, `update_issue`, `list_issues`, `get_issue`) in the MCP capability detector.
+- **Interactive Initialisation**: Added Linear choice in `issuer init` prompt with Workspace and Team Identifier (Team Key) auto-resolution and custom OAuth instruction hints.
+- **Dynamic Tested Platform Registry**: Integrated `linear` to avoid generating generic breakdown fallbacks.
+
+---
+
 ## [0.3.1] - 2026-05-19
 
 ### Added
