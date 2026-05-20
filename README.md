@@ -99,6 +99,7 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 | GitLab | Technical, precise | Checklist + technical notes | ❌ Optional |
 | PingCode | Structured, HTML-formatted | HTML checkbox list | ❌ Optional |
 | Jira | Agile-native, rigorous | Story (GWT/DoD) / Bug (Reproduction Steps) / Task (Phased implementation) / Epic (Milestones) | ❌ Optional (handled via Story Points) |
+| Linear | Agile-native, streamlined | Story (Problem/Solution/Scenarios) / Bug (Reproduction Steps) / Task (Implementation Steps) / Epic (Scope Boundaries/Milestones) | ❌ Optional |
 
 **Key steps:**
 1. **Parse input** — identify work items (bug/story/task/epic)
@@ -307,6 +308,40 @@ Restart your agent, then use `/issuer-sync` to push tasks to Jira.
 
 > **Note**: The `issuer push` CLI command is not supported for Jira. Use `/issuer-sync` inside your AI agent instead.
 
+### Linear (MCP-only via Linear MCP)
+
+```bash
+issuer init -y --platform linear --owner company --repo ENG
+```
+
+- `--owner` → Linear Workspace Name (e.g. `company`)
+- `--repo` → Linear Team Identifier / Team Key (e.g. `ENG`, `SWE`)
+
+**Sync**: Linear is an MCP-only platform. Sync operations are performed through the [Linear MCP Server](https://linear.app/docs/mcp) via your AI agent. No REST API adapter or personal access token is required.
+
+**First-time MCP setup** — configure the Linear MCP Server in your AI agent:
+
+```json
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+    }
+  }
+}
+```
+
+Then run the following once to complete authorization:
+
+```bash
+npx -y mcp-remote https://mcp.linear.app/mcp
+```
+
+Restart your agent, then use `/issuer-sync` to push tasks to Linear.
+
+> **Note**: The `issuer push` CLI command is not supported for Linear. Use `/issuer-sync` inside your AI agent instead.
+
 ## Supported Agents
 
 | Agent | Skills Path | Notes |
@@ -356,6 +391,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | 云效 (Yunxiao) | 4/4 (create, update, search, read) | ✓ Full 4/4 (via OpenAPI) | MCP when available, CLI otherwise |
 | PingCode | — (MCP coming soon) | ✓ Full 4/4 (via REST API) | CLI adapter |
 | **Jira** | **4/4 via Atlassian Rovo MCP** | **— (MCP only)** | **MCP channel only** |
+| **Linear** | **4/4 via Linear MCP** | **— (MCP only)** | **MCP channel only** |
 
 **Channel selection logic**:
 1. **MCP-first** — if MCP server is configured and meets minimum requirements (create + read), use MCP channel
@@ -376,6 +412,7 @@ issuer skill install  # Detects ~/.claude/skills, ~/.copilot/skills, etc.
 | 云效 (Yunxiao) | ✓ Tests pass | ✓ All tests pass | Either channel provides full capability |
 | PingCode | — (coming soon) | ✓ All tests pass | CLI adapter provides full capability |
 | Jira | ✓ Via Atlassian Rovo MCP | — (MCP only) | Sync via AI agent `/issuer-sync` |
+| Linear | ✓ Via Linear MCP | — (MCP only) | Sync via AI agent `/issuer-sync` |
 
 Both channels are production-ready for all supported platforms.
 

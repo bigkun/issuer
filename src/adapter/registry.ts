@@ -43,6 +43,7 @@ export const TEMPLATE_PLATFORMS: ReadonlyArray<string> = [
   'pingcode',
   // MCP-only platforms with dedicated templates
   'jira',
+  'linear',
 ];
 
 /**
