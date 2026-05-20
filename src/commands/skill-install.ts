@@ -227,8 +227,17 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
   if (uniqueAgents.length === 1) {
     const agent = uniqueAgents[0];
     console.log(`✓ Detected ${agent.name}`);
-    // 优先使用全局路径（用户主目录）
-    opts.targetPath = getAgentSkillsPath(agent, projectRoot, true);
+    
+    const scope = await select<'global' | 'local'>({
+      message: `Which installation scope do you prefer for ${agent.name}?`,
+      choices: [
+        { name: `User level (Global, e.g. ~/${agent.skillsDir})`, value: 'global' },
+        { name: `Workspace level (Local project, e.g. ./${agent.skillsDir})`, value: 'local' },
+      ],
+    });
+    const preferGlobal = scope === 'global';
+
+    opts.targetPath = getAgentSkillsPath(agent, projectRoot, preferGlobal);
     return runSkillInstall(opts);
   }
 
@@ -249,6 +258,15 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
     message: 'Which AI agent to install skills for?',
     choices,
   });
+
+  const scope = await select<'global' | 'local'>({
+    message: 'Which installation scope do you prefer?',
+    choices: [
+      { name: 'User level (Global, in user home directory)', value: 'global' },
+      { name: 'Workspace level (Local project, in current project directory)', value: 'local' },
+    ],
+  });
+  const preferGlobal = scope === 'global';
   
   if (selected === 'all') {
     // 安装到所有检测到的 Agent
@@ -256,8 +274,7 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
     let lastTarget = '';
       
     for (const agent of uniqueAgents) {
-      // 优先使用全局路径（用户主目录）
-      const agentPath = getAgentSkillsPath(agent, projectRoot, true);
+      const agentPath = getAgentSkillsPath(agent, projectRoot, preferGlobal);
       const result = await runSkillInstall({
         ...opts,
         targetPath: agentPath,
@@ -271,8 +288,7 @@ export async function runSkillInstallInteractive(opts: SkillInstallOptions): Pro
       installed: allInstalled,
     };
   } else {
-    // 安装到选中的 Agent，优先使用全局路径
-    opts.targetPath = getAgentSkillsPath(selected, projectRoot, true);
+    opts.targetPath = getAgentSkillsPath(selected, projectRoot, preferGlobal);
     return runSkillInstall(opts);
   }
 }
