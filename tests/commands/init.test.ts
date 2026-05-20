@@ -113,4 +113,23 @@ describe('runInit', () => {
       runInit({ cwd, platform: 'github', nonInteractive: true }),
     ).rejects.toThrow(/required/);
   });
+
+  it('writes mcp_capabilities for linear with mcp channel when live probe is successful', async () => {
+    await runInit({
+      cwd,
+      platform: 'linear',
+      owner: 'myworkspace',
+      repo: 'ENG',
+      nonInteractive: true,
+      probedTools: ['create_issue', 'update_issue', 'list_issues', 'get_issue'],
+    });
+    const raw = yamlParse(readFileSync(join(cwd, '.issuer', 'config.yml'), 'utf8')) as Record<string, unknown>;
+    const mc = raw.mcp_capabilities as Record<string, unknown>;
+    expect(mc.channel).toBe('mcp');
+    const caps = mc.capabilities as Record<string, boolean>;
+    expect(caps.create).toBe(true);
+    expect(caps.read).toBe(true);
+    expect(caps.update).toBe(true);
+    expect(caps.search).toBe(true);
+  });
 });

@@ -90,6 +90,13 @@ const PLATFORM_TOOL_PATTERNS: Record<string, Record<McpCapability, string[]>> = 
     search: ['searchJiraIssues', 'search_jira_issues', 'searchJiraIssuesWithJql', 'search_issues'],
     read:   ['getJiraIssue', 'get_jira_issue', 'get_issue'],
   },
+  // Linear MCP Server tools
+  linear: {
+    create: ['create_issue', 'createIssue'],
+    update: ['update_issue', 'updateIssue'],
+    search: ['list_issues', 'search_issues', 'listIssues', 'searchIssues'],
+    read:   ['get_issue', 'getIssue'],
+  },
 };
 
 /**

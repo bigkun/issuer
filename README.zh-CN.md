@@ -305,6 +305,40 @@ npx -y mcp-remote https://mcp.atlassian.com/v1/mcp
 
 > **注意**：Jira 不支持 `issuer push` CLI 命令。请在您的 AI Agent 内使用 `/issuer-sync` 代替。
 
+### Linear (仅通过 Linear MCP 服务)
+
+```bash
+issuer init -y --platform linear --owner company --repo ENG
+```
+
+- `--owner` → Linear 工作区名称（Workspace Name，例如 `company`）
+- `--repo` → Linear 团队标识符（Team Identifier / Team Key，例如 `ENG`、`SWE`）
+
+**同步**：Linear 是一个仅支持 MCP (MCP-only) 的平台。同步操作通过您的 AI Agent 中的 [Linear MCP 服务](https://linear.app/docs/mcp) 执行。不需要 CLI REST API 适配器或个人访问令牌。
+
+**首次 MCP 设置** — 在您的 AI Agent 中配置 Linear MCP 服务：
+
+```json
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+    }
+  }
+}
+```
+
+然后运行以下命令一次以完成授权许可：
+
+```bash
+npx -y mcp-remote https://mcp.linear.app/mcp
+```
+
+重启您的 Agent，然后使用 `/issuer-sync` 将任务推送到 Linear。
+
+> **注意**：Linear 不支持 `issuer push` CLI 命令。请在您的 AI Agent 内使用 `/issuer-sync` 代替。
+
 ## 支持的 Agent
 
 | Agent | 技能路径 | 说明 |
@@ -374,6 +408,7 @@ issuer skill install  # 检测 ~/.claude/skills, ~/.copilot/skills 等
 | 云效 (Yunxiao) | ✓ 测试通过 | ✓ 所有测试通过 | 任一通道均完整 5/5 |
 | PingCode | —（开发中） | ✓ 所有测试通过 | CLI 适配器提供完整功能 |
 | Jira | ✓ 通过 Atlassian Rovo MCP | — (仅 MCP) | 在 AI Agent 中使用 `/issuer-sync` 进行同步 |
+| Linear | ✓ 通过 官方 Linear MCP 服务 | — (仅 MCP) | 官方远程 MCP 支持 OAuth 或 API Key 认证 |
 
 两个通道对各支持的平台都处于生产就绪状态。
 

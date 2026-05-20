@@ -136,6 +136,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           { name: '云效 (Yunxiao)', value: 'yunxiao' },
           { name: 'PingCode', value: 'pingcode' },
           { name: 'Jira (MCP via Atlassian Rovo)', value: 'jira' },
+          { name: 'Linear (MCP)', value: 'linear' },
           { name: 'Other (MCP)', value: '__other__' },
         ],
       });
@@ -203,8 +204,24 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         repo = key.trim().toUpperCase();
       }
     }
+    if (platform === 'linear') {
+      console.log('\n☁ Linear Setup (MCP-only)');
+      console.log('   Sync is handled by the Linear MCP Server.');
+      console.log('   Ensure the Linear MCP Server is configured in your AI agent.\n');
+      if (!owner) owner = await input({
+        message: 'Linear Workspace Name (e.g. company)',
+        validate: (val) => val.trim() ? true : 'Workspace name is required',
+      });
+      if (!repo) {
+        const key = await input({
+          message: 'Linear Team Identifier (Team Key, e.g. ENG)',
+          validate: (val) => val.trim() ? true : 'Team Identifier is required',
+        });
+        repo = key.trim().toUpperCase();
+      }
+    }
     // Unsupported platforms: ask for owner/repo generically
-    if (!BUILT_IN_PLATFORMS.includes(platform) && platform !== 'jira') {
+    if (!BUILT_IN_PLATFORMS.includes(platform) && platform !== 'jira' && platform !== 'linear') {
       if (!owner) owner = await input({ message: `${platform} owner / workspace / organization` });
       if (!repo) repo = await input({ message: `${platform} project / repo / space ID` });
     }
@@ -231,6 +248,11 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       console.log('  Atlassian Rovo MCP uses OAuth 2.1 (browser-based consent).');
       console.log('  Run once to authorise:');
       console.log('    npx -y mcp-remote https://mcp.atlassian.com/v1/mcp');
+    }
+    if (platform === 'linear') {
+      console.log('  Linear MCP supports OAuth 2.1 (dynamic client registration) or personal API key.');
+      console.log('  Run once to authorise:');
+      console.log('    npx -y mcp-remote https://mcp.linear.app/mcp');
     }
   } else {
     // Built-in CLI-adapter platform: run the full token resolution flow.
