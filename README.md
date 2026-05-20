@@ -98,6 +98,7 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 | GitHub | Casual, developer-friendly | Markdown checklist | ❌ Optional |
 | GitLab | Technical, precise | Checklist + technical notes | ❌ Optional |
 | PingCode | Structured, HTML-formatted | HTML checkbox list | ❌ Optional |
+| Jira | Agile-native, rigorous | Story (GWT/DoD) / Bug (Reproduction Steps) / Task (Phased implementation) / Epic (Milestones) | ❌ Optional (handled via Story Points) |
 
 **Key steps:**
 1. **Parse input** — identify work items (bug/story/task/epic)
@@ -107,7 +108,7 @@ Reads raw text (or a refined brief) and emits one Markdown file per work item.
 
 **Custom templates** (optional):
 
-Built-in platforms use platform-specific templates from `skills/issuer-breakdown/templates/`. For unsupported platforms or custom workflows:
+Platforms with built-in templates (GitHub, GitLab, Yunxiao, PingCode, Jira) use highly tailored, optimized platform-specific templates directly from `skills/issuer-breakdown/templates/`. For entirely unknown/unsupported platforms or custom workflows:
 
 ```bash
 # Create custom template
@@ -442,7 +443,7 @@ Each task file is YAML frontmatter + Markdown body. See [docs/plans/2026-05-06-i
 
 ## Status
 
-MVP. GitHub, GitLab, 云效 (Yunxiao), PingCode.
+MVP. GitHub, GitLab, 云效 (Yunxiao), PingCode, Jira.
 
 ## License
 

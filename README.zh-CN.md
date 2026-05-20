@@ -97,6 +97,8 @@ Agent 将：
 | 云效 (Yunxiao) | 正式、结构化 | Given-When-Then 格式 | ✅ 必需 |
 | GitHub | 随意、开发者友好 | Markdown 复选框 | ❌ 可选 |
 | GitLab | 技术、精确 | 复选框 + 技术说明 | ❌ 可选 |
+| PingCode | 结构化、HTML 格式化 | HTML 复选框列表 | ❌ 可选 |
+| Jira | 敏捷原生、严谨 | Story (GWT/DoD) / Bug (重现步骤) / Task (分阶段实施) / Epic (里程碑) | ❌ 可选（使用故事点单独估算） |
 
 **关键步骤：**
 1. **解析输入** — 识别工作项（bug/story/task/epic）
@@ -106,7 +108,7 @@ Agent 将：
 
 **自定义模板**（可选）：
 
-内置平台使用 `skills/issuer-breakdown/templates/` 中的平台特定模板。对于未内置的平台或自定义工作流：
+内置了模板的平台（GitHub、GitLab、云效、PingCode、Jira）会直接使用 `skills/issuer-breakdown/templates/` 中高度定制且经过优化的平台特定模板。对于完全未知的、不支持的平台或需要自定义的工作流：
 
 ```bash
 # 创建自定义模板
@@ -439,7 +441,7 @@ Issuer 使用启发式功能检测，通过关键字匹配：
 
 ## 状态
 
-MVP。支持 GitHub、GitLab、云效 (Yunxiao)、PingCode。
+MVP。支持 GitHub、GitLab、云效 (Yunxiao)、PingCode、Jira。
 
 ## 许可证
 
